@@ -20,6 +20,7 @@ const EVADE_W = 120;
 const EVADE_H = 6;
 
 const css = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`;
+const FIGHTER_COLOR = css(palette.fighter);
 const KIND_COLOR: Record<TargetKind, string> = {
   static: css(palette.enemyStatic),
   drone: css(palette.enemy),
@@ -72,23 +73,37 @@ export function createHud(container: HTMLElement): Hud {
     const view = viewSize(cam.view, cam.aspect);
     const center = { x: cam.x + cam.shakeX, y: cam.y + cam.shakeY };
     const cfg = world.tuning.hud;
-    for (const t of world.targets) {
-      if (!t.alive) continue;
-      if (!edgeIndicator(indicator, t, center, view, screen, cfg.edgeMargin)) continue;
+    const arrow = (
+      t: { x: number; y: number; radius: number },
+      color: string,
+      notched: boolean,
+    ): void => {
+      if (!edgeIndicator(indicator, t, center, view, screen, cfg.edgeMargin)) return;
       const { size, opacity } = distanceStyle(indicator.distance, cfg);
       g.save();
       g.translate(indicator.x, indicator.y);
       g.rotate(indicator.angle);
       g.globalAlpha = opacity;
-      g.fillStyle = KIND_COLOR[t.kind];
+      g.fillStyle = color;
       g.beginPath();
-      g.moveTo(size, 0);
-      g.lineTo(-size * 0.6, size * 0.65);
-      g.lineTo(-size * 0.6, -size * 0.65);
+      if (notched) {
+        // Enemy fighters: a larger arrow with a notched tail, so they read apart from drones and turrets.
+        const s = size * 1.25;
+        g.moveTo(s, 0);
+        g.lineTo(-s * 0.7, s * 0.8);
+        g.lineTo(-s * 0.25, 0);
+        g.lineTo(-s * 0.7, -s * 0.8);
+      } else {
+        g.moveTo(size, 0);
+        g.lineTo(-size * 0.6, size * 0.65);
+        g.lineTo(-size * 0.6, -size * 0.65);
+      }
       g.closePath();
       g.fill();
       g.restore();
-    }
+    };
+    for (const t of world.targets) if (t.alive) arrow(t, KIND_COLOR[t.kind], false);
+    for (const f of world.fighters) if (f.alive) arrow(f, FIGHTER_COLOR, true);
   }
 
   function drawFlight(world: World): void {

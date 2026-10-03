@@ -149,7 +149,7 @@ export function stepWorld(world: World, dt: number): void {
     dt,
   );
   stepMissiles(world); // prototype 2 (A2): salvo launch, motion and hits
-  stepBullets(world.bullets, world.targets, tuning.weapons, world.events, dt);
+  stepBullets(world.bullets, world.targets, tuning.weapons, world.events, dt, world.fighters);
   world.stats.kills += resolveKills(world.targets, tuning.arena, world.events);
   stepTargets(
     world.targets,

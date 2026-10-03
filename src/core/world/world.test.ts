@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
+import { spawnFighter } from '../ai/waves';
 import { livingWingmen } from '../squadron/squadron';
 import { createWorld, stepWorld } from './world';
 
@@ -46,7 +47,9 @@ it('keeps the best trial time across respawns and starts from a saved best', () 
 });
 
 it('Prototype 2 slots exist and start empty, and respawn clears them', () => {
-  const world = createWorld(3, createTuning());
+  const tuning = createTuning();
+  tuning.fighter.waveSize = 0; // otherwise a wave arrives in the very step that respawns
+  const world = createWorld(3, tuning);
   expect(world.lockon.locks).toEqual([]);
   expect(world.missiles.count).toBe(0);
   expect(world.fighters).toEqual([]);
@@ -54,7 +57,7 @@ it('Prototype 2 slots exist and start empty, and respawn clears them', () => {
   expect(livingWingmen(world.squadron)).toBe(0);
   world.lockon.locks.push(4);
   world.missiles.spawn();
-  world.fighters.push({ x: 0, y: 0, vx: 0, vy: 0, radius: 20, hp: 1, alive: true });
+  spawnFighter(world, 0, 0, 0);
   world.squadron.formation = 'spread';
   world.actions.respawn = true;
   stepWorld(world, 1 / 60);

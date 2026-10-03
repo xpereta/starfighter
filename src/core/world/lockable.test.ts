@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
+import { spawnFighter } from '../ai/waves';
 import { FIGHTER_ID_BASE, forEachLockable, getLockable } from './lockable';
 import { createWorld } from './world';
 
 describe('lockable ids', () => {
   const world = createWorld(1, createTuning());
-  world.fighters.push({ x: 10, y: 20, vx: 1, vy: 2, radius: 28, hp: 3, alive: true });
-  world.fighters.push({ x: 99, y: 99, vx: 0, vy: 0, radius: 28, hp: 0, alive: false });
+  spawnFighter(world, 10, 20, 0);
+  const dead = spawnFighter(world, 99, 99, 0);
+  world.fighters[dead]!.alive = false;
 
   it('visits living targets by index and living fighters from FIGHTER_ID_BASE', () => {
     const ids: number[] = [];
