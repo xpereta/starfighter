@@ -159,19 +159,38 @@ export function createPanel(world: World): Panel {
   root.style.setProperty('--panel-opacity', String(ui.opacity));
 
   // Tuning sections, generated from the parameter definitions.
-  const names = ['Flight', 'Evade', 'Guns', 'Camera'] as const;
-  const sections = Object.fromEntries(names.map((n) => [n, section(n, n === 'Flight')])) as Record<
-    (typeof names)[number],
-    Section
-  >;
+  // Prototype 2 groups get a section of their own, created only once they have parameters.
+  const groupSection: Partial<Record<TunedGroup, string>> = {
+    lockon: 'Lock-on',
+    missiles: 'Missiles',
+    fighter: 'Enemy fighter',
+    squadron: 'Wingmen',
+  };
+  const names = [
+    'Flight',
+    'Evade',
+    'Guns',
+    'Camera',
+    ...TUNED_GROUPS.flatMap((g) => {
+      const n = groupSection[g];
+      const visible = Object.keys(tuningParams[g]).filter((k) => !RELOAD_ONLY.has(k));
+      const hasRows = visible.length + Object.keys(TOGGLES[g]).length > 0;
+      return n && hasRows ? [n] : [];
+    }),
+  ];
+  const sections: Record<string, Section> = Object.fromEntries(
+    names.map((n) => [n, section(n, n === 'Flight')]),
+  );
   for (const n of names) {
-    root.append(sections[n].el);
-    paramSections.push(sections[n]);
+    root.append(sections[n]!.el);
+    paramSections.push(sections[n]!);
   }
   const sectionOf = (group: TunedGroup, key: string): Section => {
-    if (group === 'weapons') return sections.Guns;
-    if (group === 'camera') return sections.Camera;
-    return key.startsWith('evade') ? sections.Evade : sections.Flight;
+    const own = groupSection[group];
+    if (own) return sections[own]!;
+    if (group === 'weapons') return sections.Guns!;
+    if (group === 'camera') return sections.Camera!;
+    return key.startsWith('evade') ? sections.Evade! : sections.Flight!;
   };
 
   for (const group of TUNED_GROUPS) {

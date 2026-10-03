@@ -174,3 +174,21 @@ describe('parseReplay', () => {
     ).toThrow(/bad value/);
   });
 });
+
+describe('prototype 2 state in the hash', () => {
+  it('changes when lock, missile, fighter or squadron state changes', () => {
+    const world = createWorld(1, createTuning());
+    const base = hashWorld(world);
+    world.lockon.locks.push(3);
+    const withLock = hashWorld(world);
+    expect(withLock).not.toBe(base);
+    world.missiles.spawn();
+    const withMissile = hashWorld(world);
+    expect(withMissile).not.toBe(withLock);
+    world.fighters.push({ x: 1, y: 2, vx: 0, vy: 0, radius: 28, hp: 3, alive: true });
+    const withFighter = hashWorld(world);
+    expect(withFighter).not.toBe(withMissile);
+    world.squadron.formation = 'spread';
+    expect(hashWorld(world)).not.toBe(withFighter);
+  });
+});

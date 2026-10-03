@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
+import { livingWingmen } from '../squadron/squadron';
 import { createWorld, stepWorld } from './world';
 
 it('advances tick and time and clears events each step', () => {
@@ -42,4 +43,31 @@ it('keeps the best trial time across respawns and starts from a saved best', () 
   world.actions.respawn = true;
   stepWorld(world, 1 / 60);
   expect(world.trial.best).toBe(33.3);
+});
+
+it('Prototype 2 slots exist and start empty, and respawn clears them', () => {
+  const world = createWorld(3, createTuning());
+  expect(world.lockon.locks).toEqual([]);
+  expect(world.missiles.count).toBe(0);
+  expect(world.fighters).toEqual([]);
+  expect(world.squadron.wingmen).toEqual([]);
+  expect(livingWingmen(world.squadron)).toBe(0);
+  world.lockon.locks.push(4);
+  world.missiles.spawn();
+  world.fighters.push({ x: 0, y: 0, vx: 0, vy: 0, radius: 20, hp: 1, alive: true });
+  world.squadron.formation = 'spread';
+  world.actions.respawn = true;
+  stepWorld(world, 1 / 60);
+  expect(world.lockon.locks).toEqual([]);
+  expect(world.missiles.count).toBe(0);
+  expect(world.fighters).toEqual([]);
+  expect(world.squadron.formation).toBe('tight');
+});
+
+it('the new buttons are edge-tracked at the end of the step', () => {
+  const world = createWorld(3, createTuning());
+  world.actions.launch = true;
+  expect(world.prev.launch).toBe(false);
+  stepWorld(world, 1 / 60);
+  expect(world.prev.launch).toBe(true); // modules saw prev=false during the step that pressed it
 });

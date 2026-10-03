@@ -2,13 +2,21 @@ import { tuningParams, tuningToggles, type Tuning } from '../../data/tuning';
 import { validateParam, type ParamDef } from '../core/params/params';
 
 /** Groups the panel tunes, and the non-numeric toggles inside them. */
-export const TUNED_GROUPS = ['flight', 'camera', 'weapons'] as const;
+export const TUNED_GROUPS = [
+  'flight',
+  'camera',
+  'weapons',
+  'lockon',
+  'missiles',
+  'fighter',
+  'squadron',
+] as const;
 export type TunedGroup = (typeof TUNED_GROUPS)[number];
 
 export const TOGGLES = tuningToggles;
 
 /** Pools are sized when the world is created, so these only take effect after a reload. */
-export const RELOAD_ONLY = new Set(['bulletCap']);
+export const RELOAD_ONLY = new Set(['bulletCap', 'missileCap']);
 
 const FORMAT = 'starfighter-tuning';
 export const PRESET_VERSION = 1;

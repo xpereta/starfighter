@@ -1,8 +1,11 @@
 import type { Tuning } from '../../../data/tuning';
+import { stepFighters, stepWaves, type Fighter } from '../ai/fighters';
 import { createCamera, stepCamera, type Camera } from '../camera/camera';
 import { createEventQueue, type EventQueue } from '../events/events';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
+import { createLockOn, stepLockOn, type LockOn } from '../lockon/lockon';
 import { createRng, type Rng } from '../rng/rng';
+import { createSquadron, stepSquadron, type Squadron } from '../squadron/squadron';
 import {
   createBulletPool,
   createGunState,
@@ -11,6 +14,7 @@ import {
   type BulletPool,
   type GunState,
 } from '../weapons/guns';
+import { createMissilePool, stepMissiles, type MissilePool } from '../weapons/missiles';
 import { createActions, type Actions } from './actions';
 import {
   createEnemyShotPool,
@@ -39,10 +43,22 @@ export interface World {
   readonly enemyShots: EnemyShotPool;
   /** Arena targets: static drones, moving drones, turrets. */
   readonly targets: Target[];
+  /** Prototype 2: lock set, missiles, enemy fighters and the squadron (see docs/specs/prototype-2-squadron.md). */
+  readonly lockon: LockOn;
+  readonly missiles: MissilePool;
+  readonly fighters: Fighter[];
+  readonly squadron: Squadron;
   readonly trial: Trial;
   readonly stats: { kills: number; hitsTaken: number };
   /** Previous-step button states, for edge-triggered actions. */
-  readonly prev: { respawn: boolean; startTrial: boolean };
+  readonly prev: {
+    respawn: boolean;
+    startTrial: boolean;
+    /** The prototype 2 buttons: modules read `actions.x && !prev.x`; `prev` is updated at the END of the step. */
+    launch: boolean;
+    attackOrder: boolean;
+    cycleFormation: boolean;
+  };
   /** Fixed steps simulated so far. */
   tick: number;
   /** Simulated seconds (tick * dt). */
@@ -69,9 +85,19 @@ export function createWorld(
     bullets: createBulletPool(tuning.weapons),
     enemyShots: createEnemyShotPool(tuning.arena),
     targets: createTargets(tuning.arena, rng),
+    lockon: createLockOn(),
+    missiles: createMissilePool(tuning.missiles),
+    fighters: [],
+    squadron: createSquadron(),
     trial: createTrial(bestTrialTime),
     stats: { kills: 0, hitsTaken: 0 },
-    prev: { respawn: false, startTrial: false },
+    prev: {
+      respawn: false,
+      startTrial: false,
+      launch: false,
+      attackOrder: false,
+      cycleFormation: false,
+    },
     tick: 0,
     time: 0,
   };
@@ -85,6 +111,10 @@ export function resetWorld(world: World): void {
   world.bullets.clear();
   world.enemyShots.clear();
   world.targets.splice(0, world.targets.length, ...createTargets(tuning.arena, world.rng));
+  world.missiles.clear();
+  Object.assign(world.lockon, createLockOn());
+  Object.assign(world.squadron, createSquadron());
+  world.fighters.length = 0;
   world.trial.active = false;
   world.trial.time = 0;
   const aspect = world.camera.aspect;
@@ -105,6 +135,9 @@ export function stepWorld(world: World, dt: number): void {
   prev.startTrial = actions.startTrial;
 
   stepFlight(world.ship, actions, tuning.flight, world.events, dt);
+  stepFighters(world); // prototype 2 (B1): enemy fighters
+  stepSquadron(world); // prototype 2 (B2/B3): wingmen and orders
+  stepLockOn(world); // prototype 2 (A1): lock set
   stepGuns(
     world.guns,
     world.bullets,
@@ -115,6 +148,7 @@ export function stepWorld(world: World, dt: number): void {
     world.events,
     dt,
   );
+  stepMissiles(world); // prototype 2 (A2): salvo launch, motion and hits
   stepBullets(world.bullets, world.targets, tuning.weapons, world.events, dt);
   world.stats.kills += resolveKills(world.targets, tuning.arena, world.events);
   stepTargets(
@@ -134,6 +168,7 @@ export function stepWorld(world: World, dt: number): void {
     world.events,
     dt,
   );
+  stepWaves(world); // prototype 2 (B1): next wave of enemy fighters
   stepTrial(world.trial, world.targets, dt);
   // Camera runs last so it sees this step's events (shake) and final ship state.
   stepCamera(
@@ -145,4 +180,7 @@ export function stepWorld(world: World, dt: number): void {
     world.time,
     dt,
   );
+  prev.launch = actions.launch;
+  prev.attackOrder = actions.attackOrder;
+  prev.cycleFormation = actions.cycleFormation;
 }

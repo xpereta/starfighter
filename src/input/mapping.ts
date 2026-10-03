@@ -6,10 +6,13 @@ export interface GamepadSnapshot {
   readonly buttons: readonly { readonly value: number; readonly pressed: boolean }[];
 }
 
-/** Standard-mapping indices: A = 0, X = 2, Y = 3, Start = 9, LT = 6, RT = 7, left stick = axes 0/1. */
+/** Standard-mapping indices: A = 0, B = 1, X = 2, Y = 3, LB = 4, RB = 5, Start = 9, LT = 6, RT = 7, left stick = axes 0/1. */
 const BTN_FIRE = 0;
 const BTN_EVADE = 2;
+const BTN_LAUNCH = 1; // B
 const BTN_RESPAWN = 3; // Y
+const BTN_FORMATION = 4; // LB
+const BTN_ORDER = 5; // RB
 const BTN_TRIAL = 9; // Start
 const BTN_LT = 6;
 const BTN_RT = 7;
@@ -38,6 +41,9 @@ export function mapGamepad(pad: GamepadSnapshot, deadzone: number): Actions {
     evade: pad.buttons[BTN_EVADE]?.pressed ?? false,
     respawn: pad.buttons[BTN_RESPAWN]?.pressed ?? false,
     startTrial: pad.buttons[BTN_TRIAL]?.pressed ?? false,
+    launch: pad.buttons[BTN_LAUNCH]?.pressed ?? false,
+    attackOrder: pad.buttons[BTN_ORDER]?.pressed ?? false,
+    cycleFormation: pad.buttons[BTN_FORMATION]?.pressed ?? false,
   };
 }
 
@@ -54,6 +60,9 @@ export function mapKeyboard(codes: ReadonlySet<string>): Actions {
     evade: codes.has('ShiftLeft') || codes.has('ShiftRight'),
     respawn: codes.has('KeyR'),
     startTrial: codes.has('KeyT'),
+    launch: codes.has('KeyE'),
+    attackOrder: codes.has('KeyF'),
+    cycleFormation: codes.has('KeyQ'),
   };
 }
 
@@ -70,6 +79,9 @@ export function mergeActions(a: Actions, b: Actions): Actions {
     evade: a.evade || b.evade,
     respawn: a.respawn || b.respawn,
     startTrial: a.startTrial || b.startTrial,
+    launch: a.launch || b.launch,
+    attackOrder: a.attackOrder || b.attackOrder,
+    cycleFormation: a.cycleFormation || b.cycleFormation,
   };
 }
 

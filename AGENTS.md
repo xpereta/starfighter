@@ -20,7 +20,7 @@ Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 ## Module map
 
 ```
-src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/
+src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ squadron/
 src/render/    Three.js renderer (orthographic); reads core state
 src/input/     gamepad + keyboard -> actions
 src/dev/       tuning panel, debug overlays (dev builds only)

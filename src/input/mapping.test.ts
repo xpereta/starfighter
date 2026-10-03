@@ -60,6 +60,9 @@ describe('mapKeyboard', () => {
       evade: true,
       respawn: false,
       startTrial: false,
+      launch: false,
+      attackOrder: false,
+      cycleFormation: false,
     });
     expect(mapKeyboard(new Set(['ArrowLeft', 'ArrowDown'])).rotate).toBe(-1);
   });
@@ -75,6 +78,15 @@ describe('mapKeyboard', () => {
     expect(a.respawn && a.startTrial).toBe(true);
     const p = mapGamepad(pad([0, 0], { 3: 1, 9: 1 }), 0.15);
     expect(p.respawn && p.startTrial).toBe(true);
+  });
+
+  it('maps E to launch, F to attack order and Q to cycle formation (B, RB, LB on a pad)', () => {
+    const k = mapKeyboard(new Set(['KeyE', 'KeyF', 'KeyQ']));
+    expect([k.launch, k.attackOrder, k.cycleFormation]).toEqual([true, true, true]);
+    const p = mapGamepad(pad([0, 0], { 1: 1, 5: 1, 4: 1 }), 0.15);
+    expect([p.launch, p.attackOrder, p.cycleFormation]).toEqual([true, true, true]);
+    const none = mapKeyboard(new Set(['KeyW']));
+    expect([none.launch, none.attackOrder, none.cycleFormation]).toEqual([false, false, false]);
   });
 
   it('gives neutral actions with nothing pressed', () => {
@@ -95,6 +107,9 @@ describe('mergeActions', () => {
       evade: true,
       respawn: false,
       startTrial: false,
+      launch: false,
+      attackOrder: false,
+      cycleFormation: false,
     });
   });
 });
