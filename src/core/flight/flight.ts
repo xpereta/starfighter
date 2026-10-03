@@ -1,5 +1,6 @@
 import type { FlightConfig } from '../../../data/tuning/flight';
-import { clamp, DEG, lerp, wrapAngle } from '../math';
+import type { EventQueue } from '../events/events';
+import { clamp, DEG, lerp, TAU, wrapAngle } from '../math';
 import type { Actions } from '../world/actions';
 import { sampleCurve } from './curve';
 
@@ -18,6 +19,16 @@ export interface Ship {
   outside: boolean;
   /** Set by evade (i-frames); enemy shots pass through while true. */
   invulnerable: boolean;
+  /** Seconds left in the current evade (0 = not evading). */
+  evadeTimer: number;
+  /** Seconds until evade is available again (HUD shows this). */
+  evadeCooldown: number;
+  /** -1 right, +1 left of the nose. */
+  evadeSide: -1 | 1;
+  /** Roll angle for the renderer to squash the silhouette, radians (0 when not evading). */
+  roll: number;
+  /** Evade is edge-triggered: the button must be released and pressed again. */
+  evadeHeld: boolean;
 }
 
 export function createShip(cfg: FlightConfig): Ship {
@@ -31,6 +42,11 @@ export function createShip(cfg: FlightConfig): Ship {
     vy: 0,
     outside: false,
     invulnerable: false,
+    evadeTimer: 0,
+    evadeCooldown: 0,
+    evadeSide: 1,
+    roll: 0,
+    evadeHeld: false,
   };
 }
 
@@ -77,11 +93,57 @@ function desiredOmega(ship: Ship, actions: Actions, cfg: FlightConfig, maxTurn: 
   return 0;
 }
 
-export function stepFlight(ship: Ship, actions: Actions, cfg: FlightConfig, dt: number): void {
+/** Which side to evade toward: the stick/rotate side, else left. */
+function evadeSide(ship: Ship, actions: Actions, cfg: FlightConfig): -1 | 1 {
+  const rotate =
+    actions.rotate !== 0 ? actions.rotate : cfg.steering === 'rotate' ? actions.steerX : 0;
+  if (rotate !== 0) return Math.abs(rotate) > cfg.evadeStickThreshold ? (rotate > 0 ? -1 : 1) : 1;
+  if (
+    cfg.steering === 'point' &&
+    Math.hypot(actions.steerX, actions.steerY) > cfg.evadeStickThreshold
+  ) {
+    // Cross product of the nose and the stick: positive = stick is to the left of the nose.
+    const cross = Math.cos(ship.heading) * actions.steerY - Math.sin(ship.heading) * actions.steerX;
+    return cross >= 0 ? 1 : -1;
+  }
+  return 1;
+}
+
+function stepEvade(
+  ship: Ship,
+  actions: Actions,
+  cfg: FlightConfig,
+  events: EventQueue,
+  dt: number,
+): void {
+  ship.evadeCooldown = Math.max(0, ship.evadeCooldown - dt);
+  if (actions.evade && !ship.evadeHeld && ship.evadeCooldown <= 0 && ship.evadeTimer <= 0) {
+    ship.evadeTimer = cfg.evadeTime;
+    ship.evadeCooldown = cfg.evadeCooldown;
+    ship.evadeSide = evadeSide(ship, actions, cfg);
+    events.emit({ type: 'EvadeStarted', x: ship.x, y: ship.y, side: ship.evadeSide });
+  }
+  ship.evadeHeld = actions.evade;
+  const evading = ship.evadeTimer > 0;
+  const elapsed = cfg.evadeTime - ship.evadeTimer;
+  ship.invulnerable = evading && elapsed < cfg.evadeIFrames;
+  ship.roll = evading ? (elapsed / cfg.evadeTime) * TAU * ship.evadeSide : 0;
+}
+
+export function stepFlight(
+  ship: Ship,
+  actions: Actions,
+  cfg: FlightConfig,
+  events: EventQueue,
+  dt: number,
+): void {
+  stepEvade(ship, actions, cfg, events, dt);
+  const evading = ship.evadeTimer > 0;
   stepThrottle(ship, actions.throttle, cfg, dt);
 
   ship.outside = Math.hypot(ship.x, ship.y) > cfg.arenaRadius;
-  const maxTurn = turnRateLimit(cfg, ship.speed);
+  let maxTurn = turnRateLimit(cfg, ship.speed);
+  if (evading && !cfg.evadeSidestep) maxTurn *= cfg.evadeBreakTurnBoost;
   const target = desiredOmega(ship, actions, cfg, maxTurn);
   const maxStep = cfg.turnAccel * DEG * dt;
   ship.omega += clamp(target - ship.omega, -maxStep, maxStep);
@@ -93,8 +155,16 @@ export function stepFlight(ship: Ship, actions: Actions, cfg: FlightConfig, dt: 
   const velocityAngle = Math.atan2(ship.vy, ship.vx);
   const newAngle =
     velocityAngle + wrapAngle(ship.heading - velocityAngle) * (1 - Math.exp(-grip * dt));
-  ship.vx = Math.cos(newAngle) * ship.speed;
-  ship.vy = Math.sin(newAngle) * ship.speed;
+  const speed = ship.speed * (evading ? 1 + cfg.evadeSpeedBonus : 1);
+  ship.vx = Math.cos(newAngle) * speed;
+  ship.vy = Math.sin(newAngle) * speed;
   ship.x += ship.vx * dt;
   ship.y += ship.vy * dt;
+  if (evading && cfg.evadeSidestep) {
+    // Sidestep: a steady lateral slide that adds up to `evadeOffset` over the evade.
+    const lateral = (cfg.evadeOffset / cfg.evadeTime) * ship.evadeSide * dt;
+    ship.x -= Math.sin(ship.heading) * lateral;
+    ship.y += Math.cos(ship.heading) * lateral;
+  }
+  ship.evadeTimer = Math.max(0, ship.evadeTimer - dt);
 }

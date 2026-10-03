@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createFlightConfig, type FlightConfig } from '../../../data/tuning/flight';
+import { createEventQueue, type EventQueue } from '../events/events';
 import { DEG, wrapAngle } from '../math';
 import { createActions, type Actions } from '../world/actions';
 import { createShip, stepFlight, turnRateLimit, type Ship } from './flight';
@@ -10,8 +11,14 @@ const cfgWith = (over: Partial<FlightConfig> = {}): FlightConfig => ({
   ...over,
 });
 const actions = (over: Partial<Actions> = {}): Actions => ({ ...createActions(), ...over });
-function run(ship: Ship, a: Actions, cfg: FlightConfig, seconds: number): void {
-  for (let i = 0; i < Math.round(seconds / DT); i++) stepFlight(ship, a, cfg, DT);
+function run(
+  ship: Ship,
+  a: Actions,
+  cfg: FlightConfig,
+  seconds: number,
+  events: EventQueue = createEventQueue(),
+): void {
+  for (let i = 0; i < Math.round(seconds / DT); i++) stepFlight(ship, a, cfg, events, DT);
 }
 
 describe('throttle and speed', () => {
@@ -60,7 +67,7 @@ describe('steering', () => {
     const cfg = cfgWith({ steering: 'point' });
     const ship = createShip(cfg);
     for (let i = 0; i < 120; i++) {
-      stepFlight(ship, actions({ steerX: -1 }), cfg, DT);
+      stepFlight(ship, actions({ steerX: -1 }), cfg, createEventQueue(), DT);
       expect(Math.abs(ship.omega)).toBeLessThanOrEqual(turnRateLimit(cfg, ship.speed) + 1e-9);
     }
   });
@@ -68,7 +75,7 @@ describe('steering', () => {
   it('ramps angular velocity (inertia) instead of jumping', () => {
     const cfg = cfgWith({ steering: 'rotate' });
     const ship = createShip(cfg);
-    stepFlight(ship, actions({ steerX: 1 }), cfg, DT);
+    stepFlight(ship, actions({ steerX: 1 }), cfg, createEventQueue(), DT);
     expect(Math.abs(ship.omega)).toBeCloseTo(cfg.turnAccel * DEG * DT);
     expect(Math.abs(ship.omega)).toBeLessThan(turnRateLimit(cfg, ship.speed));
   });
@@ -132,5 +139,93 @@ describe('arena boundary', () => {
     expect(ship.outside).toBe(true);
     run(ship, actions(), cfg, 6);
     expect(Math.hypot(ship.x, ship.y)).toBeLessThan(1500);
+  });
+});
+
+describe('evade', () => {
+  const evadeFor = (cfg: FlightConfig, a: Partial<Actions>, seconds: number) => {
+    const ship = createShip(cfg);
+    const events = createEventQueue();
+    run(ship, actions({ evade: true, ...a }), cfg, seconds, events);
+    return { ship, events };
+  };
+
+  it('starts once on press, emits EvadeStarted, defaults to the left side', () => {
+    const cfg = cfgWith();
+    const { ship, events } = evadeFor(cfg, {}, 0.1);
+    const started = events.events.filter((e) => e.type === 'EvadeStarted');
+    expect(started).toHaveLength(1);
+    expect(ship.evadeSide).toBe(1);
+    expect(ship.evadeTimer).toBeGreaterThan(0);
+  });
+
+  it('picks the side from the rotate input and from the stick relative to the nose', () => {
+    const cfg = cfgWith();
+    expect(evadeFor(cfg, { rotate: 1 }, 0.05).ship.evadeSide).toBe(-1); // turning right: dodge right
+    expect(evadeFor(cfg, { rotate: -1 }, 0.05).ship.evadeSide).toBe(1);
+    // Nose along +x (left is +y): stick down is to the right of the nose.
+    expect(evadeFor(cfg, { steerY: -1 }, 0.05).ship.evadeSide).toBe(-1);
+    expect(evadeFor(cfg, { steerY: 1 }, 0.05).ship.evadeSide).toBe(1);
+    // A tiny stick deflection is ignored (default left).
+    expect(evadeFor(cfg, { steerY: -0.1 }, 0.05).ship.evadeSide).toBe(1);
+  });
+
+  it('is invulnerable for evadeIFrames, evades for evadeTime, then stops', () => {
+    const cfg = cfgWith();
+    const ship = createShip(cfg);
+    const a = actions({ evade: true });
+    const q = createEventQueue();
+    stepFlight(ship, a, cfg, q, DT);
+    expect(ship.invulnerable).toBe(true);
+    run(ship, a, cfg, cfg.evadeIFrames - 2 * DT, q);
+    expect(ship.invulnerable).toBe(true);
+    run(ship, a, cfg, 4 * DT, q);
+    expect(ship.invulnerable).toBe(false);
+    expect(ship.evadeTimer).toBeGreaterThan(0); // still rolling after the i-frames
+    run(ship, a, cfg, cfg.evadeTime, q);
+    expect(ship.evadeTimer).toBe(0);
+    expect(ship.roll).toBe(0);
+  });
+
+  it('enforces the cooldown and needs a fresh press (holding does not retrigger)', () => {
+    const cfg = cfgWith();
+    const ship = createShip(cfg);
+    const q = createEventQueue();
+    const count = () => q.events.filter((e) => e.type === 'EvadeStarted').length;
+    run(ship, actions({ evade: true }), cfg, cfg.evadeCooldown + 1, q); // held the whole time
+    expect(count()).toBe(1);
+    run(ship, actions({ evade: false }), cfg, DT, q); // release
+    run(ship, actions({ evade: true }), cfg, DT, q);
+    expect(count()).toBe(2);
+    // A press inside the cooldown does nothing.
+    run(ship, actions({ evade: false }), cfg, 0.6, q);
+    run(ship, actions({ evade: true }), cfg, DT, q);
+    expect(count()).toBe(2);
+    // After the cooldown a new press works.
+    run(ship, actions({ evade: false }), cfg, cfg.evadeCooldown, q);
+    run(ship, actions({ evade: true }), cfg, DT, q);
+    expect(count()).toBe(3);
+  });
+
+  it('sidesteps by evadeOffset toward the chosen side and adds a speed bonus', () => {
+    const cfg = cfgWith();
+    const base = createShip(cfg);
+    run(base, actions(), cfg, cfg.evadeTime);
+    const left = evadeFor(cfg, {}, cfg.evadeTime).ship;
+    expect(left.y - base.y).toBeCloseTo(cfg.evadeOffset, 0);
+    expect(evadeFor(cfg, { steerY: -1 }, cfg.evadeTime).ship.evadeSide).toBe(-1);
+    // Forward progress is about 15% further during the evade.
+    expect(left.x / base.x).toBeGreaterThan(1.1);
+  });
+
+  it('variant without sidestep: no lateral slide, but a tighter break turn', () => {
+    const cfg = cfgWith({ evadeSidestep: false, steering: 'rotate' });
+    const normal = createShip(cfg);
+    run(normal, actions({ steerX: 1 }), cfg, 0.4);
+    const evading = createShip(cfg);
+    run(evading, actions({ steerX: 1, evade: true }), cfg, 0.4);
+    expect(Math.abs(evading.heading)).toBeGreaterThan(Math.abs(normal.heading));
+    const straight = evadeFor(cfgWith({ evadeSidestep: false }), {}, cfg.evadeTime).ship;
+    expect(Math.abs(straight.y)).toBeLessThan(1);
   });
 });

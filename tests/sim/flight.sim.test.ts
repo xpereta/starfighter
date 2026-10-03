@@ -19,6 +19,7 @@ it('120 s of random inputs: no NaN, speed in range, ship stays near the arena', 
         a.steerY = inputRng.range(-1, 1);
         a.rotate = inputRng.int(3) - 1;
         a.throttle = inputRng.range(-1, 1);
+        a.evade = inputRng.next() < 0.3;
       }
       stepWorld(world, 1 / 60);
       const s = world.ship;

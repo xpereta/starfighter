@@ -104,7 +104,7 @@ export function stepWorld(world: World, dt: number): void {
   prev.respawn = actions.respawn;
   prev.startTrial = actions.startTrial;
 
-  stepFlight(world.ship, actions, tuning.flight, dt);
+  stepFlight(world.ship, actions, tuning.flight, world.events, dt);
   stepGuns(
     world.guns,
     world.bullets,
