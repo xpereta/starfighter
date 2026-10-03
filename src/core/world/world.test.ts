@@ -1,8 +1,9 @@
 import { expect, it } from 'vitest';
+import { createTuning } from '../../../data/tuning';
 import { createWorld, stepWorld } from './world';
 
 it('advances tick and time and clears events each step', () => {
-  const world = createWorld(1);
+  const world = createWorld(1, createTuning());
   world.events.emit({ type: 'EvadeStarted', x: 0, y: 0, side: 1 });
   stepWorld(world, 1 / 60);
   expect(world.tick).toBe(1);
@@ -11,7 +12,7 @@ it('advances tick and time and clears events each step', () => {
 });
 
 it('is deterministic for the same seed', () => {
-  const a = createWorld(99);
-  const b = createWorld(99);
+  const a = createWorld(99, createTuning());
+  const b = createWorld(99, createTuning());
   for (let i = 0; i < 10; i++) expect(a.rng.next()).toBe(b.rng.next());
 });

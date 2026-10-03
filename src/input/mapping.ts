@@ -30,6 +30,7 @@ export function mapGamepad(pad: GamepadSnapshot, deadzone: number): Actions {
   return {
     steerX,
     steerY: -steerYDown || 0, // gamepad y points down; world y is up
+    rotate: 0,
     throttle: trigger(pad, BTN_RT, deadzone) - trigger(pad, BTN_LT, deadzone),
     fire: pad.buttons[BTN_FIRE]?.pressed ?? false,
     evade: pad.buttons[BTN_EVADE]?.pressed ?? false,
@@ -41,8 +42,9 @@ export function mapKeyboard(codes: ReadonlySet<string>): Actions {
   const axis = (neg: string[], pos: string[]): number =>
     (pos.some((c) => codes.has(c)) ? 1 : 0) - (neg.some((c) => codes.has(c)) ? 1 : 0);
   return {
-    steerX: axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']),
+    steerX: 0,
     steerY: 0,
+    rotate: axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']),
     throttle: axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']),
     fire: codes.has('Space'),
     evade: codes.has('ShiftLeft') || codes.has('ShiftRight'),
@@ -56,6 +58,7 @@ export function mergeActions(a: Actions, b: Actions): Actions {
   return {
     steerX: larger(a.steerX, b.steerX),
     steerY: larger(a.steerY, b.steerY),
+    rotate: larger(a.rotate, b.rotate),
     throttle: larger(a.throttle, b.throttle),
     fire: a.fire || b.fire,
     evade: a.evade || b.evade,
