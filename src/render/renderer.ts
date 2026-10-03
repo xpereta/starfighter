@@ -6,6 +6,7 @@ import { createBackground } from './background';
 import { qualityPresets, type QualityLevel } from '../../data/quality';
 import { createBulletRenderer } from './bullets';
 import { createFighterRenderer } from './fighters';
+import { createMissileRenderer } from './missiles';
 import { viewSize } from '../core/camera/view';
 import { createShards } from './shards';
 import { createSparks } from './sparks';
@@ -67,6 +68,8 @@ export function createRenderer(
     width: 14,
   });
   scene.add(enemyShots.object);
+  const missiles = createMissileRenderer(world.missiles.capacity);
+  scene.add(missiles.object);
   const targets = createTargetRenderer(world.targets);
   scene.add(targets.object);
   const fighters = createFighterRenderer();
@@ -120,6 +123,7 @@ export function createRenderer(
       fighters.update(world.fighters);
       const now = performance.now();
       const frameDt = Math.min((now - lastTime) / 1000, 0.1);
+      missiles.update(world, frameDt);
       sparks.update(frameDt);
       shards.update(frameDt);
       lastTime = now;
@@ -134,6 +138,7 @@ export function createRenderer(
       targets.dispose();
       fighters.dispose();
       enemyShots.dispose();
+      missiles.dispose();
       shipGeometry.dispose();
       shipMaterial.dispose();
       renderer.dispose();

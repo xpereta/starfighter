@@ -3,6 +3,7 @@ import { turnRateLimit } from '../core/flight/flight';
 import { DEG } from '../core/math';
 import type { World } from '../core/world/world';
 import { worldToScreen } from '../render/hud/layout';
+import { drawLockDebug } from './lock-debug';
 import { createTrail, createTrailSampler } from './trail';
 
 const FONT = '12px ui-monospace, Menlo, Consolas, monospace';
@@ -167,6 +168,7 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
       );
 
       drawTrail(center, view);
+      drawLockDebug(g, world, center, view, screen);
 
       // Hit circles.
       for (const t of world.targets) {
