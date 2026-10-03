@@ -4,6 +4,8 @@ import { createPanel } from './panel';
 
 export interface DevTools {
   /** Call once per frame with the wall-clock frame time. */
+  /** Call before every simulation step (records or injects replay inputs). */
+  beforeStep(world: World): void;
   draw(world: World, frameSeconds: number): void;
   dispose(): void;
 }
@@ -13,6 +15,7 @@ export function createDevTools(world: World, container: HTMLElement): DevTools {
   const panel = createPanel(world);
   const overlay = createDebugOverlay(container);
   return {
+    beforeStep: (w) => panel.replay.beforeStep(w),
     draw: (w, frameSeconds) => overlay.draw(w, frameSeconds, panel.debug.overlay),
     dispose() {
       panel.dispose();

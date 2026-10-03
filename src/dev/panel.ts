@@ -2,6 +2,7 @@ import GUI from 'lil-gui';
 import { createTuning, tuningParams, type Tuning } from '../../data/tuning';
 import type { ParamDef } from '../core/params/params';
 import type { World } from '../core/world/world';
+import { createReplayControls, type ReplayControls } from './replay-controls';
 import {
   applyPreset,
   diffFromDefaults,
@@ -42,6 +43,7 @@ function stepFor(def: ParamDef): number {
 
 export interface Panel {
   readonly debug: { overlay: boolean };
+  readonly replay: ReplayControls;
   dispose(): void;
 }
 
@@ -57,6 +59,13 @@ export function createPanel(world: World): Panel {
     statusController.updateDisplay();
   };
   const refresh = (): void => gui.controllersRecursive().forEach((c) => c.updateDisplay());
+
+  // A clicked button keeps focus, and then Space (fire) would click it again.
+  gui.domElement.addEventListener('click', (e) => {
+    if (e.target instanceof HTMLElement && e.target.closest('button')) {
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
+  });
 
   const folders: Record<string, GUI> = {};
   const folder = (name: string): GUI => (folders[name] ??= gui.addFolder(name).close());
@@ -217,6 +226,7 @@ export function createPanel(world: World): Panel {
   rebuildSaved();
 
   folder('Debug').add(debug, 'overlay').name('overlay (`)');
+  const replay = createReplayControls(folder('Replay'), world, refresh);
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.code !== 'Backquote') return;
@@ -227,6 +237,7 @@ export function createPanel(world: World): Panel {
 
   return {
     debug,
+    replay,
     dispose() {
       window.removeEventListener('keydown', onKey);
       gui.destroy();
