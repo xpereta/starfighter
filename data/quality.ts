@@ -5,10 +5,34 @@ import { validateParam, type ParamDef } from '../src/core/params/params';
  * Counts and lifetimes only affect visuals (e.g. destruction shards).
  */
 export const qualityParams = {
-  shardsMin: { default: 3, min: 0, max: 20, unit: 'shards per kill' },
-  shardsMax: { default: 5, min: 0, max: 20, unit: 'shards per kill' },
-  shardLife: { default: 1.4, min: 0.2, max: 6, unit: 's' },
-  shardCap: { default: 500, min: 10, max: 5000, unit: 'shards on screen (pool)' },
+  shardsMin: {
+    default: 3,
+    min: 0,
+    max: 20,
+    unit: 'shards',
+    note: 'Fewest shards a destroyed target breaks into. Higher = more debris on every kill; lower = cleaner screen and faster on weak devices.',
+  },
+  shardsMax: {
+    default: 5,
+    min: 0,
+    max: 20,
+    unit: 'shards',
+    note: 'Most shards a destroyed target breaks into. Higher = richer explosions; lower = cheaper and calmer.',
+  },
+  shardLife: {
+    default: 1.4,
+    min: 0.2,
+    max: 6,
+    unit: 's',
+    note: 'How long shards drift and fade. Higher = lingering debris; lower = they vanish quickly.',
+  },
+  shardCap: {
+    default: 500,
+    min: 10,
+    max: 5000,
+    unit: 'shards',
+    note: 'Most shards on screen at once (the pool size). Higher = nothing is skipped in big fights but costs more memory; lower = new shards are skipped when full.',
+  },
 } as const satisfies Record<string, ParamDef>;
 
 export type QualitySettings = { -readonly [K in keyof typeof qualityParams]: number };

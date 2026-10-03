@@ -3,7 +3,12 @@ export interface ParamDef {
   readonly default: number;
   readonly min: number;
   readonly max: number;
+  /** Short unit shown next to the value ('s', 'u/s', '°'); empty for plain numbers. */
   readonly unit: string;
+  /** Longer explanation, shown as a tooltip in the tuning panel. */
+  readonly note?: string;
+  /** Override for the panel's slider step (otherwise derived from the range). */
+  readonly step?: number;
 }
 
 /** Throws if `value` is not a finite number inside the parameter's range. */
