@@ -18,6 +18,10 @@ const HANDLED = new Set([
   'ShiftRight',
 ]);
 
+function isTyping(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
+
 export interface Input {
   /** Samples keyboard + first connected standard gamepad into `out`. Call once per frame. */
   poll(out: Actions): void;
@@ -27,9 +31,14 @@ export interface Input {
 /** Browser wiring only; all mapping logic lives in mapping.ts. */
 export function createInput(): Input {
   const held = new Set<string>();
+  // Keys pressed since the last poll: a tap shorter than one frame must still register.
+  const tapped = new Set<string>();
+  const sampled = new Set<string>();
   const onDown = (e: KeyboardEvent): void => {
+    if (isTyping(e.target)) return; // the tuning panel has text fields
     if (HANDLED.has(e.code)) {
       held.add(e.code);
+      tapped.add(e.code);
       e.preventDefault();
     }
   };
@@ -37,7 +46,10 @@ export function createInput(): Input {
     held.delete(e.code);
   };
   // Releasing keys while the window is unfocused would otherwise leave them stuck.
-  const onBlur = (): void => held.clear();
+  const onBlur = (): void => {
+    held.clear();
+    tapped.clear();
+  };
   window.addEventListener('keydown', onDown);
   window.addEventListener('keyup', onUp);
   window.addEventListener('blur', onBlur);
@@ -51,7 +63,11 @@ export function createInput(): Input {
 
   return {
     poll(out) {
-      const keys = mapKeyboard(held);
+      sampled.clear();
+      for (const code of held) sampled.add(code);
+      for (const code of tapped) sampled.add(code);
+      tapped.clear();
+      const keys = mapKeyboard(sampled);
       const pad = firstPad();
       Object.assign(
         out,

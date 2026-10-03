@@ -87,3 +87,16 @@ export function throttleState(throttle: number, deadband: number): ThrottleState
 export function blinkOn(time: number, hz: number): boolean {
   return Math.floor(time * hz * 2) % 2 === 0;
 }
+
+/** World point to screen px (origin top-left; world y is up, screen y is down). Fills `out`. */
+export function worldToScreen(
+  out: { x: number; y: number },
+  wx: number,
+  wy: number,
+  camera: { x: number; y: number },
+  view: { width: number; height: number },
+  screen: { width: number; height: number },
+): void {
+  out.x = screen.width / 2 + ((wx - camera.x) * screen.width) / view.width;
+  out.y = screen.height / 2 - ((wy - camera.y) * screen.height) / view.height;
+}

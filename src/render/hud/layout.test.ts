@@ -9,6 +9,7 @@ import {
   evadeReadiness,
   speedBar,
   throttleState,
+  worldToScreen,
 } from './layout';
 
 const view = { width: 1600, height: 1000 };
@@ -126,5 +127,28 @@ describe('small helpers', () => {
     expect(blinkOn(0, 3)).toBe(true);
     expect(blinkOn(1 / 6 + 0.01, 3)).toBe(false);
     expect(blinkOn(1 / 3 + 0.01, 3)).toBe(true);
+  });
+});
+
+describe('worldToScreen', () => {
+  it('maps the camera center to the screen center and flips y', () => {
+    const p = { x: 0, y: 0 };
+    worldToScreen(p, 0, 0, cam, view, screen);
+    expect(p).toEqual({ x: 640, y: 400 });
+    worldToScreen(p, 100, 100, cam, view, screen);
+    expect(p.x).toBeCloseTo(640 + 80);
+    expect(p.y).toBeCloseTo(400 - 80);
+  });
+
+  it('agrees with edgeIndicator: a target exactly at the screen edge sits on the border', () => {
+    const p = { x: 0, y: 0 };
+    worldToScreen(p, view.width / 2, 0, cam, view, screen);
+    expect(p.x).toBeCloseTo(screen.width);
+  });
+
+  it('follows the camera', () => {
+    const p = { x: 0, y: 0 };
+    worldToScreen(p, 500, 0, { x: 500, y: 0 }, view, screen);
+    expect(p.x).toBeCloseTo(640);
   });
 });
