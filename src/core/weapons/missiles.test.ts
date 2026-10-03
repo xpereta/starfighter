@@ -8,7 +8,16 @@ import { hashWorld } from '../replay/hash';
 import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { Target } from '../world/target';
 import { createWorld, stepWorld, type World } from '../world/world';
-import { assignSalvo, createMissilePool, salvoSize, stepMissiles } from './missiles';
+import {
+  assignSalvo,
+  createMissilePool,
+  launchOrigin,
+  mixMissiles,
+  PLAYER,
+  salvoPilots,
+  salvoSize,
+  stepMissiles,
+} from './missiles';
 
 const DT = 1 / 60;
 
@@ -441,15 +450,136 @@ describe('state, hash and reset', () => {
     w.missiles.spawn();
     w.missiles.salvo.cooldown = 3;
     w.missiles.salvo.pending.push(1, 2);
+    w.missiles.salvo.pilots.push(0, 1);
     w.actions.respawn = true;
     stepWorld(w, DT);
     expect(w.missiles.count).toBe(0);
     expect(w.missiles.salvo).toEqual({
       cooldown: 0,
       pending: [],
+      pilots: [],
       nextIn: 0,
       launched: 0,
       nextUid: 0,
     });
+  });
+});
+
+describe('every pilot fires from their own ship', () => {
+  /** Player at the origin facing +x; wingman 0 up and to the right facing +y; wingman 1 behind-left facing -x. */
+  function squad(): World {
+    const w = setup(2);
+    const a = w.squadron.wingmen[0]!.ship;
+    a.x = 500;
+    a.y = 300;
+    a.heading = Math.PI / 2;
+    a.vx = 0;
+    a.vy = 250;
+    const b = w.squadron.wingmen[1]!.ship;
+    b.x = -400;
+    b.y = -200;
+    b.heading = Math.PI;
+    b.vx = -250;
+    b.vy = 0;
+    w.targets.push(target(2000, 0), target(2000, 500), target(2000, -500));
+    w.lockon.locks.push(0, 1, 2);
+    return w;
+  }
+
+  const launches = (w: World): { x: number; y: number; angle: number; targetId: number }[] => {
+    const out: { x: number; y: number; angle: number; targetId: number }[] = [];
+    tick(w, true);
+    for (let i = 0; i < 90; i++) {
+      for (const e of w.events.events) if (e.type === 'MissileLaunched') out.push(e);
+      tick(w);
+    }
+    return out;
+  };
+
+  it('puts the player first, then each living wingman, in squadron order', () => {
+    const w = squad();
+    expect(salvoPilots(w, [])).toEqual([PLAYER, 0, 1]);
+    w.squadron.wingmen[0]!.alive = false;
+    expect(salvoPilots(w, [])).toEqual([PLAYER, 1]);
+    expect(salvoSize(w)).toBe(2);
+  });
+
+  it('launch origins are the noses of the three ships, not all the player', () => {
+    const w = squad();
+    const off = w.tuning.weapons.muzzleOffset;
+    const p = { ...launchOrigin(w, PLAYER) };
+    const a = { ...launchOrigin(w, 0) };
+    const b = { ...launchOrigin(w, 1) };
+    expect([p.x, p.y]).toEqual([off, 0]);
+    expect(a.x).toBeCloseTo(500);
+    expect(a.y).toBeCloseTo(300 + off);
+    expect(a.heading).toBeCloseTo(Math.PI / 2);
+    expect(b.x).toBeCloseTo(-400 - off);
+    expect(b.y).toBeCloseTo(-200);
+    expect(a.vy).toBe(250);
+  });
+
+  it('a salvo of three leaves from the player, wingman 0 and wingman 1 in that order, at their locks', () => {
+    const w = squad();
+    const off = w.tuning.weapons.muzzleOffset;
+    const l = launches(w);
+    expect(l).toHaveLength(3);
+    expect(l.map((m) => m.targetId)).toEqual([0, 1, 2]);
+    expect([l[0]!.x, l[0]!.y]).toEqual([off, 0]);
+    expect(l[1]!.x).toBeCloseTo(500);
+    expect(l[1]!.y).toBeCloseTo(300 + off);
+    expect(l[1]!.angle).toBeCloseTo(Math.PI / 2);
+    expect(l[2]!.x).toBeCloseTo(-400 - off);
+    expect(l[2]!.y).toBeCloseTo(-200);
+    expect(Math.abs(l[2]!.angle)).toBeCloseTo(Math.PI);
+  });
+
+  it('a wingman missile starts with its wingman speed along its own heading', () => {
+    const w = squad();
+    tick(w, true);
+    for (let i = 0; i < 40; i++) tick(w);
+    // Missiles in launch order are in pool order until one is removed; find wingman 0's by uid.
+    const idx = [...Array(w.missiles.count).keys()].find((i) => w.missiles.data.uid[i] === 1)!;
+    const speed = Math.hypot(w.missiles.data.vx[idx]!, w.missiles.data.vy[idx]!);
+    expect(speed).toBeGreaterThanOrEqual(w.tuning.missiles.launchSpeed);
+    expect(w.missiles.data.heading[idx]).toBeDefined();
+  });
+
+  it('a wingman shot down before their turn in the ripple does not fire', () => {
+    const w = squad();
+    const l: { targetId: number }[] = [];
+    let announced = 0;
+    tick(w, true);
+    for (const e of w.events.events) if (e.type === 'SalvoFired') announced = e.count;
+    w.squadron.wingmen[0]!.alive = false; // dies right after the salvo is called
+    for (let i = 0; i < 90; i++) {
+      for (const e of w.events.events) if (e.type === 'MissileLaunched') l.push(e);
+      tick(w);
+    }
+    expect(announced).toBe(3);
+    expect(l.map((m) => m.targetId)).toEqual([0, 2]); // wingman 0's missile (target 1) never left
+    expect(w.missiles.salvo.pending).toEqual([]);
+    expect(w.missiles.salvo.pilots).toEqual([]);
+  });
+
+  it("with no wingmen the whole salvo is the player's", () => {
+    const w = setup(0);
+    w.targets.push(target(2000, 0));
+    w.lockon.locks.push(0);
+    const l = launches(w);
+    expect(l).toHaveLength(1);
+    expect(l[0]!.x).toBeCloseTo(w.tuning.weapons.muzzleOffset);
+  });
+
+  it('who fires a pending missile is part of the replay hash', () => {
+    const w = squad();
+    const hashOf = (): string => {
+      const parts: number[] = [];
+      mixMissiles((n) => parts.push(n), w.missiles);
+      return parts.join(',');
+    };
+    const base = hashOf();
+    w.missiles.salvo.pilots.push(1);
+    expect(hashOf()).not.toBe(base);
   });
 });
