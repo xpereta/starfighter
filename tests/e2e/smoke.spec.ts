@@ -1,4 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { tuningParams } from '../../data/tuning';
+
+const GRIP = tuningParams.flight.grip.default;
+const VIEW_MIN = tuningParams.camera.viewMin.default;
 
 const errorsOf = (page: Page): string[] => {
   const errors: string[] = [];
@@ -73,7 +77,7 @@ test.describe('tuning panel', () => {
     const grip = row(page, 'flight.grip');
     await expect(grip).toBeVisible();
     await expect(grip.locator('.txt.light .label')).toHaveText('Grip');
-    await expect(value(page, 'flight.grip')).toHaveText('6 1/s');
+    await expect(value(page, 'flight.grip')).toHaveText(`${GRIP} 1/s`);
     // Two text layers (light on track, dark inside the fill) and a fill in the same row.
     await expect(grip.locator('.txt')).toHaveCount(2);
     await expect(grip.locator('.fill')).toHaveCount(1);
@@ -91,11 +95,11 @@ test.describe('tuning panel', () => {
     await expect(input).toBeFocused();
     await input.fill('9');
     await input.press('Enter');
-    await expect(value(page, 'flight.grip')).toHaveText('9 1/s');
+    await expect(value(page, 'flight.grip')).toHaveText('9.00 1/s');
     await expect(grip).toHaveAttribute('data-changed', 'true');
 
     await grip.dblclick({ position: { x: 25, y: box.height / 2 } });
-    await expect(value(page, 'flight.grip')).toHaveText('6 1/s');
+    await expect(value(page, 'flight.grip')).toHaveText(`${GRIP} 1/s`);
     await expect(grip).toHaveAttribute('data-changed', 'false');
   });
 
@@ -139,7 +143,7 @@ test.describe('tuning panel', () => {
     await viewMax.dblclick({ position: { x: box.width - 25, y: box.height / 2 } });
     await viewMax.locator('input.edit').fill('1100');
     await viewMax.locator('input.edit').press('Enter');
-    await expect(value(page, 'camera.viewMax')).toHaveText('1600 u'); // clamped to viewMin and shown
+    await expect(value(page, 'camera.viewMax')).toHaveText(`${VIEW_MIN} u`); // clamped to viewMin and shown
   });
 
   test('H hides and shows the whole panel', async ({ page }) => {
@@ -172,7 +176,7 @@ test.describe('tuning panel', () => {
     const tip = page.locator('.sf-tip');
     await expect(tip).toBeVisible({ timeout: 2000 });
     await expect(tip).toContainText('glued to the nose');
-    await expect(tip).toContainText('Default 6');
+    await expect(tip).toContainText(`Default ${GRIP}`);
     const t = (await tip.boundingBox())!;
     const p = (await page.locator('#tuning-panel').boundingBox())!;
     const vp = page.viewportSize()!;
