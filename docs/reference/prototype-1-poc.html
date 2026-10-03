@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Starfighter — Prototype 1 (Flight & Camera)</title>
+<style>
+/* Game is always dark; tokens declared per the theme convention. */
+:root{--bg:#070b14;--panel:rgba(10,16,30,.94);--fg:#d8e6ff;--dim:#7d90b3;--accent:#6ee7ff;--line:#22304d}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#070b14;--panel:rgba(10,16,30,.94);--fg:#d8e6ff}}
+:root[data-theme="dark"]{--bg:#070b14;--panel:rgba(10,16,30,.94);--fg:#d8e6ff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;touch-action:none;
+  font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+#hud{pointer-events:none}
+#probe{position:fixed;left:0;top:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden}
+#help{position:fixed;left:10px;top:calc(env(safe-area-inset-top,0px) + 8px);color:var(--dim);font-size:11px;white-space:pre;pointer-events:none}
+#bar{position:fixed;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);display:flex;gap:6px;z-index:5}
+button{font:inherit;color:var(--fg);background:rgba(20,32,58,.85);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#panel{position:fixed;right:0;top:0;bottom:0;width:min(330px,94vw);background:var(--panel);border-left:1px solid var(--line);
+  overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 46px) 12px 24px;display:none;z-index:4;touch-action:pan-y}
+#panel h4{margin:14px 0 6px;font-size:12px;color:var(--accent);font-weight:600}
+#panel .row{display:grid;grid-template-columns:1fr 64px;gap:2px 8px;align-items:center;margin:3px 0}
+#panel .row label{color:var(--fg)}
+#panel .row .v{text-align:right;color:var(--dim)}
+#panel .row input[type=range]{grid-column:1 / span 2;width:100%;margin:0}
+#panel .tog{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+#panel select{font:inherit;background:#101a30;color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:3px}
+#panel textarea{width:100%;height:70px;background:#0c1426;color:var(--fg);border:1px solid var(--line);border-radius:4px;font:11px ui-monospace,monospace;user-select:text;-webkit-user-select:text}
+#panel .btns{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+#tests{white-space:pre-wrap;color:var(--dim);font-size:11px;margin-top:6px;user-select:text;-webkit-user-select:text}
+#touch{display:none;position:fixed;inset:0;pointer-events:none;z-index:3}
+#zone{position:absolute;left:0;bottom:0;width:52%;height:62%;pointer-events:auto;touch-action:none}
+#sbase{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border:2px solid rgba(110,231,255,.35);border-radius:50%;display:none}
+#sknob{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(110,231,255,.5)}
+.tb{position:absolute;pointer-events:auto;touch-action:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:rgba(20,32,58,.6);border:2px solid rgba(110,231,255,.45);color:var(--fg);font-weight:600}
+#bFire{right:calc(env(safe-area-inset-right,0px) + 20px);bottom:calc(env(safe-area-inset-bottom,0px) + 28px);width:92px;height:92px}
+#bEvade{right:calc(env(safe-area-inset-right,0px) + 120px);bottom:calc(env(safe-area-inset-bottom,0px) + 90px);width:64px;height:64px}
+#bBoost{right:calc(env(safe-area-inset-right,0px) + 24px);bottom:calc(env(safe-area-inset-bottom,0px) + 132px);width:56px;height:56px}
+#bBrake{right:calc(env(safe-area-inset-right,0px) + 100px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:56px;height:56px}
+#fatal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px;text-align:center;z-index:9;background:var(--bg)}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="hud"></canvas>
+<div id="probe"></div>
+<div id="help"></div>
+<div id="bar"><button id="bTrial">Trial</button><button id="bDbg">Debug</button><button id="bTune">Tune</button></div>
+
+<div id="panel">
+  <h4>Replay</h4>
+  <div class="btns"><button id="rRec">Record</button><button id="rPlay">Play</button><button id="rCheck">Check determinism</button></div>
+  <div id="rInfo" style="color:var(--dim)">No recording.</div>
+  <div id="sliders"></div>
+  <h4>Presets</h4>
+  <div class="btns"><button id="pSave">Save slot</button><button id="pLoad">Load slot</button><button id="pExport">Export</button><button id="pImport">Import</button><button id="pReset">Defaults</button></div>
+  <textarea id="pText" spellcheck="false" placeholder="Preset JSON"></textarea>
+  <h4>Self-tests</h4>
+  <div class="btns"><button id="tRun">Run tests</button></div>
+  <div id="tests"></div>
+</div>
+
+<div id="touch">
+  <div id="zone"><div id="sbase"><div id="sknob"></div></div></div>
+  <div class="tb" id="bFire">FIRE</div>
+  <div class="tb" id="bEvade">EVADE</div>
+  <div class="tb" id="bBoost">BOOST</div>
+  <div class="tb" id="bBrake">BRAKE</div>
+</div>
+<div id="fatal"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+   STARFIGHTER — PROTOTYPE 1 (flight & camera)
+   Sections: CORE (pure logic, no THREE/DOM) · INPUT · RENDER · HUD · DEV · APP
+   ===================================================================== */
+
+/* ============================== CORE =============================== */
+const DEG = Math.PI / 180, TAU = Math.PI * 2, DT = 1 / 60;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const wrapA = a => { a %= TAU; if (a > Math.PI) a -= TAU; else if (a < -Math.PI) a += TAU; return a; };
+
+// Units: world units (u), seconds (s); angles in degrees in params, radians internally.
+const DEFAULTS = {
+  minSpeed: 120, cruiseSpeed: 220, maxSpeed: 360, cruiseReturnRate: 60, accel: 180, brake: 240,
+  maxTurnRate: 200, cornerSpeed: 180, turnAtMin: 150, turnAtMax: 110, turnAccel: 1200,
+  grip: 6, gripAtMax: 4, arenaRadius: 6000,
+  evadeTime: 0.45, evadeOffset: 90, evadeIFrames: 0.3, evadeCooldown: 2.0, evadeSpeedBonus: 0.15,
+  fireRate: 12, bulletSpeed: 900, bulletLife: 0.9, spread: 0.6,
+  viewMin: 1600, viewMax: 2600, zoomLerp: 2, lookAheadMax: 0.3, lookLerp: 3, safeFrame: 0.15,
+  steering: 'point', lookMode: 'velocity', evadeSidestep: true, zoomByDistance: false, shakeOn: false
+};
+// [group, key, label, min, max, step, unit]
+const SCHEMA = [
+  ['Flight', 'minSpeed', 'Min speed', 60, 250, 5, 'u/s'],
+  ['Flight', 'cruiseSpeed', 'Cruise speed', 100, 350, 5, 'u/s'],
+  ['Flight', 'maxSpeed', 'Max speed', 250, 600, 5, 'u/s'],
+  ['Flight', 'cruiseReturnRate', 'Cruise return', 10, 200, 5, 'u/s²'],
+  ['Flight', 'accel', 'Accel', 50, 500, 5, 'u/s²'],
+  ['Flight', 'brake', 'Brake', 50, 500, 5, 'u/s²'],
+  ['Flight', 'maxTurnRate', 'Peak turn rate', 60, 400, 5, '°/s'],
+  ['Flight', 'cornerSpeed', 'Corner speed', 100, 350, 5, 'u/s'],
+  ['Flight', 'turnAtMin', 'Turn rate at min', 60, 400, 5, '°/s'],
+  ['Flight', 'turnAtMax', 'Turn rate at max', 40, 400, 5, '°/s'],
+  ['Flight', 'turnAccel', 'Turn inertia', 200, 4000, 50, '°/s²'],
+  ['Flight', 'grip', 'Grip', 1, 20, 0.5, '/s'],
+  ['Flight', 'gripAtMax', 'Grip at max speed', 1, 20, 0.5, '/s'],
+  ['Evade', 'evadeTime', 'Duration', 0.2, 1, 0.05, 's'],
+  ['Evade', 'evadeOffset', 'Sidestep', 0, 300, 5, 'u'],
+  ['Evade', 'evadeIFrames', 'Invulnerable', 0, 0.8, 0.05, 's'],
+  ['Evade', 'evadeCooldown', 'Cooldown', 0.5, 5, 0.1, 's'],
+  ['Evade', 'evadeSpeedBonus', 'Speed bonus', 0, 0.5, 0.01, 'x'],
+  ['Guns', 'fireRate', 'Fire rate', 3, 30, 1, '/s'],
+  ['Guns', 'bulletSpeed', 'Bullet speed', 300, 1800, 25, 'u/s'],
+  ['Guns', 'bulletLife', 'Bullet life', 0.3, 2, 0.05, 's'],
+  ['Guns', 'spread', 'Spread', 0, 5, 0.1, '°'],
+  ['Camera', 'viewMin', 'View width @ min speed', 800, 3000, 50, 'u'],
+  ['Camera', 'viewMax', 'View width @ max speed', 1000, 4500, 50, 'u'],
+  ['Camera', 'zoomLerp', 'Zoom smoothing', 0.5, 8, 0.1, '/s'],
+  ['Camera', 'lookAheadMax', 'Look-ahead (× half width)', 0, 0.5, 0.01, ''],
+  ['Camera', 'lookLerp', 'Look smoothing', 0.5, 10, 0.1, '/s'],
+  ['Camera', 'safeFrame', 'Safe frame margin', 0.05, 0.3, 0.01, '']
+];
+const TOGGLES = [
+  ['steering', 'Steering', ['point', 'rotate']],
+  ['lookMode', 'Look-ahead direction', ['velocity', 'nose']],
+  ['evadeSidestep', 'Evade sidestep', 'bool'],
+  ['zoomByDistance', 'Zoom by enemy distance', 'bool'],
+  ['shakeOn', 'Screen shake', 'bool']
+];
+
+const mkPool = n => Array.from({ length: n }, () => ({ a: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 0, rot: 0, rv: 0, size: 0, shape: 0 }));
+const CAPS = { bullets: 400, eshots: 60, parts: 500 };
+
+function rnd(w) {            // mulberry32, state stored in the world
+  let t = (w.rng += 0x6D2B79F5) | 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+function emit(w, type, x, y, dx, dy, imp) { if (w.events.length < 256) w.events.push({ type, x, y, dx, dy, imp }); }
+
+function createWorld(seed, P) {
+  const w = {
+    t: 0, rng: seed >>> 0, events: [], kills: 0,
+    ship: { x: 0, y: 0, heading: 0, omega: 0, speed: P.cruiseSpeed, vx: P.cruiseSpeed, vy: 0, evadeT: 0, evadeCd: 0, evadeSide: 1,
+            invul: false, roll: 0, fireTimer: 0, barrel: 1, hits: 0, dodges: 0, flash: 0, outside: false, thr: 0 },
+    bullets: mkPool(CAPS.bullets), eshots: mkPool(CAPS.eshots), parts: mkPool(CAPS.parts), partIdx: 0,
+    targets: [], trial: { active: false, t: 0, last: null, best: null },
+    cam: { x: 0, y: 0, rx: 0, ry: 0, ox: 0, oy: 0, view: P.viewMin, aspect: 1.6, shake: 0 }
+  };
+  const place = (a, b) => { const an = rnd(w) * TAU, r = a + rnd(w) * (b - a); return [Math.cos(an) * r, Math.sin(an) * r]; };
+  const add = (kind, x, y, extra) => w.targets.push(Object.assign({ kind, x, y, sx: x, sy: y, vx: 0, vy: 0, hp: 1, maxHp: 1, r: 20, alive: true,
+    respawnT: 0, flash: 0, cd: 0, mode: 'static', ang: 0, rc: 0, cx: 0, cy: 0, w: 0, spd: 0, dir: 0 }, extra));
+  for (let i = 0; i < 20; i++) { const [x, y] = place(700, 5000); add('static', x, y, { hp: 3, maxHp: 3, r: 30 }); }
+  for (let i = 0; i < 10; i++) {
+    const [x, y] = place(900, 4500), spd = 100 + rnd(w) * 150;
+    if (i < 5) add('drone', x, y, { hp: 4, maxHp: 4, r: 26, mode: 'straight', dir: rnd(w) * TAU, spd });
+    else { const rc = 300 + rnd(w) * 300, ang = rnd(w) * TAU;
+      add('drone', x + Math.cos(ang) * rc, y + Math.sin(ang) * rc, { hp: 4, maxHp: 4, r: 26, mode: 'circle', cx: x, cy: y, rc, ang, w: spd / rc, spd }); }
+  }
+  for (let i = 0; i < 2; i++) { const [x, y] = place(1500, 3000); add('turret', x, y, { hp: 8, maxHp: 8, r: 42, cd: 1 + rnd(w) }); }
+  return w;
+}
+
+function turnLimit(P, speed) {   // deg/s, piecewise-linear "corner speed" curve
+  if (speed <= P.cornerSpeed) return lerp(P.turnAtMin, P.maxTurnRate, clamp((speed - P.minSpeed) / Math.max(1, P.cornerSpeed - P.minSpeed), 0, 1));
+  return lerp(P.maxTurnRate, P.turnAtMax, clamp((speed - P.cornerSpeed) / Math.max(1, P.maxSpeed - P.cornerSpeed), 0, 1));
+}
+
+function spawnPart(w, x, y, vx, vy, life, size, shape, rv) {
+  const p = w.parts[w.partIdx]; w.partIdx = (w.partIdx + 1) % w.parts.length;
+  p.a = true; p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.life = p.max = life; p.size = size; p.shape = shape; p.rot = rnd(w) * TAU; p.rv = rv;
+}
+
+function stepFlight(w, inp, P, dt) {
+  const s = w.ship;
+  s.evadeCd = Math.max(0, s.evadeCd - dt);
+  if (inp.evade && s.evadeCd <= 0 && s.evadeT <= 0) {
+    s.evadeT = P.evadeTime; s.evadeCd = P.evadeCooldown;
+    let side = 1;
+    if (P.steering === 'rotate' || inp.rot !== 0) { const r = inp.rot !== 0 ? inp.rot : inp.sx; if (Math.abs(r) > 0.3) side = r > 0 ? -1 : 1; }
+    else if (Math.hypot(inp.sx, inp.sy) > 0.3) side = (Math.cos(s.heading) * inp.sy - Math.sin(s.heading) * inp.sx) >= 0 ? 1 : -1;
+    s.evadeSide = side;
+    emit(w, 'EvadeStarted', s.x, s.y, 0, 0, 0);
+  }
+  const evading = s.evadeT > 0;
+  const elapsed = P.evadeTime - s.evadeT;
+  s.invul = evading && elapsed < P.evadeIFrames;
+  s.roll = evading ? (1 - s.evadeT / P.evadeTime) * TAU * s.evadeSide : 0;
+
+  // throttle
+  s.thr = inp.throttle;
+  if (inp.throttle > 0.05) s.speed += P.accel * inp.throttle * dt;
+  else if (inp.throttle < -0.05) s.speed += P.brake * inp.throttle * dt;
+  else { const d = P.cruiseSpeed - s.speed, st = P.cruiseReturnRate * dt; s.speed += Math.abs(d) < st ? d : Math.sign(d) * st; }
+  s.speed = clamp(s.speed, P.minSpeed, P.maxSpeed);
+
+  // steering
+  let maxT = turnLimit(P, s.speed) * DEG;
+  if (evading && !P.evadeSidestep) maxT *= 1.6;       // variant: tight break turn
+  const dist = Math.hypot(s.x, s.y);
+  s.outside = dist > P.arenaRadius;
+  let wDes = 0;
+  if (s.outside) wDes = clamp(wrapA(Math.atan2(-s.y, -s.x) - s.heading) * 6, -1, 1) * maxT;
+  else if (inp.rot !== 0 || P.steering === 'rotate') { const r = inp.rot !== 0 ? inp.rot : inp.sx; wDes = -clamp(r, -1, 1) * maxT; }
+  else if (Math.hypot(inp.sx, inp.sy) > 0.01) wDes = clamp(wrapA(Math.atan2(inp.sy, inp.sx) - s.heading) * 6, -1, 1) * maxT;
+  const step = P.turnAccel * DEG * dt;
+  s.omega += clamp(wDes - s.omega, -step, step);
+  s.heading = wrapA(s.heading + s.omega * dt);
+
+  // grip: velocity direction chases the nose
+  const sf = clamp((s.speed - P.minSpeed) / (P.maxSpeed - P.minSpeed), 0, 1);
+  const g = lerp(P.grip, P.gripAtMax, sf);
+  let va = Math.atan2(s.vy, s.vx);
+  va += wrapA(s.heading - va) * (1 - Math.exp(-g * dt));
+  const eff = s.speed * (1 + (evading ? P.evadeSpeedBonus : 0));
+  s.vx = Math.cos(va) * eff; s.vy = Math.sin(va) * eff;
+  s.x += s.vx * dt; s.y += s.vy * dt;
+  if (evading && P.evadeSidestep) {
+    const lat = (P.evadeOffset / P.evadeTime) * s.evadeSide * dt;
+    s.x += -Math.sin(s.heading) * lat; s.y += Math.cos(s.heading) * lat;
+  }
+  s.evadeT = Math.max(0, s.evadeT - dt);
+  s.flash = Math.max(0, s.flash - dt);
+}
+
+function stepGuns(w, inp, P, dt) {
+  const s = w.ship;
+  if (!inp.fire) { s.fireTimer = Math.max(0, s.fireTimer - dt); return; }
+  s.fireTimer -= dt;
+  while (s.fireTimer <= 0) {
+    s.fireTimer += 1 / P.fireRate;
+    let b = null;
+    for (let i = 0; i < w.bullets.length; i++) if (!w.bullets[i].a) { b = w.bullets[i]; break; }
+    if (!b) continue;
+    s.barrel = -s.barrel;
+    const h = s.heading, a = h + (rnd(w) - 0.5) * P.spread * DEG;
+    b.a = true; b.x = s.x + Math.cos(h) * 24 - Math.sin(h) * 7 * s.barrel; b.y = s.y + Math.sin(h) * 24 + Math.cos(h) * 7 * s.barrel;
+    b.vx = Math.cos(a) * P.bulletSpeed + s.vx; b.vy = Math.sin(a) * P.bulletSpeed + s.vy; b.life = P.bulletLife;
+    emit(w, 'ShotFired', b.x, b.y, 0, 0, 0);
+    if (P.shakeOn) w.cam.shake = Math.min(1, w.cam.shake + 0.08);
+  }
+}
+
+function killTarget(w, t) {
+  t.alive = false; t.respawnT = 6; w.kills++;
+  emit(w, 'Killed', t.x, t.y, 0, 0, 0);
+  const n = 3 + Math.floor(rnd(w) * 3);
+  for (let i = 0; i < n; i++) {
+    const a = rnd(w) * TAU, sp = 60 + rnd(w) * 160;
+    spawnPart(w, t.x, t.y, t.vx * 0.4 + Math.cos(a) * sp, t.vy * 0.4 + Math.sin(a) * sp, 2.5 + rnd(w) * 1.5, t.r * (0.5 + rnd(w) * 0.6), 1, (rnd(w) - 0.5) * 6);
+  }
+  for (let i = 0; i < 8; i++) {
+    const a = rnd(w) * TAU, sp = 100 + rnd(w) * 260;
+    spawnPart(w, t.x, t.y, Math.cos(a) * sp, Math.sin(a) * sp, 0.25 + rnd(w) * 0.3, 12 + rnd(w) * 12, 0, 0);
+  }
+}
+
+function stepTargets(w, P, dt) {
+  const s = w.ship;
+  for (const t of w.targets) {
+    if (!t.alive) {
+      if (t.kind === 'drone' && w.trial.active) continue;
+      t.respawnT -= dt;
+      if (t.respawnT <= 0) { t.alive = true; t.hp = t.maxHp; t.x = t.sx; t.y = t.sy; }
+      continue;
+    }
+    t.flash = Math.max(0, t.flash - dt);
+    if (t.kind === 'drone') {
+      if (t.mode === 'circle') {
+        t.ang += t.w * dt;
+        t.x = t.cx + Math.cos(t.ang) * t.rc; t.y = t.cy + Math.sin(t.ang) * t.rc;
+        t.vx = -Math.sin(t.ang) * t.rc * t.w; t.vy = Math.cos(t.ang) * t.rc * t.w;
+      } else {
+        if (Math.hypot(t.x, t.y) > P.arenaRadius - 400 && (t.x * Math.cos(t.dir) + t.y * Math.sin(t.dir)) > 0) t.dir = Math.atan2(-t.y, -t.x) + (rnd(w) - 0.5) * 0.6;
+        t.vx = Math.cos(t.dir) * t.spd; t.vy = Math.sin(t.dir) * t.spd; t.x += t.vx * dt; t.y += t.vy * dt;
+      }
+    } else if (t.kind === 'turret') {
+      t.cd -= dt;
+      const dx = s.x - t.x, dy = s.y - t.y, d = Math.hypot(dx, dy);
+      if (t.cd <= 0 && d < 1600) {
+        t.cd = 1.8 + rnd(w) * 0.4;
+        for (let i = 0; i < w.eshots.length; i++) {
+          const e = w.eshots[i]; if (e.a) continue;
+          e.a = true; e.x = t.x; e.y = t.y; e.vx = dx / d * 280; e.vy = dy / d * 280; e.life = 5; break;
+        }
+      }
+    }
+  }
+}
+
+function stepBullets(w, P, dt) {
+  for (const b of w.bullets) {
+    if (!b.a) continue;
+    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    if (b.life <= 0) { b.a = false; continue; }
+    for (const t of w.targets) {
+      if (!t.alive) continue;
+      const dx = t.x - b.x, dy = t.y - b.y, rr = t.r + 4;
+      if (dx * dx + dy * dy < rr * rr) {
+        b.a = false; t.hp--; t.flash = 0.08;
+        const v = Math.hypot(b.vx, b.vy) || 1;
+        emit(w, 'Hit', b.x, b.y, b.vx / v, b.vy / v, 1);
+        t.x += b.vx / v * 3; t.y += b.vy / v * 3;                 // tiny hit nudge
+        for (let i = 0; i < 3; i++) { const a = rnd(w) * TAU, sp = 80 + rnd(w) * 160; spawnPart(w, b.x, b.y, Math.cos(a) * sp, Math.sin(a) * sp, 0.15 + rnd(w) * 0.15, 8 + rnd(w) * 8, 0, 0); }
+        if (t.hp <= 0) killTarget(w, t);
+        break;
+      }
+    }
+  }
+}
+
+function stepEnemyShots(w, P, dt) {
+  const s = w.ship;
+  for (const e of w.eshots) {
+    if (!e.a) continue;
+    e.x += e.vx * dt; e.y += e.vy * dt; e.life -= dt;
+    if (e.life <= 0) { e.a = false; continue; }
+    const dx = s.x - e.x, dy = s.y - e.y;
+    if (dx * dx + dy * dy < 26 * 26) {
+      e.a = false;
+      if (s.invul) { s.dodges++; emit(w, 'Dodged', s.x, s.y, 0, 0, 0); }
+      else { s.hits++; s.flash = 0.25; w.cam.shake = 1; emit(w, 'PlayerHit', s.x, s.y, e.vx, e.vy, 1);
+        for (let i = 0; i < 5; i++) { const a = rnd(w) * TAU, sp = 80 + rnd(w) * 160; spawnPart(w, s.x, s.y, Math.cos(a) * sp, Math.sin(a) * sp, 0.2, 10, 0, 0); } }
+    }
+  }
+}
+
+function stepParticles(w, dt) {
+  const drag = Math.exp(-1.2 * dt);
+  for (const p of w.parts) {
+    if (!p.a) continue;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= drag; p.vy *= drag; p.rot += p.rv * dt; p.life -= dt;
+    if (p.life <= 0) p.a = false;
+  }
+}
+
+function startTrial(w) {
+  for (const t of w.targets) if (t.kind === 'drone') { t.alive = true; t.hp = t.maxHp; t.x = t.sx; t.y = t.sy; }
+  w.trial.active = true; w.trial.t = 0; w.trial.last = null;
+}
+function stepTrial(w, dt) {
+  const tr = w.trial; if (!tr.active) return;
+  tr.t += dt;
+  if (!w.targets.some(t => t.kind === 'drone' && t.alive)) {
+    tr.active = false; tr.last = tr.t;
+    if (tr.best === null || tr.t < tr.best) tr.best = tr.t;
+    emit(w, 'TrialDone', 0, 0, 0, 0, tr.t);
+  }
+}
+
+function stepCamera(w, P, dt) {
+  const c = w.cam, s = w.ship;
+  const sf = clamp((s.speed - P.minSpeed) / (P.maxSpeed - P.minSpeed), 0, 1);
+  let tv = lerp(P.viewMin, P.viewMax, sf);
+  if (P.zoomByDistance) {
+    let nd = 1e9; for (const t of w.targets) if (t.alive) { const d = Math.hypot(t.x - s.x, t.y - s.y); if (d < nd) nd = d; }
+    if (nd < 1e9) tv *= 1 + 0.25 * clamp(nd / 3000, 0, 1);
+  }
+  c.view += (tv - c.view) * (1 - Math.exp(-P.zoomLerp * dt));
+  const hw = c.view / 2, hh = hw / c.aspect;
+  let dx, dy;
+  if (P.lookMode === 'nose') { dx = Math.cos(s.heading); dy = Math.sin(s.heading); }
+  else { const v = Math.hypot(s.vx, s.vy) || 1; dx = s.vx / v; dy = s.vy / v; }
+  const f = s.speed / P.maxSpeed, a = 1 - Math.exp(-P.lookLerp * dt);
+  c.ox += (dx * P.lookAheadMax * hw * f - c.ox) * a;
+  c.oy += (dy * P.lookAheadMax * hw * f - c.oy) * a;
+  const lim = 1 - 2 * P.safeFrame;                       // ship stays inside the safe frame
+  c.ox = clamp(c.ox, -lim * hw, lim * hw); c.oy = clamp(c.oy, -lim * hh, lim * hh);
+  c.x = s.x + c.ox; c.y = s.y + c.oy;
+  c.shake *= Math.exp(-8 * dt);
+  const amp = P.shakeOn ? c.shake * 0.006 * c.view : 0;
+  c.rx = c.x + Math.sin(w.t * 93) * amp; c.ry = c.y + Math.cos(w.t * 71) * amp;
+}
+
+function stepWorld(w, inp, P) {
+  w.t += DT;
+  if (inp.trial) startTrial(w);
+  stepFlight(w, inp, P, DT);
+  stepGuns(w, inp, P, DT);
+  stepTargets(w, P, DT);
+  stepBullets(w, P, DT);
+  stepEnemyShots(w, P, DT);
+  stepParticles(w, DT);
+  stepTrial(w, DT);
+  stepCamera(w, P, DT);
+}
+
+/* ============================== INPUT ============================== */
+const keys = {};
+let pendingEvade = false, pendingTrial = false;
+const touch = { sx: 0, sy: 0, thr: 0, fire: false };
+let padEvadePrev = false, padTrialPrev = false;
+const typing = e => /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);
+addEventListener('keydown', e => {
+  if (typing(e)) return;
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  if (!e.repeat) {
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') pendingEvade = true;
+    if (e.code === 'KeyT') pendingTrial = true;
+    if (e.code === 'KeyR') App.reset();
+    if (e.code === 'KeyP') App.togglePanel();
+    if (e.code === 'F3') { e.preventDefault(); App.toggleDebug(); }
+  }
+  keys[e.code] = true;
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+function samplePad() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads) if (p && p.connected && p.axes.length >= 2) return p;
+  return null;
+}
+function sampleInput() {
+  let sx = 0, sy = 0, rot = 0, thr = 0, fire = false, evade = pendingEvade, trial = pendingTrial;
+  pendingEvade = false; pendingTrial = false;
+  const gp = samplePad();
+  if (gp) {
+    let ax = gp.axes[0], ay = -gp.axes[1]; const m = Math.hypot(ax, ay), dz = 0.2;
+    if (m > dz) { const k = Math.min(1, (m - dz) / (1 - dz)) / m; sx = ax * k; sy = ay * k; }
+    const b = i => (gp.buttons[i] ? gp.buttons[i].value : 0);
+    thr += b(7) - b(6);
+    if (gp.buttons[0] && gp.buttons[0].pressed) fire = true;
+    const x = !!(gp.buttons[2] && gp.buttons[2].pressed); if (x && !padEvadePrev) evade = true; padEvadePrev = x;
+    const y = !!(gp.buttons[3] && gp.buttons[3].pressed); if (y && !padTrialPrev) trial = true; padTrialPrev = y;
+  }
+  if (keys.ArrowLeft || keys.KeyA) rot -= 1;
+  if (keys.ArrowRight || keys.KeyD) rot += 1;
+  if (keys.ArrowUp || keys.KeyW) thr += 1;
+  if (keys.ArrowDown || keys.KeyS) thr -= 1;
+  if (keys.Space) fire = true;
+  sx = clamp(sx + touch.sx, -1, 1); sy = clamp(sy + touch.sy, -1, 1); thr = clamp(thr + touch.thr, -1, 1);
+  if (touch.fire) fire = true;
+  return { sx, sy, rot, throttle: thr, fire, evade, trial };
+}
+
+/* touch controls */
+const $ = id => document.getElementById(id);
+const isTouch = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+if (isTouch) {
+  $('touch').style.display = 'block';
+  const zone = $('zone'), base = $('sbase'), knob = $('sknob');
+  let sid = null, ox = 0, oy = 0; const R = 60;
+  zone.addEventListener('pointerdown', e => {
+    sid = e.pointerId; zone.setPointerCapture(sid); ox = e.clientX; oy = e.clientY;
+    base.style.display = 'block'; base.style.left = ox + 'px'; base.style.top = oy + 'px'; knob.style.transform = 'translate(0,0)';
+  });
+  zone.addEventListener('pointermove', e => {
+    if (e.pointerId !== sid) return;
+    let dx = e.clientX - ox, dy = e.clientY - oy; const m = Math.hypot(dx, dy);
+    if (m > R) { dx *= R / m; dy *= R / m; }
+    knob.style.transform = `translate(${dx}px,${dy}px)`;
+    const mm = Math.hypot(dx, dy) / R;
+    if (mm < 0.15) { touch.sx = 0; touch.sy = 0; } else { touch.sx = dx / R; touch.sy = -dy / R; }
+  });
+  const end = e => { if (e.pointerId !== sid) return; sid = null; touch.sx = 0; touch.sy = 0; base.style.display = 'none'; };
+  zone.addEventListener('pointerup', end); zone.addEventListener('pointercancel', end);
+  const hold = (id, on, off) => {
+    const el = $(id);
+    el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); on(); });
+    el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off);
+  };
+  hold('bFire', () => touch.fire = true, () => touch.fire = false);
+  hold('bBoost', () => touch.thr = 1, () => touch.thr = 0);
+  hold('bBrake', () => touch.thr = -1, () => touch.thr = 0);
+  hold('bEvade', () => pendingEvade = true, () => {});
+}
+
+/* ============================== RENDER ============================= */
+let renderer, scene, ocam, R3 = {};
+const dummy = { o: null };
+function initRender() {
+  renderer = new THREE.WebGLRenderer({ canvas: $('gl'), antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x070b14, 1);
+  scene = new THREE.Scene();
+  ocam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+  dummy.o = new THREE.Object3D();
+
+  // parallax stars (3 layers) + streaks on the nearest layer
+  R3.layers = [
+    { p: 0.15, n: 160, size: 1.2, color: 0x4a5a7a }, { p: 0.4, n: 120, size: 1.8, color: 0x7b8fb5 }, { p: 0.8, n: 80, size: 2.6, color: 0xcfe0ff }
+  ].map(L => {
+    L.base = new Float32Array(L.n * 2).map(() => Math.random() - 0.5);
+    L.pos = new Float32Array(L.n * 3);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(L.pos, 3));
+    L.pts = new THREE.Points(g, new THREE.PointsMaterial({ color: L.color, size: L.size, sizeAttenuation: false }));
+    L.pts.frustumCulled = false; L.pts.position.z = -5; scene.add(L.pts); return L;
+  });
+  const near = R3.layers[2];
+  near.streakPos = new Float32Array(near.n * 6);
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(near.streakPos, 3));
+  near.streaks = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: 0xcfe0ff, transparent: true, opacity: 0 }));
+  near.streaks.frustumCulled = false; near.streaks.position.z = -4.9; scene.add(near.streaks);
+
+  // arena ring
+  const ring = []; for (let i = 0; i < 256; i++) { const a = i / 256 * TAU; ring.push(new THREE.Vector3(Math.cos(a) * DEFAULTS.arenaRadius, Math.sin(a) * DEFAULTS.arenaRadius, -4)); }
+  R3.ring = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(ring), new THREE.LineBasicMaterial({ color: 0x24406b })); R3.ring.frustumCulled = false; scene.add(R3.ring);
+
+  // player ship
+  const pts = [[30, 0], [8, 7], [-4, 24], [-14, 24], [-10, 7], [-18, 5], [-18, -5], [-10, -7], [-14, -24], [-4, -24], [8, -7]];
+  const sh = new THREE.Shape(); pts.forEach((p, i) => i ? sh.lineTo(p[0], p[1]) : sh.moveTo(p[0], p[1])); sh.closePath();
+  R3.shipMat = new THREE.MeshBasicMaterial({ color: 0x6ee7ff, transparent: true });
+  R3.ship = new THREE.Mesh(new THREE.ShapeGeometry(sh), R3.shipMat); R3.ship.position.z = 2;
+  const fl = new THREE.Shape(); fl.moveTo(0, 5); fl.lineTo(0, -5); fl.lineTo(-30, 0); fl.closePath();
+  R3.flame = new THREE.Mesh(new THREE.ShapeGeometry(fl), new THREE.MeshBasicMaterial({ color: 0xffb347 }));
+  R3.flame.position.set(-17, 0, -0.1); R3.ship.add(R3.flame); scene.add(R3.ship);
+
+  // instanced: player bullets, enemy shots, sparks, shards
+  const inst = (geo, color, n, z) => { const m = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color }), n); m.frustumCulled = false; m.position.z = z;
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; scene.add(m); return m; };
+  const tri = new THREE.Shape(); tri.moveTo(1, 0); tri.lineTo(-0.6, 0.8); tri.lineTo(-0.6, -0.8); tri.closePath();
+  R3.bullets = inst(new THREE.PlaneGeometry(26, 4), 0xfff2a8, CAPS.bullets, 1);
+  R3.eshots = inst(new THREE.CircleGeometry(9, 10), 0xff7ac8, CAPS.eshots, 1);
+  R3.sparks = inst(new THREE.PlaneGeometry(1, 0.3), 0xffe9a8, CAPS.parts, 1.5);
+  R3.shards = inst(new THREE.ShapeGeometry(tri), 0x9a4a55, CAPS.parts, 0.5);
+  R3.tmeshes = [];
+  resize();
+}
+function buildTargetMeshes(w) {
+  for (const m of R3.tmeshes) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+  R3.tmeshes = w.targets.map(t => {
+    let geo, color;
+    if (t.kind === 'static') { geo = new THREE.CircleGeometry(t.r, 6); color = 0xff9f45; }
+    else if (t.kind === 'drone') {
+      const sh = new THREE.Shape(); sh.moveTo(t.r, 0); sh.lineTo(-t.r * 0.8, t.r * 0.9); sh.lineTo(-t.r * 0.3, 0); sh.lineTo(-t.r * 0.8, -t.r * 0.9); sh.closePath();
+      geo = new THREE.ShapeGeometry(sh); color = 0xff5a5f;
+    } else { geo = new THREE.CircleGeometry(t.r, 8); color = 0xc084fc; }
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color })); m.userData.base = color;
+    if (t.kind === 'turret') {
+      const bg = new THREE.PlaneGeometry(62, 12); bg.translate(40, 0, 0);
+      m.userData.barrel = new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ color: 0xe0bbff })); m.userData.barrel.position.z = 0.1; m.add(m.userData.barrel);
+    }
+    scene.add(m); return m;
+  });
+}
+function resize() {
+  const W = innerWidth, H = innerHeight;
+  renderer.setSize(W, H, false);
+  const h = $('hud'), d = Math.min(devicePixelRatio || 1, 2);
+  h.width = Math.round(W * d); h.height = Math.round(H * d);
+  App.aspect = W / H; if (App.world) App.world.cam.aspect = App.aspect;
+  App.safeTop = $('probe').offsetHeight;
+}
+function renderFrame(w, P) {
+  const c = w.cam, s = w.ship, hw = c.view / 2, hh = hw / c.aspect;
+  ocam.left = -hw; ocam.right = hw; ocam.top = hh; ocam.bottom = -hh; ocam.position.set(c.rx, c.ry, 10); ocam.updateProjectionMatrix();
+
+  // stars
+  const sf = clamp((s.speed - P.minSpeed) / (P.maxSpeed - P.minSpeed), 0, 1);
+  const tile = Math.max(3200, c.view * 1.25, c.view / c.aspect * 1.25);
+  for (const L of R3.layers) {
+    for (let i = 0; i < L.n; i++) {
+      let rx = (L.base[i * 2] * tile - c.rx * L.p) % tile; if (rx < -tile / 2) rx += tile; else if (rx > tile / 2) rx -= tile;
+      let ry = (L.base[i * 2 + 1] * tile - c.ry * L.p) % tile; if (ry < -tile / 2) ry += tile; else if (ry > tile / 2) ry -= tile;
+      L.pos[i * 3] = c.rx + rx; L.pos[i * 3 + 1] = c.ry + ry;
+    }
+    L.pts.geometry.attributes.position.needsUpdate = true;
+  }
+  const near = R3.layers[2], v = Math.hypot(s.vx, s.vy) || 1, len = 70 * sf * sf + 10 * sf;
+  for (let i = 0; i < near.n; i++) {
+    const x = near.pos[i * 3], y = near.pos[i * 3 + 1];
+    near.streakPos[i * 6] = x; near.streakPos[i * 6 + 1] = y; near.streakPos[i * 6 + 2] = 0;
+    near.streakPos[i * 6 + 3] = x + s.vx / v * len; near.streakPos[i * 6 + 4] = y + s.vy / v * len; near.streakPos[i * 6 + 5] = 0;
+  }
+  near.streaks.geometry.attributes.position.needsUpdate = true; near.streaks.material.opacity = clamp((sf - 0.35) * 1.4, 0, 0.7);
+
+  // ship
+  R3.ship.position.x = s.x; R3.ship.position.y = s.y; R3.ship.rotation.z = s.heading;
+  R3.ship.scale.y = s.evadeT > 0 ? Math.max(0.12, Math.abs(Math.cos(s.roll))) : 1;
+  R3.flame.scale.x = 0.25 + sf * 1.1 + Math.max(0, s.thr) * 0.5;
+  R3.shipMat.opacity = s.invul ? 0.4 : 1; R3.shipMat.color.setHex(s.flash > 0 ? 0xffffff : 0x6ee7ff);
+
+  // targets
+  for (let i = 0; i < w.targets.length; i++) {
+    const t = w.targets[i], m = R3.tmeshes[i];
+    m.visible = t.alive; if (!t.alive) continue;
+    m.position.set(t.x, t.y, 0);
+    if (t.kind === 'drone') m.rotation.z = Math.atan2(t.vy, t.vx); else if (t.kind === 'static') m.rotation.z = w.t * 0.3;
+    else m.userData.barrel.rotation.z = Math.atan2(s.y - t.y, s.x - t.x);
+    m.material.color.setHex(t.flash > 0 ? 0xffffff : m.userData.base);
+  }
+
+  // instanced pools
+  const d = dummy.o;
+  let n = 0;
+  for (const b of w.bullets) if (b.a) { d.position.set(b.x, b.y, 0); d.rotation.z = Math.atan2(b.vy, b.vx); d.scale.set(1, 1, 1); d.updateMatrix(); R3.bullets.setMatrixAt(n++, d.matrix); }
+  R3.bullets.count = n; R3.bullets.instanceMatrix.needsUpdate = true;
+  n = 0;
+  for (const e of w.eshots) if (e.a) { d.position.set(e.x, e.y, 0); d.rotation.z = 0; d.scale.set(1, 1, 1); d.updateMatrix(); R3.eshots.setMatrixAt(n++, d.matrix); }
+  R3.eshots.count = n; R3.eshots.instanceMatrix.needsUpdate = true;
+  let ns = 0, nh = 0;
+  for (const p of w.parts) {
+    if (!p.a) continue;
+    d.position.set(p.x, p.y, 0); d.rotation.z = p.rot;
+    if (p.shape === 0) { const f = p.life / p.max; d.scale.set(p.size * f, p.size * f, 1); d.updateMatrix(); R3.sparks.setMatrixAt(ns++, d.matrix); }
+    else { const f = Math.min(1, p.life / p.max * 2.5); d.scale.set(p.size * f, p.size * f, 1); d.updateMatrix(); R3.shards.setMatrixAt(nh++, d.matrix); }
+  }
+  R3.sparks.count = ns; R3.sparks.instanceMatrix.needsUpdate = true;
+  R3.shards.count = nh; R3.shards.instanceMatrix.needsUpdate = true;
+  renderer.render(scene, ocam);
+}
+
+/* =============================== HUD =============================== */
+const hctx = $('hud').getContext('2d');
+const TYPE_COL = { drone: '#ff5a5f', static: '#ff9f45', turret: '#c084fc' };
+function drawHud(w, P, info) {
+  const W = innerWidth, H = innerHeight, d = Math.min(devicePixelRatio || 1, 2), c = w.cam, s = w.ship, k = W / c.view;
+  const g = hctx; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H);
+  const proj = (x, y) => [W / 2 + (x - c.rx) * k, H / 2 - (y - c.ry) * k];
+
+  // edge indicators
+  const m = 30, hx = W / 2 - m, hy = H / 2 - m;
+  for (const t of w.targets) {
+    if (!t.alive) continue;
+    const [px, py] = proj(t.x, t.y), dx = px - W / 2, dy = py - H / 2;
+    if (Math.abs(dx) < W / 2 && Math.abs(dy) < H / 2) continue;
+    const q = Math.min(hx / Math.abs(dx || 1e-6), hy / Math.abs(dy || 1e-6)), ex = W / 2 + dx * q, ey = H / 2 + dy * q, ang = Math.atan2(dy, dx);
+    const dist = Math.hypot(t.x - s.x, t.y - s.y), sz = lerp(13, 7, clamp(dist / 5000, 0, 1));
+    g.globalAlpha = clamp(1.15 - dist / 4500, 0.25, 1); g.fillStyle = TYPE_COL[t.kind];
+    g.save(); g.translate(ex, ey); g.rotate(ang); g.beginPath(); g.moveTo(sz, 0); g.lineTo(-sz * 0.7, sz * 0.75); g.lineTo(-sz * 0.7, -sz * 0.75); g.closePath(); g.fill(); g.restore();
+  }
+  g.globalAlpha = 1;
+
+  // speed bar + evade bar
+  const bw = Math.min(280, W - 150), x0 = (W - bw) / 2, y0 = App.safeTop + 18, ax = v => x0 + v / P.maxSpeed * bw;
+  g.fillStyle = 'rgba(20,32,58,.8)'; g.fillRect(x0, y0, bw, 10);
+  const nearCorner = Math.abs(s.speed - P.cornerSpeed) < 15;
+  g.fillStyle = nearCorner ? '#7dffb0' : '#6ee7ff'; g.fillRect(x0, y0, s.speed / P.maxSpeed * bw, 10);
+  g.fillStyle = '#d8e6ff'; for (const v of [P.minSpeed, P.cornerSpeed, P.maxSpeed]) g.fillRect(ax(v) - 1, y0 - 3, 2, 16);
+  g.font = '9px ui-monospace,Menlo,monospace'; g.fillStyle = '#7d90b3'; g.textAlign = 'center';
+  g.fillText('min', ax(P.minSpeed), y0 + 23); g.fillText('corner', ax(P.cornerSpeed), y0 + 23); g.fillText('max', Math.min(ax(P.maxSpeed), x0 + bw - 8), y0 + 23);
+  g.textAlign = 'left'; g.font = '11px ui-monospace,Menlo,monospace'; g.fillStyle = '#d8e6ff';
+  g.fillText(Math.round(s.speed) + (s.thr > 0.05 ? ' ▲' : s.thr < -0.05 ? ' ▼' : ' —'), x0 + bw + 8, y0 + 9);
+  const ready = 1 - s.evadeCd / P.evadeCooldown;
+  g.fillStyle = 'rgba(20,32,58,.8)'; g.fillRect(x0, y0 + 30, bw, 6);
+  g.fillStyle = s.evadeCd <= 0 ? '#7dffb0' : '#4f6a99'; g.fillRect(x0, y0 + 30, ready * bw, 6);
+  g.fillStyle = '#7d90b3'; g.fillText('evade', x0 + bw + 8, y0 + 37);
+
+  g.textAlign = 'center'; g.font = '11px ui-monospace,Menlo,monospace'; let ty = y0 + 56;
+  g.fillStyle = '#d8e6ff';
+  let line = `hits taken ${s.hits} · dodges ${s.dodges} · kills ${w.kills}`;
+  g.fillText(line, W / 2, ty); ty += 15;
+  if (w.trial.active) { g.fillStyle = '#ffd166'; g.fillText(`TIME TRIAL ${w.trial.t.toFixed(1)}s · drones left ${w.targets.filter(t => t.kind === 'drone' && t.alive).length}`, W / 2, ty); ty += 15; }
+  else if (w.trial.last !== null) { g.fillStyle = '#7dffb0'; g.fillText(`Trial ${w.trial.last.toFixed(1)}s · best ${w.trial.best.toFixed(1)}s`, W / 2, ty); ty += 15; }
+  else if (w.trial.best !== null) { g.fillStyle = '#7d90b3'; g.fillText(`best trial ${w.trial.best.toFixed(1)}s`, W / 2, ty); ty += 15; }
+  if (info.mode === 'rec') { g.fillStyle = '#ff5a5f'; g.fillText(`● REC ${(info.recLen * DT).toFixed(1)}s (params locked)`, W / 2, ty); ty += 15; }
+  if (info.mode === 'play') { g.fillStyle = '#ffd166'; g.fillText(`▶ REPLAY ${(info.playIdx * DT).toFixed(1)} / ${(info.recLen * DT).toFixed(1)}s`, W / 2, ty); ty += 15; }
+  if (s.outside && Math.floor(w.t * 3) % 2 === 0) { g.fillStyle = '#ff5a5f'; g.font = '14px ui-monospace,Menlo,monospace'; g.fillText('RETURN TO ARENA', W / 2, ty + 8); }
+  g.textAlign = 'left';
+
+  if (info.debug) drawDebug(g, w, P, info, proj, k, W, H);
+}
+function drawDebug(g, w, P, info, proj, k, W, H) {
+  const s = w.ship, c = w.cam, [sx, sy] = proj(s.x, s.y);
+  g.lineWidth = 1.5;
+  g.strokeStyle = '#6ee7ff'; g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + Math.cos(s.heading) * 110, sy - Math.sin(s.heading) * 110); g.stroke();
+  const v = Math.hypot(s.vx, s.vy) || 1; g.strokeStyle = '#7dffb0'; g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + s.vx / v * 110, sy - s.vy / v * 110); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.setLineDash([6, 6]); g.strokeRect(W * P.safeFrame, H * P.safeFrame, W * (1 - 2 * P.safeFrame), H * (1 - 2 * P.safeFrame));
+  g.beginPath(); g.moveTo(W / 2 - 8, H / 2); g.lineTo(W / 2 + 8, H / 2); g.moveTo(W / 2, H / 2 - 8); g.lineTo(W / 2, H / 2 + 8); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(sx, sy, 26 * k, 0, TAU); g.stroke();
+  for (const t of w.targets) if (t.alive) { const [px, py] = proj(t.x, t.y); g.beginPath(); g.arc(px, py, (t.r + 4) * k, 0, TAU); g.stroke(); }
+  // turn-rate curve
+  const gx = 10, gy = H - 90, gw = 150, gh = 70;
+  g.fillStyle = 'rgba(10,16,30,.8)'; g.fillRect(gx, gy, gw, gh); g.strokeStyle = '#7d90b3'; g.strokeRect(gx, gy, gw, gh);
+  g.strokeStyle = '#ffd166'; g.beginPath();
+  for (let i = 0; i <= 40; i++) { const sp = lerp(P.minSpeed, P.maxSpeed, i / 40), y = gy + gh - turnLimit(P, sp) / 400 * gh, x = gx + i / 40 * gw; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+  g.stroke();
+  const cx = gx + (s.speed - P.minSpeed) / (P.maxSpeed - P.minSpeed) * gw, cy = gy + gh - turnLimit(P, s.speed) / 400 * gh;
+  g.fillStyle = '#7dffb0'; g.beginPath(); g.arc(cx, cy, 4, 0, TAU); g.fill();
+  g.fillStyle = '#d8e6ff'; g.font = '10px ui-monospace,Menlo,monospace';
+  g.fillText(`turn ${turnLimit(P, s.speed).toFixed(0)}°/s @ ${s.speed.toFixed(0)}`, gx + 4, gy + 12);
+  const nb = w.bullets.filter(b => b.a).length, np = w.parts.filter(p => p.a).length, ne = w.eshots.filter(e => e.a).length;
+  const lines = [`${(1000 / info.ms).toFixed(0)} fps · ${info.ms.toFixed(1)} ms`, `bullets ${nb}/${CAPS.bullets} · particles ${np}/${CAPS.parts} · enemy shots ${ne}/${CAPS.eshots}`,
+    `events/frame ${info.ev} · view ${c.view.toFixed(0)}u · cam off ${c.ox.toFixed(0)},${c.oy.toFixed(0)}`, `heading ${(s.heading / DEG).toFixed(0)}° · ω ${(s.omega / DEG).toFixed(0)}°/s`];
+  lines.forEach((l, i) => g.fillText(l, gx, gy - 10 - (lines.length - 1 - i) * 13));
+}
+
+/* ======================= SELF-TESTS (headless core) ================ */
+function randInputs(seed, n) {
+  let st = seed >>> 0; const r = () => { st = (Math.imul(st, 1664525) + 1013904223) >>> 0; return st / 4294967296; };
+  const out = []; let cur = null;
+  for (let i = 0; i < n; i++) {
+    if (i % 30 === 0) { const a = r() * TAU, m = r(); cur = { sx: Math.cos(a) * m, sy: Math.sin(a) * m, rot: 0, throttle: r() < 0.3 ? 1 : r() < 0.5 ? -1 : 0, fire: r() < 0.6 }; }
+    out.push({ sx: cur.sx, sy: cur.sy, rot: 0, throttle: cur.throttle, fire: cur.fire, evade: r() < 0.01, trial: i === 600 });
+  }
+  return out;
+}
+const idle = () => ({ sx: 0, sy: 0, rot: 0, throttle: 0, fire: false, evade: false, trial: false });
+function simHash(seed, inputs, P) {
+  const w = createWorld(seed, P); for (const i of inputs) stepWorld(w, i, P);
+  const s = w.ship; return [s.x.toFixed(4), s.y.toFixed(4), s.heading.toFixed(5), w.rng, w.kills, s.hits].join('|');
+}
+function runSelfTests(P0) {
+  const P = Object.assign({}, P0), res = [], ok = (n, c, extra) => res.push((c ? '✓ ' : '✗ ') + n + (extra ? ' — ' + extra : ''));
+  ok('turn curve peaks at corner speed', Math.abs(turnLimit(P, P.cornerSpeed) - P.maxTurnRate) < 1e-6);
+  ok('turn curve endpoints', Math.abs(turnLimit(P, P.minSpeed) - P.turnAtMin) < 1e-6 && Math.abs(turnLimit(P, P.maxSpeed) - P.turnAtMax) < 1e-6);
+  let w = createWorld(1, P); for (let i = 0; i < 600; i++) stepWorld(w, Object.assign(idle(), { throttle: 1 }), P);
+  const hi = w.ship.speed; for (let i = 0; i < 600; i++) stepWorld(w, Object.assign(idle(), { throttle: -1 }), P);
+  ok('speed clamps to [min,max]', hi <= P.maxSpeed + 1e-6 && w.ship.speed >= P.minSpeed - 1e-6, `${hi.toFixed(0)} / ${w.ship.speed.toFixed(0)}`);
+  w = createWorld(2, P); w.ship.heading = 1; for (let i = 0; i < 180; i++) stepWorld(w, idle(), P);
+  const dv = Math.abs(wrapA(Math.atan2(w.ship.vy, w.ship.vx) - w.ship.heading)); ok('grip aligns velocity with nose', dv < 0.05, dv.toFixed(4) + ' rad');
+  const P2 = Object.assign({}, P, { spread: 0 }); w = createWorld(3, P2); stepWorld(w, Object.assign(idle(), { fire: true }), P2);
+  const b = w.bullets.find(x => x.a); ok('bullet inherits ship velocity', !!b && Math.abs(b.vx - (P2.bulletSpeed + w.ship.vx)) < 1.5);
+  w = createWorld(4, P); stepWorld(w, Object.assign(idle(), { evade: true }), P); const c1 = w.ship.evadeCd, t1 = w.ship.evadeT;
+  stepWorld(w, Object.assign(idle(), { evade: true }), P);
+  ok('evade starts, no re-trigger during cooldown', t1 > 0 && w.ship.evadeCd < c1);
+  for (let i = 0; i < Math.ceil((P.evadeCooldown + 0.1) / DT); i++) stepWorld(w, idle(), P);
+  stepWorld(w, Object.assign(idle(), { evade: true }), P); ok('evade available after cooldown', w.ship.evadeT > 0);
+  const inputs = randInputs(99, 7200); w = createWorld(7, P); let bad = false, maxD = 0, maxB = 0, maxP = 0;
+  for (const i of inputs) { stepWorld(w, i, P); const s = w.ship;
+    if (![s.x, s.y, s.heading, s.vx, s.vy, s.speed].every(Number.isFinite)) bad = true;
+    maxD = Math.max(maxD, Math.hypot(s.x, s.y)); maxB = Math.max(maxB, w.bullets.filter(q => q.a).length); maxP = Math.max(maxP, w.parts.filter(q => q.a).length); }
+  ok('120 s random inputs: no NaN', !bad); ok('stays near arena', maxD < P.arenaRadius * 1.2, maxD.toFixed(0) + ' u');
+  ok('pools within caps', maxB <= CAPS.bullets && maxP <= CAPS.parts, `bullets ${maxB}, particles ${maxP}`);
+  const h1 = simHash(5, inputs.slice(0, 3600), P), h2 = simHash(5, inputs.slice(0, 3600), P); ok('determinism (same seed + inputs)', h1 === h2, h1 === h2 ? '' : h1 + ' vs ' + h2);
+  return res.join('\n');
+}
+
+/* ================================ DEV ============================== */
+let P = Object.assign({}, DEFAULTS);
+function buildPanel() {
+  let html = '', grp = '';
+  for (const [g, key, label, mn, mx, st, unit] of SCHEMA) {
+    if (g !== grp) { html += `<h4>${g}</h4>`; grp = g; if (g === 'Flight') html += toggleHtml(['steering']); if (g === 'Evade') html += toggleHtml(['evadeSidestep']); if (g === 'Camera') html += toggleHtml(['lookMode', 'zoomByDistance', 'shakeOn']); }
+    html += `<div class="row"><label for="s_${key}">${label} <span style="color:var(--dim)">${unit}</span></label><span class="v" id="v_${key}"></span><input id="s_${key}" type="range" min="${mn}" max="${mx}" step="${st}"></div>`;
+  }
+  $('sliders').innerHTML = html;
+  for (const [, key] of SCHEMA) {
+    const el = $('s_' + key); el.addEventListener('input', () => { P[key] = +el.value; $('v_' + key).textContent = el.value; });
+    el.addEventListener('change', () => el.blur());
+  }
+  for (const [key, , type] of TOGGLES) {
+    const el = $('t_' + key); el.addEventListener('change', () => { P[key] = type === 'bool' ? el.checked : el.value; el.blur(); });
+  }
+  refreshPanel();
+}
+function toggleHtml(keys) {
+  return TOGGLES.filter(t => keys.includes(t[0])).map(([key, label, type]) => type === 'bool'
+    ? `<div class="tog"><label for="t_${key}">${label}</label><input id="t_${key}" type="checkbox"></div>`
+    : `<div class="tog"><label for="t_${key}">${label}</label><select id="t_${key}">${type.map(o => `<option>${o}</option>`).join('')}</select></div>`).join('');
+}
+function refreshPanel() {
+  for (const [, key] of SCHEMA) { $('s_' + key).value = P[key]; $('v_' + key).textContent = P[key]; }
+  for (const [key, , type] of TOGGLES) { const el = $('t_' + key); if (type === 'bool') el.checked = !!P[key]; else el.value = P[key]; }
+}
+function importPreset(text) {
+  let o; try { o = JSON.parse(text); } catch (e) { throw new Error('Invalid JSON: ' + e.message); }
+  const next = Object.assign({}, P);
+  for (const [k, v] of Object.entries(o)) {
+    const sc = SCHEMA.find(s => s[1] === k), tg = TOGGLES.find(t => t[0] === k);
+    if (sc) { if (typeof v !== 'number' || !isFinite(v) || v < sc[3] || v > sc[4]) throw new Error(`${k}: expected number in ${sc[3]}–${sc[4]}`); next[k] = v; }
+    else if (tg) { if (tg[2] === 'bool' ? typeof v !== 'boolean' : !tg[2].includes(v)) throw new Error(`${k}: invalid value`); next[k] = v; }
+    else throw new Error('Unknown parameter: ' + k);
+  }
+  P = next; refreshPanel();
+}
+
+/* ================================ APP ============================== */
+const App = {
+  world: null, aspect: 1, safeTop: 0, mode: 'live', rec: null, playIdx: 0, debug: false, best: null,
+  reset(seed) {
+    if (App.mode !== 'live') return;
+    App.newWorld(seed === undefined ? (Date.now() & 0x7fffffff) : seed, P);
+  },
+  newWorld(seed, params) {
+    App.world = createWorld(seed, params); App.world.cam.aspect = App.aspect; App.world.trial.best = App.best; buildTargetMeshes(App.world);
+  },
+  togglePanel() { const p = $('panel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; },
+  toggleDebug() { App.debug = !App.debug; $('bDbg').style.borderColor = App.debug ? 'var(--accent)' : ''; }
+};
+
+function fatal(msg) { const f = $('fatal'); f.style.display = 'flex'; f.textContent = msg; }
+
+function main() {
+  if (typeof THREE === 'undefined') { fatal('Three.js failed to load from cdnjs. Check your connection and reload.'); return; }
+  try { const b = localStorage.getItem('sf_best'); if (b) App.best = +b; } catch (e) {}
+  initRender(); buildPanel(); App.newWorld(12345, P);
+  $('help').textContent = isTouch ? '' :
+    'WASD / arrows  fly · Space fire · Shift evade\nT time trial · R reset · P tuning · F3 debug\nPad: LS steer · RT/LT throttle · A fire · X evade · Y trial';
+  addEventListener('resize', resize);
+
+  $('bTune').onclick = App.togglePanel; $('bDbg').onclick = App.toggleDebug; $('bTrial').onclick = () => { pendingTrial = true; };
+
+  // replay
+  const rInfo = $('rInfo');
+  $('rRec').onclick = () => {
+    if (App.mode === 'rec') { App.mode = 'live'; $('rRec').textContent = 'Record'; rInfo.textContent = `Recorded ${(App.rec.inputs.length * DT).toFixed(1)} s (seed ${App.rec.seed}).`; return; }
+    if (App.mode !== 'live') return;
+    const seed = Date.now() & 0x7fffffff;
+    App.rec = { seed, params: Object.assign({}, P), inputs: [] };
+    App.newWorld(seed, App.rec.params); App.mode = 'rec'; $('rRec').textContent = 'Stop'; rInfo.textContent = 'Recording from a fresh world…';
+  };
+  $('rPlay').onclick = () => {
+    if (App.mode !== 'live' || !App.rec || !App.rec.inputs.length) { rInfo.textContent = 'Record something first.'; return; }
+    App.newWorld(App.rec.seed, App.rec.params); App.mode = 'play'; App.playIdx = 0; rInfo.textContent = 'Playing…';
+  };
+  $('rCheck').onclick = () => {
+    if (!App.rec || !App.rec.inputs.length) { rInfo.textContent = 'Record something first.'; return; }
+    const a = simHash(App.rec.seed, App.rec.inputs, App.rec.params), b = simHash(App.rec.seed, App.rec.inputs, App.rec.params);
+    rInfo.textContent = a === b ? `Deterministic ✓ (${App.rec.inputs.length} ticks)` : 'MISMATCH ✗ ' + a + ' vs ' + b;
+  };
+
+  // presets
+  const slot = 'sf_preset';
+  $('pSave').onclick = () => { try { localStorage.setItem(slot, JSON.stringify(P)); $('pText').value = 'Saved to slot.'; } catch (e) { $('pText').value = 'Storage unavailable here — use Export.'; } };
+  $('pLoad').onclick = () => { try { const t = localStorage.getItem(slot); if (!t) { $('pText').value = 'Slot is empty.'; return; } importPreset(t); $('pText').value = 'Loaded.'; } catch (e) { $('pText').value = 'Load failed: ' + e.message; } };
+  $('pExport').onclick = () => { $('pText').value = JSON.stringify(P, null, 1); };
+  $('pImport').onclick = () => { try { importPreset($('pText').value); } catch (e) { $('pText').value = 'Import failed: ' + e.message; } };
+  $('pReset').onclick = () => { P = Object.assign({}, DEFAULTS); refreshPanel(); };
+  $('tRun').onclick = () => { $('tests').textContent = 'Running…'; setTimeout(() => { try { $('tests').textContent = runSelfTests(P); } catch (e) { $('tests').textContent = 'Error: ' + e.message; } }, 20); };
+
+  let last = performance.now(), acc = 0, ms = 16.7;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    let d = (now - last) / 1000; last = now; if (d > 0.1) d = 0.1;
+    ms = lerp(ms, d * 1000, 0.05); acc += d;
+    let n = 0;
+    while (acc >= DT && n < 5) {
+      let inp;
+      if (App.mode === 'play') { inp = App.rec.inputs[App.playIdx++]; if (!inp) { App.mode = 'live'; $('rInfo').textContent = 'Replay finished.'; inp = sampleInput(); } }
+      else { inp = sampleInput(); if (App.mode === 'rec') App.rec.inputs.push(inp); }
+      const PP = App.mode === 'live' ? P : App.rec.params;
+      stepWorld(App.world, inp, PP);
+      acc -= DT; n++;
+    }
+    if (n === 5) acc = 0;
+    const w = App.world, PP = App.mode === 'live' ? P : App.rec.params, ev = w.events.length;
+    for (const e of w.events) if (e.type === 'TrialDone') { App.best = w.trial.best; try { localStorage.setItem('sf_best', String(App.best)); } catch (x) {} }
+    w.events.length = 0;
+    renderFrame(w, PP);
+    drawHud(w, PP, { mode: App.mode, recLen: App.rec ? App.rec.inputs.length : 0, playIdx: App.playIdx, debug: App.debug, ms, ev });
+  }
+  requestAnimationFrame(frame);
+}
+main();
+</script>
+</body>
+</html>
