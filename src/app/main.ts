@@ -1,10 +1,10 @@
 import { createRenderer } from '../render/renderer';
+import { createWorld, stepWorld } from '../core/world/world';
 import { createFixedLoop } from './loop';
 
 const renderer = createRenderer(document.body);
-const loop = createFixedLoop(() => {
-  // Simulation step: gameplay modules plug in here (Prototype 1 issues).
-});
+const world = createWorld(Date.now() >>> 0);
+const loop = createFixedLoop((dt) => stepWorld(world, dt));
 
 let last = performance.now();
 function frame(now: number): void {
