@@ -4,10 +4,14 @@ import { createWorld, stepWorld } from '../core/world/world';
 import { createInput } from '../input/input';
 import { createFixedLoop } from './loop';
 
-const renderer = createRenderer(document.body);
 const world = createWorld(Date.now() >>> 0, createTuning());
+const renderer = createRenderer(document.body, world);
 const input = createInput();
-const loop = createFixedLoop((dt) => stepWorld(world, dt));
+const loop = createFixedLoop((dt) => {
+  stepWorld(world, dt);
+  // Events live for one step; hand them to FX before the next step clears them.
+  renderer.consumeEvents(world.events.events);
+});
 
 let last = performance.now();
 function frame(now: number): void {
