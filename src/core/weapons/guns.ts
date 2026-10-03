@@ -7,10 +7,11 @@ import type { Collider } from '../world/target';
 import { createPool, type Pool } from '../world/pool';
 import type { Actions } from '../world/actions';
 
-export type BulletPool = Pool<'x' | 'y' | 'vx' | 'vy' | 'life'>;
+/** `damage` is per bullet: the player's bullets use `bulletDamage`, wingmen's use their own (lower) value. */
+export type BulletPool = Pool<'x' | 'y' | 'vx' | 'vy' | 'life' | 'damage'>;
 
 export function createBulletPool(cfg: WeaponsConfig): BulletPool {
-  return createPool(cfg.bulletCap, ['x', 'y', 'vx', 'vy', 'life']);
+  return createPool(cfg.bulletCap, ['x', 'y', 'vx', 'vy', 'life', 'damage']);
 }
 
 export interface GunState {
@@ -54,6 +55,7 @@ export function stepGuns(
     bullets.data.vx[i] = ship.vx + Math.cos(angle) * cfg.bulletSpeed;
     bullets.data.vy[i] = ship.vy + Math.sin(angle) * cfg.bulletSpeed;
     bullets.data.life[i] = cfg.bulletLife;
+    bullets.data.damage[i] = cfg.bulletDamage;
     state.barrel = state.barrel === 1 ? -1 : 1;
     events.emit({ type: 'ShotFired', x, y, angle });
   }
@@ -102,7 +104,7 @@ function hitFirst(
     const reach = t.radius + cfg.bulletRadius;
     if (dx * dx + dy * dy > reach * reach) continue;
     const speed = Math.hypot(vx[i]!, vy[i]!) || 1;
-    t.hp -= cfg.bulletDamage;
+    t.hp -= bullets.data.damage[i]!;
     events.emit({
       type: 'Hit',
       x: x[i]!,

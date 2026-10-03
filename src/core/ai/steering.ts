@@ -1,6 +1,10 @@
 import type { FighterConfig } from '../../../data/tuning/fighter';
 import type { FlightConfig } from '../../../data/tuning/flight';
+import type { EventQueue } from '../events/events';
 import { clamp } from '../math';
+
+/** An event sink that drops everything: AI ships flying the flight model must not emit the player's evade events. */
+export const noEvents: EventQueue = { events: [], emit: () => {}, clear: () => {} };
 
 /**
  * Fills `out` with the fighter's own flight model settings: the player's, scaled in tuning.

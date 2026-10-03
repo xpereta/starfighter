@@ -1,20 +1,17 @@
 import type { FighterConfig } from '../../../data/tuning/fighter';
 import { createFlightConfig } from '../../../data/tuning/flight';
-import type { EventQueue } from '../events/events';
 import { stepFlight } from '../flight/flight';
 import { DEG, wrapAngle } from '../math';
 import { stepSeconds } from '../world/clock';
 import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
 import { NO_HIT, type Fighter } from './fighter';
-import { deriveFlight, leadPoint, type Point } from './steering';
+import { deriveFlight, leadPoint, noEvents, type Point } from './steering';
 
 export type { Fighter } from './fighter';
 export { mixFighters } from './fighter';
 export { stepWaves } from './waves';
 
-/** Fighters take no part in the event stream's evade events (they are not the player). */
-const noEvents: EventQueue = { events: [], emit: () => {}, clear: () => {} };
 // Scratch objects, fully overwritten before each use, so stepping allocates nothing.
 const flightScratch = createFlightConfig();
 const leadScratch: Point = { x: 0, y: 0 };

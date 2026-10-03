@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
 import { hashWorld } from '../replay/hash';
-import { createShip } from '../flight/flight';
+import { createWingman } from '../squadron/wingmen';
 import { wrapAngle } from '../math';
 import { FIGHTER_ID_BASE, forEachLockable } from '../world/lockable';
 import { createWorld, stepWorld, type World } from '../world/world';
@@ -31,12 +31,12 @@ function aiSteps(world: World, n = 1): void {
 }
 
 function addWingman(world: World, x: number, y: number): number {
-  const ship = createShip(world.tuning.flight);
-  ship.x = x;
-  ship.y = y;
-  ship.vx = 0;
-  ship.vy = 0;
-  world.squadron.wingmen.push({ ship, hp: 3, alive: true });
+  const wingman = createWingman(world, world.squadron.wingmen.length, 4);
+  wingman.ship.x = x;
+  wingman.ship.y = y;
+  wingman.ship.vx = 0;
+  wingman.ship.vy = 0;
+  world.squadron.wingmen.push(wingman);
   return world.squadron.wingmen.length - 1;
 }
 
@@ -216,6 +216,7 @@ describe('hp, bullets and death', () => {
       world.bullets.data.y[k] = f.y;
       world.bullets.data.vx[k] = 1;
       world.bullets.data.life[k] = 1;
+      world.bullets.data.damage[k] = 1;
     };
     shoot();
     stepBullets(
