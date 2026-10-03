@@ -1,4 +1,7 @@
 import { createArenaConfig, type ArenaConfig } from './arena';
+import { cameraParams } from './camera';
+import { flightParams } from './flight';
+import { weaponsParams } from './weapons';
 import { createCameraConfig, type CameraConfig } from './camera';
 import { createHudConfig, type HudConfig } from './hud';
 import { createFlightConfig, type FlightConfig } from './flight';
@@ -22,3 +25,10 @@ export function createTuning(): Tuning {
     hud: createHudConfig(),
   };
 }
+
+/** Parameter definitions (default, range, unit) for the groups the dev panel can tune. */
+export const tuningParams = {
+  flight: flightParams,
+  camera: cameraParams,
+  weapons: weaponsParams,
+} as const;
