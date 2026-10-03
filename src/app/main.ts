@@ -1,6 +1,7 @@
 import { createTuning } from '../../data/tuning';
 import { createWorld, stepWorld } from '../core/world/world';
 import { createInput } from '../input/input';
+import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
 import { createFixedLoop } from './loop';
 import { loadSave, SAVE_VERSION, storeSave } from './save';
@@ -8,6 +9,7 @@ import { loadSave, SAVE_VERSION, storeSave } from './save';
 const save = loadSave();
 const world = createWorld(Date.now() >>> 0, createTuning(), save.bestTrialTime);
 const renderer = createRenderer(document.body, world);
+const hud = createHud(document.body);
 const input = createInput();
 const loop = createFixedLoop((dt) => {
   stepWorld(world, dt);
@@ -19,15 +21,6 @@ const loop = createFixedLoop((dt) => {
   }
 });
 
-/** Stopgap trial readout in the tab title until the HUD issue (#10) draws it. */
-function trialTitle(): string {
-  const { trial } = world;
-  const best = trial.best === null ? '--' : trial.best.toFixed(1);
-  if (!trial.active) return `Starfighter | T = time trial | best ${best}s`;
-  const left = world.targets.filter((t) => t.kind === 'drone' && t.alive).length;
-  return `Starfighter | TRIAL ${trial.time.toFixed(1)}s | drones left ${left} | best ${best}s`;
-}
-
 let last = performance.now();
 function frame(now: number): void {
   input.poll(world.actions);
@@ -35,7 +28,7 @@ function frame(now: number): void {
   loop.advance((now - last) / 1000);
   last = now;
   renderer.render(world);
-  document.title = trialTitle();
+  hud.draw(world);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

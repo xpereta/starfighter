@@ -1,0 +1,188 @@
+import { viewSize } from '../../core/camera/view';
+import type { TargetKind } from '../../core/world/target';
+import type { World } from '../../core/world/world';
+import { palette } from '../palette';
+import {
+  blinkOn,
+  createEdgeIndicator,
+  distanceStyle,
+  edgeIndicator,
+  evadeReadiness,
+  speedBar,
+  throttleState,
+} from './layout';
+
+const FONT = '600 14px ui-monospace, Menlo, Consolas, monospace';
+const PAD = 24;
+const BAR_W = 220;
+const BAR_H = 10;
+const EVADE_W = 120;
+const EVADE_H = 6;
+
+const css = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`;
+const KIND_COLOR: Record<TargetKind, string> = {
+  static: css(palette.enemyStatic),
+  drone: css(palette.enemy),
+  turret: css(palette.turret),
+};
+
+export interface Hud {
+  draw(world: World): void;
+  dispose(): void;
+}
+
+/** 2D canvas overlay. All placement math lives in layout.ts; this file only draws. */
+export function createHud(container: HTMLElement): Hud {
+  const canvas = document.createElement('canvas');
+  canvas.id = 'hud';
+  // Explicit CSS size: a canvas ignores inset and would otherwise show at its pixel size (2x on Retina).
+  canvas.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none';
+  container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas is not available for the HUD');
+  const g = ctx;
+  const indicator = createEdgeIndicator();
+  const screen = { width: 0, height: 0 };
+
+  function resize(): void {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    screen.width = window.innerWidth;
+    screen.height = window.innerHeight;
+    canvas.width = Math.round(screen.width * dpr);
+    canvas.height = Math.round(screen.height * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function text(
+    s: string,
+    x: number,
+    y: number,
+    color: string,
+    align: CanvasTextAlign = 'left',
+  ): void {
+    g.fillStyle = color;
+    g.textAlign = align;
+    g.fillText(s, x, y);
+  }
+
+  function drawEdgeArrows(world: World): void {
+    const cam = world.camera;
+    const view = viewSize(cam.view, cam.aspect);
+    const center = { x: cam.x + cam.shakeX, y: cam.y + cam.shakeY };
+    const cfg = world.tuning.hud;
+    for (const t of world.targets) {
+      if (!t.alive) continue;
+      if (!edgeIndicator(indicator, t, center, view, screen, cfg.edgeMargin)) continue;
+      const { size, opacity } = distanceStyle(indicator.distance, cfg);
+      g.save();
+      g.translate(indicator.x, indicator.y);
+      g.rotate(indicator.angle);
+      g.globalAlpha = opacity;
+      g.fillStyle = KIND_COLOR[t.kind];
+      g.beginPath();
+      g.moveTo(size, 0);
+      g.lineTo(-size * 0.6, size * 0.65);
+      g.lineTo(-size * 0.6, -size * 0.65);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+  }
+
+  function drawFlight(world: World): void {
+    const { ship, tuning, actions } = world;
+    const flight = tuning.flight;
+    const bar = speedBar(ship.speed, flight);
+    const left = PAD;
+    const base = screen.height - PAD;
+
+    // Evade cooldown.
+    const ready = evadeReadiness(ship.evadeCooldown, flight.evadeCooldown);
+    const evadeY = base - EVADE_H;
+    g.fillStyle = 'rgba(255,255,255,0.15)';
+    g.fillRect(left, evadeY, EVADE_W, EVADE_H);
+    g.fillStyle = ready >= 1 ? css(palette.friendly) : css(palette.enemyStatic);
+    g.fillRect(left, evadeY, EVADE_W * ready, EVADE_H);
+    text(
+      ready >= 1 ? 'EVADE READY' : 'EVADE',
+      left + EVADE_W + 10,
+      evadeY + EVADE_H + 2,
+      'rgba(255,255,255,0.8)',
+    );
+
+    // Speed bar with min (start), corner, cruise and max (end) markers.
+    const barY = evadeY - 22;
+    g.fillStyle = 'rgba(255,255,255,0.15)';
+    g.fillRect(left, barY, BAR_W, BAR_H);
+    g.fillStyle = css(palette.friendly);
+    g.fillRect(left, barY, BAR_W * bar.fill, BAR_H);
+    g.fillStyle = '#ffffff';
+    g.fillRect(left + BAR_W * bar.corner - 1, barY - 4, 2, BAR_H + 8); // corner speed: tightest turns
+    g.fillStyle = 'rgba(255,255,255,0.5)';
+    g.fillRect(left + BAR_W * bar.cruise - 1, barY - 2, 2, BAR_H + 4);
+    g.fillRect(left, barY - 2, 2, BAR_H + 4);
+    g.fillRect(left + BAR_W - 2, barY - 2, 2, BAR_H + 4);
+    text(
+      `SPEED ${Math.round(ship.speed)}  ${throttleState(actions.throttle, flight.throttleDeadband)}`,
+      left,
+      barY - 10,
+      'rgba(255,255,255,0.85)',
+    );
+  }
+
+  function drawStatus(world: World): void {
+    const { trial, stats, ship, tuning } = world;
+    const best = trial.best === null ? '--' : `${trial.best.toFixed(1)}s`;
+    text(
+      `KILLS ${stats.kills}   HITS TAKEN ${stats.hitsTaken}`,
+      PAD,
+      PAD + 10,
+      'rgba(255,255,255,0.8)',
+    );
+    if (trial.active) {
+      let alive = 0;
+      let total = 0;
+      for (const t of world.targets) {
+        if (t.kind !== 'drone') continue;
+        total++;
+        if (t.alive) alive++;
+      }
+      text(
+        `TRIAL ${trial.time.toFixed(1)}s   DRONES ${alive}/${total}   BEST ${best}`,
+        screen.width / 2,
+        PAD + 10,
+        css(palette.projectile),
+        'center',
+      );
+    } else {
+      const last = trial.last === null ? '' : `   LAST ${trial.last.toFixed(1)}s`;
+      text(
+        `T: TIME TRIAL   BEST ${best}${last}`,
+        screen.width / 2,
+        PAD + 10,
+        'rgba(255,255,255,0.6)',
+        'center',
+      );
+    }
+    if (ship.outside && blinkOn(world.time, tuning.hud.warningBlinkHz)) {
+      text('RETURN TO ARENA', screen.width / 2, PAD + 50, css(palette.enemy), 'center');
+    }
+  }
+
+  return {
+    draw(world) {
+      g.clearRect(0, 0, screen.width, screen.height);
+      g.font = FONT;
+      g.textBaseline = 'alphabetic';
+      drawEdgeArrows(world);
+      drawFlight(world);
+      drawStatus(world);
+    },
+    dispose() {
+      window.removeEventListener('resize', resize);
+      canvas.remove();
+    },
+  };
+}
