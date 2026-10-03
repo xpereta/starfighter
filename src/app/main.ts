@@ -12,6 +12,7 @@ const loop = createFixedLoop((dt) => stepWorld(world, dt));
 let last = performance.now();
 function frame(now: number): void {
   input.poll(world.actions);
+  world.camera.aspect = window.innerWidth / window.innerHeight || 1;
   loop.advance((now - last) / 1000);
   last = now;
   renderer.render(world);

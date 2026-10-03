@@ -1,6 +1,7 @@
 import { createEventQueue, type EventQueue } from '../events/events';
 import { createRng, type Rng } from '../rng/rng';
 import type { Tuning } from '../../../data/tuning';
+import { createCamera, stepCamera, type Camera } from '../camera/camera';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
 import { createActions, type Actions } from './actions';
 
@@ -14,6 +15,7 @@ export interface World {
   /** Live tuning values (the dev panel edits these in place). */
   readonly tuning: Tuning;
   readonly ship: Ship;
+  readonly camera: Camera;
   /** Fixed steps simulated so far. */
   tick: number;
   /** Simulated seconds (tick * dt). */
@@ -21,13 +23,15 @@ export interface World {
 }
 
 export function createWorld(seed: number, tuning: Tuning): World {
+  const ship = createShip(tuning.flight);
   return {
     seed,
     rng: createRng(seed),
     events: createEventQueue(),
     actions: createActions(),
     tuning,
-    ship: createShip(tuning.flight),
+    ship,
+    camera: createCamera(ship, tuning.flight, tuning.camera),
     tick: 0,
     time: 0,
   };
@@ -39,4 +43,14 @@ export function stepWorld(world: World, dt: number): void {
   world.tick += 1;
   world.time += dt;
   stepFlight(world.ship, world.actions, world.tuning.flight, dt);
+  // Camera runs last so it sees this step's events (shake) and final ship state.
+  stepCamera(
+    world.camera,
+    world.ship,
+    world.tuning.flight,
+    world.tuning.camera,
+    world.events.events,
+    world.time,
+    dt,
+  );
 }
