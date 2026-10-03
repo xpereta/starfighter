@@ -52,18 +52,19 @@ describe('mapGamepad', () => {
 describe('mapKeyboard', () => {
   it('maps WASD, arrows, space and shift', () => {
     expect(mapKeyboard(new Set(['KeyW', 'KeyD', 'Space', 'ShiftLeft']))).toEqual({
-      steerX: 1,
+      steerX: 0,
       steerY: 0,
+      rotate: 1,
       throttle: 1,
       fire: true,
       evade: true,
     });
-    expect(mapKeyboard(new Set(['ArrowLeft', 'ArrowDown'])).steerX).toBe(-1);
+    expect(mapKeyboard(new Set(['ArrowLeft', 'ArrowDown'])).rotate).toBe(-1);
   });
 
   it('cancels opposite keys held together', () => {
     const a = mapKeyboard(new Set(['KeyA', 'KeyD', 'KeyW', 'KeyS']));
-    expect(a.steerX).toBe(0);
+    expect(a.rotate).toBe(0);
     expect(a.throttle).toBe(0);
   });
 
@@ -79,6 +80,7 @@ describe('mergeActions', () => {
     expect(mergeActions(a, b)).toEqual({
       steerX: -0.8,
       steerY: 0,
+      rotate: 0,
       throttle: -0.9,
       fire: true,
       evade: true,

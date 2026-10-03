@@ -1,11 +1,12 @@
 import * as THREE from 'three';
+import type { World } from '../core/world/world';
 
 /** Reference screen (Steam Deck). Visible world height at start, in world units. */
 const REFERENCE_ASPECT = 1280 / 800;
 const VIEW_WIDTH = 1600;
 
 export interface Renderer {
-  render(): void;
+  render(world: World): void;
   dispose(): void;
 }
 
@@ -49,7 +50,15 @@ export function createRenderer(container: HTMLElement): Renderer {
   resize();
 
   return {
-    render: () => renderer.render(scene, camera),
+    render(world) {
+      const { ship: s } = world;
+      // The placeholder mesh points up (+y); heading 0 means +x.
+      ship.position.set(s.x, s.y, 0);
+      ship.rotation.z = s.heading - Math.PI / 2;
+      // Stopgap: keep the ship centered. Replaced by core/camera (issue #6).
+      camera.position.set(s.x, s.y, 0);
+      renderer.render(scene, camera);
+    },
     dispose() {
       window.removeEventListener('resize', resize);
       renderer.dispose();
