@@ -5,7 +5,8 @@ import { forEachLockable, getLockable } from '../world/lockable';
 import { createPool, type Pool } from '../world/pool';
 import type { World } from '../world/world';
 
-type MissileFields = 'x' | 'y' | 'vx' | 'vy' | 'heading' | 'speed' | 'phase' | 'life' | 'targetId';
+type MissileFields =
+  'uid' | 'x' | 'y' | 'vx' | 'vy' | 'heading' | 'speed' | 'phase' | 'life' | 'targetId';
 
 /** The salvo being launched (spec section 2). Lives on the missile pool so the world contract stays unchanged. */
 export interface SalvoState {
@@ -17,6 +18,8 @@ export interface SalvoState {
   nextIn: number;
   /** How many missiles of the current salvo have left (the launcher index of the next one). */
   launched: number;
+  /** The `uid` the next missile gets: a stable identity (pool slots move when missiles are removed). */
+  nextUid: number;
 }
 
 /**
@@ -28,11 +31,12 @@ export interface MissilePool extends Pool<MissileFields> {
 }
 
 function createSalvo(): SalvoState {
-  return { cooldown: 0, pending: [], nextIn: 0, launched: 0 };
+  return { cooldown: 0, pending: [], nextIn: 0, launched: 0, nextUid: 0 };
 }
 
 export function createMissilePool(cfg: MissilesConfig): MissilePool {
   const base = createPool<MissileFields>(cfg.missileCap, [
+    'uid',
     'x',
     'y',
     'vx',
@@ -107,6 +111,7 @@ function launchOne(world: World, cfg: MissilesConfig, targetId: number, pilot: n
   const o = launchOrigin(world, pilot);
   const forward = o.vx * Math.cos(o.heading) + o.vy * Math.sin(o.heading);
   const speed = cfg.launchSpeed + Math.max(0, forward);
+  m.data.uid[i] = m.salvo.nextUid++;
   m.data.x[i] = o.x;
   m.data.y[i] = o.y;
   m.data.heading[i] = o.heading;
@@ -236,6 +241,7 @@ export function mixMissiles(mix: (n: number) => void, missiles: MissilePool): vo
   mix(salvo.cooldown);
   mix(salvo.nextIn);
   mix(salvo.launched);
+  mix(salvo.nextUid);
   mix(salvo.pending.length);
   for (const id of salvo.pending) mix(id);
 }

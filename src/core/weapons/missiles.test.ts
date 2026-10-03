@@ -389,8 +389,29 @@ describe('state, hash and reset', () => {
     expectNew();
     w.missiles.salvo.launched = 2;
     expectNew();
+    w.missiles.salvo.nextUid = 9;
+    expectNew();
     w.missiles.salvo.pending.push(7);
     expectNew();
+  });
+
+  it('gives every missile a unique, stable uid that survives other missiles being removed', () => {
+    const w = setup(2);
+    w.tuning.missiles.wobbleAmount = 0;
+    w.targets.push(target(5000, 0));
+    w.lockon.locks.push(0);
+    tick(w, true);
+    for (let i = 0; i < 40; i++) tick(w, true);
+    expect(w.missiles.count).toBe(3);
+    const uids = [0, 1, 2].map((i) => w.missiles.data.uid[i]);
+    expect(new Set(uids).size).toBe(3);
+    const second = w.missiles.data.uid[1]!;
+    const x = w.missiles.data.x[1]!;
+    w.missiles.remove(0); // swaps the last missile into slot 0
+    expect([...Array(w.missiles.count).keys()].map((i) => w.missiles.data.uid[i])).toContain(
+      second,
+    );
+    expect(w.missiles.data.x[w.missiles.data.uid.indexOf(second)]).toBe(x);
   });
 
   it('the same inputs give the same missiles and hash', () => {
@@ -417,6 +438,12 @@ describe('state, hash and reset', () => {
     w.actions.respawn = true;
     stepWorld(w, DT);
     expect(w.missiles.count).toBe(0);
-    expect(w.missiles.salvo).toEqual({ cooldown: 0, pending: [], nextIn: 0, launched: 0 });
+    expect(w.missiles.salvo).toEqual({
+      cooldown: 0,
+      pending: [],
+      nextIn: 0,
+      launched: 0,
+      nextUid: 0,
+    });
   });
 });
