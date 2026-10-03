@@ -31,7 +31,7 @@ const fire = (c: Ctx): void =>
 
 describe('stepGuns', () => {
   it('fires at the configured rate (12 shots in one second)', () => {
-    const c = setup();
+    const c = setup({ fireRate: 12 });
     for (let i = 0; i < 60; i++) fire(c);
     const shots = c.events.events.filter((e) => e.type === 'ShotFired').length;
     expect(shots).toBe(12);

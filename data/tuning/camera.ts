@@ -3,14 +3,14 @@ import { defaultsOf, type ParamDef } from '../../src/core/params/params';
 /** Camera tuning. Units: world units (u), seconds (s). `view*` are visible widths on the 1280x800 reference. */
 export const cameraParams = {
   viewMin: {
-    default: 1600,
+    default: 2050,
     min: 800,
     max: 3000,
     unit: 'u',
     note: 'Visible width when flying slowest. Higher = zoomed out even when slow; lower = closer and more detailed. Keeps below View max.',
   },
   viewMax: {
-    default: 2600,
+    default: 4500,
     min: 1000,
     max: 7800,
     unit: 'u',
@@ -52,7 +52,7 @@ export const cameraParams = {
     note: 'Margin from every screen edge that the ship is never allowed to enter, as a fraction of the screen. Higher = ship kept nearer the center; lower = it may get close to the edge.',
   },
   shake: {
-    default: 6,
+    default: 16.6,
     min: 0,
     max: 40,
     unit: 'u',
@@ -76,5 +76,5 @@ export type CameraConfig = { -readonly [K in keyof typeof cameraParams]: number 
 };
 
 export function createCameraConfig(): CameraConfig {
-  return { ...defaultsOf(cameraParams), lookMode: 'velocity', shakeEnabled: false };
+  return { ...defaultsOf(cameraParams), lookMode: 'nose', shakeEnabled: true };
 }

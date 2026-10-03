@@ -3,7 +3,7 @@ import { defaultsOf, type ParamDef } from '../../src/core/params/params';
 /** Gun tuning. Units: world units (u), seconds (s), degrees here (radians inside core). */
 export const weaponsParams = {
   fireRate: {
-    default: 12,
+    default: 27.6,
     min: 3,
     max: 30,
     unit: 'shots/s',
@@ -24,14 +24,14 @@ export const weaponsParams = {
     note: 'How long a bullet flies before it vanishes. Higher = longer range; lower = short range that forces you to get close.',
   },
   spread: {
-    default: 0.6,
+    default: 4.64,
     min: 0,
     max: 5,
     unit: '°',
     note: 'Random aim error per shot, in degrees. Higher = sprayier and less accurate; 0 = laser accurate.',
   },
   bulletRadius: {
-    default: 6,
+    default: 1,
     min: 1,
     max: 30,
     unit: 'u',

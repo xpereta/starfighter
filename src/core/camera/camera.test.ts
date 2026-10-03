@@ -61,7 +61,7 @@ describe('zoom', () => {
 
 describe('look-ahead', () => {
   it('offsets toward the velocity at the capped distance at max speed', () => {
-    const { ship, cam, cfg } = setup();
+    const { ship, cam, cfg } = setup({ lookMode: 'velocity' });
     ship.speed = flight.maxSpeed;
     ship.vx = 0;
     ship.vy = flight.maxSpeed;

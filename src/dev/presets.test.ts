@@ -62,15 +62,17 @@ describe('presets', () => {
     const tuning = createTuning();
     expect(diffFromDefaults(tuning, defaults)).toEqual([]);
     expect(formatDefaultsPatch([])).toMatch(/No changes/);
-    tuning.flight.grip = 9;
-    tuning.camera.lookMode = 'nose';
+    const grip = defaults.flight.grip;
+    const otherLook = defaults.camera.lookMode === 'nose' ? 'velocity' : 'nose';
+    tuning.flight.grip = grip + 3;
+    tuning.camera.lookMode = otherLook;
     const changes = diffFromDefaults(tuning, defaults);
     expect(changes).toEqual([
-      { path: 'flight.grip', from: 6, to: 9 },
-      { path: 'camera.lookMode', from: 'velocity', to: 'nose' },
+      { path: 'flight.grip', from: grip, to: grip + 3 },
+      { path: 'camera.lookMode', from: defaults.camera.lookMode, to: otherLook },
     ]);
     const patch = formatDefaultsPatch(changes);
-    expect(patch).toContain('flight.grip: 6 -> 9');
-    expect(patch).toContain('camera.lookMode: velocity -> nose');
+    expect(patch).toContain(`flight.grip: ${grip} -> ${grip + 3}`);
+    expect(patch).toContain(`camera.lookMode: ${defaults.camera.lookMode} -> ${otherLook}`);
   });
 });
