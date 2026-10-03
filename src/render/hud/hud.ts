@@ -2,7 +2,9 @@ import { viewSize } from '../../core/camera/view';
 import { livingWingmen } from '../../core/squadron/squadron';
 import type { TargetKind } from '../../core/world/target';
 import type { World } from '../../core/world/world';
+import { lockLimit } from '../../core/lockon/lockon';
 import { palette } from '../palette';
+import { drawLockPanel, drawLockRings } from './locks-hud';
 import {
   blinkOn,
   createEdgeIndicator,
@@ -125,6 +127,15 @@ export function createHud(container: HTMLElement): Hud {
     }
   }
 
+  const lockCenter = { x: 0, y: 0 };
+  function drawLocks(world: World): void {
+    const cam = world.camera;
+    lockCenter.x = cam.x + cam.shakeX;
+    lockCenter.y = cam.y + cam.shakeY;
+    drawLockRings(g, world, lockCenter, viewSize(cam.view, cam.aspect), screen);
+    drawLockPanel(g, world, lockLimit(world), screen.height);
+  }
+
   function drawFlight(world: World): void {
     const { ship, tuning, actions } = world;
     const flight = tuning.flight;
@@ -226,6 +237,7 @@ export function createHud(container: HTMLElement): Hud {
       g.font = FONT;
       g.textBaseline = 'alphabetic';
       drawEdgeArrows(world);
+      drawLocks(world);
       drawFlight(world);
       drawStatus(world);
     },
