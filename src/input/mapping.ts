@@ -6,9 +6,11 @@ export interface GamepadSnapshot {
   readonly buttons: readonly { readonly value: number; readonly pressed: boolean }[];
 }
 
-/** Standard-mapping indices: A = 0, X = 2, LT = 6, RT = 7, left stick = axes 0/1. */
+/** Standard-mapping indices: A = 0, X = 2, Y = 3, Start = 9, LT = 6, RT = 7, left stick = axes 0/1. */
 const BTN_FIRE = 0;
 const BTN_EVADE = 2;
+const BTN_RESPAWN = 3; // Y
+const BTN_TRIAL = 9; // Start
 const BTN_LT = 6;
 const BTN_RT = 7;
 
@@ -34,6 +36,8 @@ export function mapGamepad(pad: GamepadSnapshot, deadzone: number): Actions {
     throttle: trigger(pad, BTN_RT, deadzone) - trigger(pad, BTN_LT, deadzone),
     fire: pad.buttons[BTN_FIRE]?.pressed ?? false,
     evade: pad.buttons[BTN_EVADE]?.pressed ?? false,
+    respawn: pad.buttons[BTN_RESPAWN]?.pressed ?? false,
+    startTrial: pad.buttons[BTN_TRIAL]?.pressed ?? false,
   };
 }
 
@@ -48,6 +52,8 @@ export function mapKeyboard(codes: ReadonlySet<string>): Actions {
     throttle: axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']),
     fire: codes.has('Space'),
     evade: codes.has('ShiftLeft') || codes.has('ShiftRight'),
+    respawn: codes.has('KeyR'),
+    startTrial: codes.has('KeyT'),
   };
 }
 
@@ -62,6 +68,8 @@ export function mergeActions(a: Actions, b: Actions): Actions {
     throttle: larger(a.throttle, b.throttle),
     fire: a.fire || b.fire,
     evade: a.evade || b.evade,
+    respawn: a.respawn || b.respawn,
+    startTrial: a.startTrial || b.startTrial,
   };
 }
 

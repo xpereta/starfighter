@@ -5,20 +5,12 @@ import { createWorld, stepWorld } from '../../src/core/world/world';
 
 it('120 s of random flight and fire: pool within cap, no NaN, hits registered', () => {
   const tuning = createTuning();
+  tuning.arena.staticCount = 60;
   const world = createWorld(31, tuning);
   const rng = createRng(77);
   const a = world.actions;
-  // A ring of targets the ship will keep crossing.
-  for (let i = 0; i < 12; i++) {
-    const ang = (i / 12) * Math.PI * 2;
-    world.targets.push({
-      x: Math.cos(ang) * 1500,
-      y: Math.sin(ang) * 1500,
-      radius: 40,
-      hp: 1e9,
-      alive: true,
-    });
-  }
+  // Make the arena's own targets unkillable so the ship keeps crossing live ones.
+  for (const t of world.targets) t.hp = t.maxHp = 1e9;
   let hits = 0;
   for (let i = 0; i < 120 * 60; i++) {
     if (i % 25 === 0) {

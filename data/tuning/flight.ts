@@ -23,7 +23,7 @@ export const flightParams = {
 
 export type SteeringScheme = 'point' | 'rotate';
 
-export type FlightConfig = { [K in keyof typeof flightParams]: number } & {
+export type FlightConfig = { -readonly [K in keyof typeof flightParams]: number } & {
   /** A: point-to-steer (default). B: rotate. */
   steering: SteeringScheme;
 };

@@ -3,9 +3,12 @@ import { clamp } from '../core/math';
 import type { World } from '../core/world/world';
 import type { GameEvent } from '../core/events/events';
 import { createBackground } from './background';
+import { qualityPresets, type QualityLevel } from '../../data/quality';
 import { createBulletRenderer } from './bullets';
 import { viewSize } from '../core/camera/view';
+import { createShards } from './shards';
 import { createSparks } from './sparks';
+import { createTargetRenderer } from './targets';
 import { palette } from './palette';
 
 export interface Renderer {
@@ -36,7 +39,11 @@ function fighterShape(): THREE.Shape {
   return s;
 }
 
-export function createRenderer(container: HTMLElement, world: World): Renderer {
+export function createRenderer(
+  container: HTMLElement,
+  world: World,
+  quality: QualityLevel = 'high',
+): Renderer {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
@@ -51,8 +58,17 @@ export function createRenderer(container: HTMLElement, world: World): Renderer {
 
   const bullets = createBulletRenderer(world.bullets.capacity);
   scene.add(bullets.object);
+  const enemyShots = createBulletRenderer(world.enemyShots.capacity, palette.enemyShot, {
+    length: 14,
+    width: 14,
+  });
+  scene.add(enemyShots.object);
+  const targets = createTargetRenderer(world.targets);
+  scene.add(targets.object);
   const sparks = createSparks();
   scene.add(sparks.object);
+  const shards = createShards(qualityPresets[quality]);
+  scene.add(shards.object);
   let lastTime = performance.now();
 
   const shipGeometry = new THREE.ShapeGeometry(fighterShape());
@@ -69,7 +85,10 @@ export function createRenderer(container: HTMLElement, world: World): Renderer {
   resize();
 
   return {
-    consumeEvents: (events) => sparks.consume(events),
+    consumeEvents(events) {
+      sparks.consume(events);
+      shards.consume(events);
+    },
     render(world) {
       const { ship: s } = world;
       const { minSpeed, maxSpeed } = world.tuning.flight;
@@ -88,8 +107,12 @@ export function createRenderer(container: HTMLElement, world: World): Renderer {
       const speedFactor = clamp((s.speed - minSpeed) / (maxSpeed - minSpeed), 0, 1);
       background.update(cam.x, cam.y, s.vx, s.vy, speedFactor);
       bullets.update(world.bullets);
+      enemyShots.update(world.enemyShots);
+      targets.update(world.targets);
       const now = performance.now();
-      sparks.update(Math.min((now - lastTime) / 1000, 0.1));
+      const frameDt = Math.min((now - lastTime) / 1000, 0.1);
+      sparks.update(frameDt);
+      shards.update(frameDt);
       lastTime = now;
       renderer.render(scene, camera);
     },
@@ -98,6 +121,9 @@ export function createRenderer(container: HTMLElement, world: World): Renderer {
       background.dispose();
       bullets.dispose();
       sparks.dispose();
+      shards.dispose();
+      targets.dispose();
+      enemyShots.dispose();
       shipGeometry.dispose();
       shipMaterial.dispose();
       renderer.dispose();
