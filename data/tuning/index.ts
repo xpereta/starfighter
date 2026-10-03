@@ -1,5 +1,6 @@
 import { createArenaConfig, type ArenaConfig } from './arena';
 import { createCameraConfig, type CameraConfig } from './camera';
+import { createHudConfig, type HudConfig } from './hud';
 import { createFlightConfig, type FlightConfig } from './flight';
 import { createWeaponsConfig, type WeaponsConfig } from './weapons';
 
@@ -9,6 +10,7 @@ export interface Tuning {
   camera: CameraConfig;
   weapons: WeaponsConfig;
   arena: ArenaConfig;
+  hud: HudConfig;
 }
 
 export function createTuning(): Tuning {
@@ -17,5 +19,6 @@ export function createTuning(): Tuning {
     camera: createCameraConfig(),
     weapons: createWeaponsConfig(),
     arena: createArenaConfig(),
+    hud: createHudConfig(),
   };
 }
