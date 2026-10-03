@@ -135,6 +135,20 @@ export const squadronParams = {
     unit: 'u',
     note: 'In spread formation a wingman attacks any enemy within this distance of itself, then returns to its slot. Higher = they hunt over a wide area; lower = they only take what is close.',
   },
+  attackOrderTime: {
+    default: 8,
+    min: 1,
+    max: 30,
+    unit: 's',
+    note: 'How long the Attack my target order lasts. Wingmen drop everything to chase and shoot your target, then fall back into formation. Higher = a longer commitment (and a more exposed squadron); lower = a quick strike.',
+  },
+  attackSearchRange: {
+    default: 2500,
+    min: 500,
+    max: 8000,
+    unit: 'u',
+    note: 'With nothing locked, Attack my target picks the enemy closest to where your nose points, but only within this distance. Higher = it can send wingmen after faraway enemies; lower = only nearby ones.',
+  },
 } as const satisfies Record<string, ParamDef>;
 
 export type SquadronConfig = { -readonly [K in keyof typeof squadronParams]: number };

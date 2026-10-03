@@ -20,6 +20,9 @@ function randomInputs(world: World, rng: ReturnType<typeof createRng>): void {
   a.throttle = rng.range(-1, 1);
   a.fire = rng.next() < 0.8;
   a.evade = rng.next() < 0.15;
+  // Order buttons: pressed for a moment now and then (the inputs change every 20 steps).
+  a.cycleFormation = rng.next() < 0.1;
+  a.attackOrder = rng.next() < 0.1;
 }
 
 /** Counts how long each pair of wingmen has been on top of each other, in consecutive steps. */
@@ -50,13 +53,13 @@ it('120 s with 4 wingmen and waves: finite, inside the arena, pools within caps,
   const stacked = new Map<string, number>();
   let longestStack = 0;
   let fell = 0;
+  let orders = 0;
   let sawAllAlive = false;
 
   for (let i = 0; i < 120 * 60; i++) {
     if (i % 20 === 0) randomInputs(world, rng);
-    // Alternate the formation now and then (the order buttons arrive with the orders issue).
-    if (i % (30 * 60) === 0) world.squadron.formation = i % (60 * 60) === 0 ? 'tight' : 'spread';
     stepWorld(world, DT);
+    orders += world.events.events.filter((e) => e.type === 'OrderGiven').length;
 
     expect(world.enemyShots.count).toBeLessThanOrEqual(world.enemyShots.capacity);
     expect(world.bullets.count).toBeLessThanOrEqual(world.bullets.capacity);
@@ -76,6 +79,7 @@ it('120 s with 4 wingmen and waves: finite, inside the arena, pools within caps,
   expect(sawAllAlive).toBe(true);
   expect(longestStack).toBeLessThan(150); // never stuck on top of another for 2.5 s
   expect(fell).toBeGreaterThanOrEqual(0);
+  expect(orders).toBeGreaterThan(0); // the random order presses did something
 });
 
 it('120 s with the default 2 wingmen is fully reproducible from the replay', () => {
