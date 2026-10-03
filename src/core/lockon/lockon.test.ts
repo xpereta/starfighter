@@ -3,6 +3,7 @@ import { createTuning } from '../../../data/tuning';
 import { hashWorld } from '../replay/hash';
 import type { Fighter } from '../ai/fighters';
 import { createShip } from '../flight/flight';
+import type { Wingman } from '../squadron/squadron';
 import { DEG } from '../math';
 import type { Target } from '../world/target';
 import { FIGHTER_ID_BASE } from '../world/lockable';
@@ -45,7 +46,11 @@ function setup(): World {
 
 function addWingmen(world: World, count: number): void {
   for (let i = 0; i < count; i++) {
-    world.squadron.wingmen.push({ ship: createShip(world.tuning.flight), hp: 3, alive: true });
+    world.squadron.wingmen.push({
+      ship: createShip(world.tuning.flight),
+      hp: 3,
+      alive: true,
+    } as Wingman);
   }
 }
 

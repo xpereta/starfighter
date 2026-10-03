@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest';
 import { createTuning } from '../../data/tuning';
-import { createShip } from '../../src/core/flight/flight';
 import { lockLimit } from '../../src/core/lockon/lockon';
 import { createRng } from '../../src/core/rng/rng';
 import { FIGHTER_ID_BASE, getLockable } from '../../src/core/world/lockable';
@@ -14,9 +13,7 @@ it('120 s of random flight with fighters and wingmen: locks are valid, unique, w
   const world = createWorld(8, tuning);
   const rng = createRng(2024);
   const a = world.actions;
-  for (let i = 0; i < 2; i++) {
-    world.squadron.wingmen.push({ ship: createShip(tuning.flight), hp: 3, alive: true });
-  }
+  // The world provides 2 wingmen by default (prototype 2 track B).
   // Waves of real enemy fighters spawn by themselves (prototype 2 track B).
 
   let acquired = 0;
