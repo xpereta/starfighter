@@ -3,7 +3,7 @@ import type { EventQueue } from '../events/events';
 import type { Ship } from '../flight/flight';
 import { DEG } from '../math';
 import type { Rng } from '../rng/rng';
-import type { Target } from '../world/target';
+import type { Collider } from '../world/target';
 import { createPool, type Pool } from '../world/pool';
 import type { Actions } from '../world/actions';
 
@@ -62,7 +62,7 @@ export function stepGuns(
 /** Moves bullets, expires them, and resolves hits against targets. Iterates backwards because removal swaps. */
 export function stepBullets(
   bullets: BulletPool,
-  targets: readonly Target[],
+  targets: readonly Collider[],
   cfg: WeaponsConfig,
   events: EventQueue,
   dt: number,

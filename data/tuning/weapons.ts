@@ -15,7 +15,7 @@ export const weaponsParams = {
   bulletCap: { default: 400, min: 10, max: 2000, unit: 'bullets' },
 } as const satisfies Record<string, ParamDef>;
 
-export type WeaponsConfig = { [K in keyof typeof weaponsParams]: number };
+export type WeaponsConfig = { -readonly [K in keyof typeof weaponsParams]: number };
 
 export function createWeaponsConfig(): WeaponsConfig {
   return defaultsOf(weaponsParams);

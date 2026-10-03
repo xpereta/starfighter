@@ -58,6 +58,8 @@ describe('mapKeyboard', () => {
       throttle: 1,
       fire: true,
       evade: true,
+      respawn: false,
+      startTrial: false,
     });
     expect(mapKeyboard(new Set(['ArrowLeft', 'ArrowDown'])).rotate).toBe(-1);
   });
@@ -66,6 +68,13 @@ describe('mapKeyboard', () => {
     const a = mapKeyboard(new Set(['KeyA', 'KeyD', 'KeyW', 'KeyS']));
     expect(a.rotate).toBe(0);
     expect(a.throttle).toBe(0);
+  });
+
+  it('maps R to respawn and T to start the trial', () => {
+    const a = mapKeyboard(new Set(['KeyR', 'KeyT']));
+    expect(a.respawn && a.startTrial).toBe(true);
+    const p = mapGamepad(pad([0, 0], { 3: 1, 9: 1 }), 0.15);
+    expect(p.respawn && p.startTrial).toBe(true);
   });
 
   it('gives neutral actions with nothing pressed', () => {
@@ -84,6 +93,8 @@ describe('mergeActions', () => {
       throttle: -0.9,
       fire: true,
       evade: true,
+      respawn: false,
+      startTrial: false,
     });
   });
 });

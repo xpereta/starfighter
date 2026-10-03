@@ -16,6 +16,8 @@ export interface Ship {
   vy: number;
   /** True while beyond the arena radius (HUD warning, soft push back). */
   outside: boolean;
+  /** Set by evade (i-frames); enemy shots pass through while true. */
+  invulnerable: boolean;
 }
 
 export function createShip(cfg: FlightConfig): Ship {
@@ -28,6 +30,7 @@ export function createShip(cfg: FlightConfig): Ship {
     vx: cfg.cruiseSpeed,
     vy: 0,
     outside: false,
+    invulnerable: false,
   };
 }
 

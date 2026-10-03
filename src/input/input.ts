@@ -11,6 +11,8 @@ const HANDLED = new Set([
   'ArrowDown',
   'ArrowLeft',
   'ArrowRight',
+  'KeyR',
+  'KeyT',
   'Space',
   'ShiftLeft',
   'ShiftRight',

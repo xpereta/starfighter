@@ -2,7 +2,14 @@
 export type GameEvent =
   | { type: 'ShotFired'; x: number; y: number; angle: number }
   | { type: 'Hit'; x: number; y: number; dirX: number; dirY: number; impulse: number }
-  | { type: 'Killed'; entityId: number; x: number; y: number }
+  | {
+      type: 'Killed';
+      entityId: number;
+      kind: 'static' | 'drone' | 'turret';
+      x: number;
+      y: number;
+      radius: number;
+    }
   | { type: 'EvadeStarted'; x: number; y: number; side: -1 | 1 };
 
 export interface EventQueue {

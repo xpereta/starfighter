@@ -9,8 +9,21 @@ export interface Actions {
   throttle: number;
   fire: boolean;
   evade: boolean;
+  /** Reset the arena and ship (edge-triggered by the world). */
+  respawn: boolean;
+  /** Start the time trial (edge-triggered by the world). */
+  startTrial: boolean;
 }
 
 export function createActions(): Actions {
-  return { steerX: 0, steerY: 0, rotate: 0, throttle: 0, fire: false, evade: false };
+  return {
+    steerX: 0,
+    steerY: 0,
+    rotate: 0,
+    throttle: 0,
+    fire: false,
+    evade: false,
+    respawn: false,
+    startTrial: false,
+  };
 }

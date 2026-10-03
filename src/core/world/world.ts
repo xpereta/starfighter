@@ -1,7 +1,8 @@
-import { createEventQueue, type EventQueue } from '../events/events';
-import { createRng, type Rng } from '../rng/rng';
 import type { Tuning } from '../../../data/tuning';
 import { createCamera, stepCamera, type Camera } from '../camera/camera';
+import { createEventQueue, type EventQueue } from '../events/events';
+import { createShip, stepFlight, type Ship } from '../flight/flight';
+import { createRng, type Rng } from '../rng/rng';
 import {
   createBulletPool,
   createGunState,
@@ -10,9 +11,17 @@ import {
   type BulletPool,
   type GunState,
 } from '../weapons/guns';
-import { createShip, stepFlight, type Ship } from '../flight/flight';
 import { createActions, type Actions } from './actions';
+import {
+  createEnemyShotPool,
+  createTargets,
+  resolveKills,
+  stepEnemyShots,
+  stepTargets,
+  type EnemyShotPool,
+} from './arena';
 import type { Target } from './target';
+import { createTrial, startTrial, stepTrial, type Trial } from './trial';
 
 /** Shared world state. Gameplay modules read and write this plain data; no hidden state elsewhere. */
 export interface World {
@@ -27,19 +36,30 @@ export interface World {
   readonly camera: Camera;
   readonly guns: GunState;
   readonly bullets: BulletPool;
-  /** Things bullets can hit (filled by the arena in a later issue). */
+  readonly enemyShots: EnemyShotPool;
+  /** Arena targets: static drones, moving drones, turrets. */
   readonly targets: Target[];
+  readonly trial: Trial;
+  readonly stats: { kills: number; hitsTaken: number };
+  /** Previous-step button states, for edge-triggered actions. */
+  readonly prev: { respawn: boolean; startTrial: boolean };
   /** Fixed steps simulated so far. */
   tick: number;
   /** Simulated seconds (tick * dt). */
   time: number;
 }
 
-export function createWorld(seed: number, tuning: Tuning): World {
+/** `bestTrialTime` comes from the save data (null on a fresh profile). */
+export function createWorld(
+  seed: number,
+  tuning: Tuning,
+  bestTrialTime: number | null = null,
+): World {
   const ship = createShip(tuning.flight);
+  const rng = createRng(seed);
   return {
     seed,
-    rng: createRng(seed),
+    rng,
     events: createEventQueue(),
     actions: createActions(),
     tuning,
@@ -47,35 +67,80 @@ export function createWorld(seed: number, tuning: Tuning): World {
     camera: createCamera(ship, tuning.flight, tuning.camera),
     guns: createGunState(),
     bullets: createBulletPool(tuning.weapons),
-    targets: [],
+    enemyShots: createEnemyShotPool(tuning.arena),
+    targets: createTargets(tuning.arena, rng),
+    trial: createTrial(bestTrialTime),
+    stats: { kills: 0, hitsTaken: 0 },
+    prev: { respawn: false, startTrial: false },
     tick: 0,
     time: 0,
   };
 }
 
+/** Respawn: ship back to the center, shots cleared, a fresh arena layout, trial stopped (best time is kept). */
+export function resetWorld(world: World): void {
+  const { tuning } = world;
+  Object.assign(world.ship, createShip(tuning.flight));
+  Object.assign(world.guns, createGunState());
+  world.bullets.clear();
+  world.enemyShots.clear();
+  world.targets.splice(0, world.targets.length, ...createTargets(tuning.arena, world.rng));
+  world.trial.active = false;
+  world.trial.time = 0;
+  const aspect = world.camera.aspect;
+  Object.assign(world.camera, createCamera(world.ship, tuning.flight, tuning.camera));
+  world.camera.aspect = aspect;
+}
+
 /** Advances the world by one fixed step. Gameplay systems are called from here, in a fixed order. */
 export function stepWorld(world: World, dt: number): void {
+  const { actions, tuning, prev } = world;
   world.events.clear();
   world.tick += 1;
   world.time += dt;
-  stepFlight(world.ship, world.actions, world.tuning.flight, dt);
+
+  if (actions.respawn && !prev.respawn) resetWorld(world);
+  if (actions.startTrial && !prev.startTrial) startTrial(world.trial, world.targets);
+  prev.respawn = actions.respawn;
+  prev.startTrial = actions.startTrial;
+
+  stepFlight(world.ship, actions, tuning.flight, dt);
   stepGuns(
     world.guns,
     world.bullets,
     world.ship,
-    world.actions,
-    world.tuning.weapons,
+    actions,
+    tuning.weapons,
     world.rng,
     world.events,
     dt,
   );
-  stepBullets(world.bullets, world.targets, world.tuning.weapons, world.events, dt);
+  stepBullets(world.bullets, world.targets, tuning.weapons, world.events, dt);
+  world.stats.kills += resolveKills(world.targets, tuning.arena, world.events);
+  stepTargets(
+    world.targets,
+    world.ship,
+    tuning.arena,
+    tuning.flight.arenaRadius,
+    world.enemyShots,
+    world.rng,
+    world.trial.active,
+    dt,
+  );
+  world.stats.hitsTaken += stepEnemyShots(
+    world.enemyShots,
+    world.ship,
+    tuning.arena,
+    world.events,
+    dt,
+  );
+  stepTrial(world.trial, world.targets, dt);
   // Camera runs last so it sees this step's events (shake) and final ship state.
   stepCamera(
     world.camera,
     world.ship,
-    world.tuning.flight,
-    world.tuning.camera,
+    tuning.flight,
+    tuning.camera,
     world.events.events,
     world.time,
     dt,

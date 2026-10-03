@@ -1,5 +1,14 @@
 import * as THREE from 'three';
-import type { BulletPool } from '../core/weapons/guns';
+/** Any pool with positions and velocities (player bullets, enemy shots). */
+interface Shots {
+  readonly count: number;
+  readonly data: {
+    readonly x: Float32Array;
+    readonly y: Float32Array;
+    readonly vx: Float32Array;
+    readonly vy: Float32Array;
+  };
+}
 import { palette } from './palette';
 
 const LENGTH = 22;
@@ -8,14 +17,18 @@ const WIDTH = 5;
 export interface BulletRenderer {
   readonly object: THREE.InstancedMesh;
   /** Writes one instance per live bullet. Allocation-free. */
-  update(bullets: BulletPool): void;
+  update(bullets: Shots): void;
   dispose(): void;
 }
 
 /** One InstancedMesh sized to the pool cap: a single draw call for every bullet. */
-export function createBulletRenderer(capacity: number): BulletRenderer {
-  const geometry = new THREE.PlaneGeometry(LENGTH, WIDTH); // long axis along +x
-  const material = new THREE.MeshBasicMaterial({ color: palette.projectile });
+export function createBulletRenderer(
+  capacity: number,
+  color: number = palette.projectile,
+  size: { length: number; width: number } = { length: LENGTH, width: WIDTH },
+): BulletRenderer {
+  const geometry = new THREE.PlaneGeometry(size.length, size.width); // long axis along +x
+  const material = new THREE.MeshBasicMaterial({ color });
   const mesh = new THREE.InstancedMesh(geometry, material, capacity);
   mesh.frustumCulled = false;
   mesh.count = 0;

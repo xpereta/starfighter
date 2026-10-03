@@ -6,7 +6,7 @@ import { createShip } from '../flight/flight';
 import { DEG } from '../math';
 import { createRng } from '../rng/rng';
 import { createActions } from '../world/actions';
-import type { Target } from '../world/target';
+import type { Collider } from '../world/target';
 import { createBulletPool, createGunState, stepBullets, stepGuns } from './guns';
 
 const DT = 1 / 60;
@@ -105,7 +105,7 @@ describe('stepBullets', () => {
 
   it('hits a target in the path: Hit event with direction and impulse, bullet consumed, hp reduced', () => {
     const c = setup({ spread: 0 });
-    const target: Target = { x: 400, y: 0, radius: 30, hp: 3, alive: true };
+    const target: Collider = { x: 400, y: 0, radius: 30, hp: 3, alive: true };
     fire(c);
     c.events.clear();
     for (let i = 0; i < 30 && c.bullets.count > 0; i++) {
@@ -123,8 +123,8 @@ describe('stepBullets', () => {
 
   it('misses targets off the line and ignores dead ones', () => {
     const c = setup({ spread: 0 });
-    const off: Target = { x: 400, y: 200, radius: 30, hp: 3, alive: true };
-    const dead: Target = { x: 400, y: 0, radius: 30, hp: 3, alive: false };
+    const off: Collider = { x: 400, y: 200, radius: 30, hp: 3, alive: true };
+    const dead: Collider = { x: 400, y: 0, radius: 30, hp: 3, alive: false };
     fire(c);
     for (let i = 0; i < 60; i++) stepBullets(c.bullets, [off, dead], c.cfg, c.events, DT);
     expect([off.hp, dead.hp]).toEqual([3, 3]);

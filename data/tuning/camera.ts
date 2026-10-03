@@ -15,7 +15,7 @@ export const cameraParams = {
 
 export type LookMode = 'velocity' | 'nose';
 
-export type CameraConfig = { [K in keyof typeof cameraParams]: number } & {
+export type CameraConfig = { -readonly [K in keyof typeof cameraParams]: number } & {
   /** Look-ahead direction: where the ship is moving, or where the nose points. */
   lookMode: LookMode;
   shakeEnabled: boolean;
