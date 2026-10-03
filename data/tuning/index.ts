@@ -45,3 +45,15 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   arena: {},
   hud: {},
 };
+
+/** Plain-language tooltip for each toggle, keyed `group.name` (what it does, and what each option means). */
+export const tuningToggleNotes: Record<string, string> = {
+  'flight.steering':
+    'How the stick steers. Point = the ship turns toward the direction you push, and a centered stick keeps its heading; Rotate = left/right turns the ship like a plane, proportional to the push. Keyboard A/D always rotates.',
+  'flight.evadeSidestep':
+    'Evade variant. On = the roll slides the ship sideways and gives brief invulnerability; off = no sidestep, only invulnerability and a tighter break turn.',
+  'camera.lookMode':
+    'What the camera leans toward. Velocity = where the ship is actually moving, so drifting shows the direction of travel; Nose = where the ship points, so you see what you are aiming at.',
+  'camera.shakeEnabled':
+    'Screen shake when you fire or get hit. On = more punch, but can tire the eyes; off = a steady view. Strength is set by Shake.',
+};
