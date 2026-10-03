@@ -20,7 +20,7 @@ export interface DebugOverlay {
 export function createDebugOverlay(container: HTMLElement): DebugOverlay {
   const canvas = document.createElement('canvas');
   canvas.id = 'debug-overlay';
-  canvas.style.cssText = 'position:fixed;inset:0;pointer-events:none';
+  canvas.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none';
   container.appendChild(canvas);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas is not available for the debug overlay');
