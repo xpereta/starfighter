@@ -1,4 +1,5 @@
 import { viewSize } from '../../core/camera/view';
+import { livingWingmen } from '../../core/squadron/squadron';
 import type { TargetKind } from '../../core/world/target';
 import type { World } from '../../core/world/world';
 import { lockLimit } from '../../core/lockon/lockon';
@@ -11,6 +12,7 @@ import {
   edgeIndicator,
   evadeReadiness,
   speedBar,
+  squadronReadout,
   throttleState,
 } from './layout';
 
@@ -22,6 +24,8 @@ const EVADE_W = 120;
 const EVADE_H = 6;
 
 const css = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`;
+const FIGHTER_COLOR = css(palette.fighter);
+const WINGMAN_COLOR = css(palette.wingman);
 const KIND_COLOR: Record<TargetKind, string> = {
   static: css(palette.enemyStatic),
   drone: css(palette.enemy),
@@ -74,22 +78,52 @@ export function createHud(container: HTMLElement): Hud {
     const view = viewSize(cam.view, cam.aspect);
     const center = { x: cam.x + cam.shakeX, y: cam.y + cam.shakeY };
     const cfg = world.tuning.hud;
-    for (const t of world.targets) {
-      if (!t.alive) continue;
-      if (!edgeIndicator(indicator, t, center, view, screen, cfg.edgeMargin)) continue;
+    const arrow = (
+      t: { x: number; y: number; radius: number },
+      color: string,
+      shape: 'plain' | 'notched' | 'outline',
+    ): void => {
+      if (!edgeIndicator(indicator, t, center, view, screen, cfg.edgeMargin)) return;
       const { size, opacity } = distanceStyle(indicator.distance, cfg);
       g.save();
       g.translate(indicator.x, indicator.y);
       g.rotate(indicator.angle);
       g.globalAlpha = opacity;
-      g.fillStyle = KIND_COLOR[t.kind];
+      g.fillStyle = color;
+      g.strokeStyle = color;
+      g.lineWidth = 2;
       g.beginPath();
-      g.moveTo(size, 0);
-      g.lineTo(-size * 0.6, size * 0.65);
-      g.lineTo(-size * 0.6, -size * 0.65);
+      if (shape === 'outline') {
+        // Wingmen: a smaller hollow triangle, so friends are told from enemies by shape and not only by color.
+        const s = size * 0.8;
+        g.moveTo(s, 0);
+        g.lineTo(-s * 0.6, s * 0.65);
+        g.lineTo(-s * 0.6, -s * 0.65);
+      } else if (shape === 'notched') {
+        // Enemy fighters: a larger arrow with a notched tail, so they read apart from drones and turrets.
+        const s = size * 1.25;
+        g.moveTo(s, 0);
+        g.lineTo(-s * 0.7, s * 0.8);
+        g.lineTo(-s * 0.25, 0);
+        g.lineTo(-s * 0.7, -s * 0.8);
+      } else {
+        g.moveTo(size, 0);
+        g.lineTo(-size * 0.6, size * 0.65);
+        g.lineTo(-size * 0.6, -size * 0.65);
+      }
       g.closePath();
-      g.fill();
+      if (shape === 'outline') g.stroke();
+      else g.fill();
       g.restore();
+    };
+    for (const t of world.targets) if (t.alive) arrow(t, KIND_COLOR[t.kind], 'plain');
+    for (const f of world.fighters) if (f.alive) arrow(f, FIGHTER_COLOR, 'notched');
+    const wingmanBody = { x: 0, y: 0, radius: world.tuning.squadron.radius };
+    for (const w of world.squadron.wingmen) {
+      if (!w.alive) continue;
+      wingmanBody.x = w.ship.x;
+      wingmanBody.y = w.ship.y;
+      arrow(wingmanBody, WINGMAN_COLOR, 'outline');
     }
   }
 
@@ -152,6 +186,21 @@ export function createHud(container: HTMLElement): Hud {
       PAD + 10,
       'rgba(255,255,255,0.8)',
     );
+    // Squadron: the formation and wingman count always (when there are wingmen); the order only while active.
+    const squad = squadronReadout(
+      world.squadron,
+      livingWingmen(world.squadron),
+      world.squadron.wingmen.length,
+    );
+    if (squad) {
+      text(
+        `WINGMEN ${squad.wingmen}   ${squad.formation}`,
+        PAD,
+        PAD + 30,
+        'rgba(125,255,176,0.75)',
+      );
+      if (squad.order) text(`ORDER: ${squad.order}`, PAD, PAD + 50, WINGMAN_COLOR);
+    }
     if (trial.active) {
       let alive = 0;
       let total = 0;

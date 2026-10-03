@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest';
 import { createTuning } from '../../data/tuning';
-import { createShip } from '../../src/core/flight/flight';
 import { hashWorld } from '../../src/core/replay/hash';
 import { createRng } from '../../src/core/rng/rng';
 import { createWorld, stepWorld } from '../../src/core/world/world';
@@ -11,9 +10,7 @@ function play(seed: number) {
   const tuning = createTuning();
   tuning.arena.staticCount = 40;
   const world = createWorld(seed, tuning);
-  for (let i = 0; i < 2; i++) {
-    world.squadron.wingmen.push({ ship: createShip(tuning.flight), hp: 3, alive: true });
-  }
+  // The world provides 2 wingmen by default (prototype 2 track B).
   // Unkillable targets keep the arena populated, so locks and hits keep happening.
   for (const t of world.targets) t.hp = t.maxHp = 1e9;
   const rng = createRng(555);

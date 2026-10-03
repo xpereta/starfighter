@@ -176,6 +176,16 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
         worldToScreen(p, t.x, t.y, center, view, screen);
         circle(p.x, p.y, t.radius * scale, 'rgba(255,90,95,0.8)');
       }
+      for (const f of world.fighters) {
+        if (!f.alive) continue;
+        worldToScreen(p, f.x, f.y, center, view, screen);
+        circle(p.x, p.y, f.radius * scale, f.immune ? '#ffffff' : 'rgba(255,59,107,0.9)');
+      }
+      for (const w of world.squadron.wingmen) {
+        if (!w.alive) continue;
+        worldToScreen(p, w.ship.x, w.ship.y, center, view, screen);
+        circle(p.x, p.y, world.tuning.squadron.radius * scale, 'rgba(125,255,176,0.9)');
+      }
       for (let i = 0; i < world.bullets.count; i++) {
         worldToScreen(p, world.bullets.data.x[i]!, world.bullets.data.y[i]!, center, view, screen);
         circle(p.x, p.y, world.tuning.weapons.bulletRadius * scale, 'rgba(255,242,122,0.7)');

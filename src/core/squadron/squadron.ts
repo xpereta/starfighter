@@ -1,14 +1,25 @@
 import type { Ship } from '../flight/flight';
+import type { Actions } from '../world/actions';
 import type { World } from '../world/world';
+import { stepOrders } from './orders';
+import { stepWingmen } from './wingmen';
 
 export type Formation = 'tight' | 'spread';
 export type Order = 'none' | 'attack';
 
-/** A wingman (spec section 4). Issue B2 extends this with AI state, hp handling and respawn timers. */
+/** A wingman (spec section 4). It flies the same flight model as the player; the AI only writes `actions`. */
 export interface Wingman {
   ship: Ship;
   hp: number;
   alive: boolean;
+  /** AI-produced intent for the current step, fed to `stepFlight`. */
+  actions: Actions;
+  /** Seconds until the next shot. */
+  fireCooldown: number;
+  /** Lockable id of the enemy it is engaging (see core/world/lockable.ts), or -1 for none. */
+  engagedId: number;
+  /** Seconds until it returns after being shot down (test arena only). */
+  respawnTimer: number;
 }
 
 /**
@@ -21,10 +32,12 @@ export interface Squadron {
   order: Order;
   /** Seconds left on the active order. */
   orderTimer: number;
+  /** Lockable id (see core/world/lockable.ts) the attack order is aimed at, or -1 when there is no order. */
+  orderTargetId: number;
 }
 
 export function createSquadron(): Squadron {
-  return { wingmen: [], formation: 'tight', order: 'none', orderTimer: 0 };
+  return { wingmen: [], formation: 'tight', order: 'none', orderTimer: 0, orderTargetId: -1 };
 }
 
 export function livingWingmen(squadron: Squadron): number {
@@ -33,9 +46,13 @@ export function livingWingmen(squadron: Squadron): number {
   return n;
 }
 
-/** Runs after the fighters and before lock-on each step. No-op until issues B2 and B3. */
+/**
+ * Wingmen: created from tuning (`wingmanCount`, also after a respawn), hold their formation slot,
+ * engage enemies and can be shot down. Runs after the fighters and before lock-on each step.
+ */
 export function stepSquadron(world: World): void {
-  void world;
+  stepOrders(world); // first: the order may change what the wingmen do this step
+  stepWingmen(world);
 }
 
 /** Feeds squadron state into the replay hash. Add every field you add to `Squadron`/`Wingman`. */
@@ -43,11 +60,18 @@ export function mixSquadron(mix: (n: number) => void, squadron: Squadron): void 
   mix(squadron.formation === 'tight' ? 0 : 1);
   mix(squadron.order === 'none' ? 0 : 1);
   mix(squadron.orderTimer);
+  mix(squadron.orderTargetId);
   mix(squadron.wingmen.length);
   for (const w of squadron.wingmen) {
-    mix(w.ship.x);
-    mix(w.ship.y);
+    const s = w.ship;
+    for (const v of [s.x, s.y, s.heading, s.omega, s.speed, s.vx, s.vy]) mix(v);
+    for (const v of [s.evadeTimer, s.evadeCooldown, s.evadeSide, s.roll]) mix(v);
+    mix(s.evadeHeld ? 1 : 0);
+    mix(s.invulnerable ? 1 : 0);
     mix(w.hp);
     mix(w.alive ? 1 : 0);
+    mix(w.fireCooldown);
+    mix(w.engagedId);
+    mix(w.respawnTimer);
   }
 }

@@ -8,6 +8,7 @@ import {
   edgeIndicator,
   evadeReadiness,
   speedBar,
+  squadronReadout,
   throttleState,
   worldToScreen,
 } from './layout';
@@ -108,6 +109,46 @@ describe('speedBar', () => {
     expect(bar.corner).toBeGreaterThan(0);
     expect(bar.corner).toBeLessThan(bar.cruise);
     expect(bar.cruise).toBeLessThan(1);
+  });
+});
+
+describe('squadronReadout', () => {
+  const none = { formation: 'tight', order: 'none', orderTimer: 0 } as const;
+
+  it('shows nothing when there are no wingmen', () => {
+    expect(squadronReadout(none, 0, 0)).toBeNull();
+  });
+
+  it('shows the formation and the living / total wingmen, and no order while idle', () => {
+    expect(squadronReadout(none, 2, 2)).toEqual({
+      formation: 'TIGHT',
+      wingmen: '2/2',
+      order: null,
+    });
+    expect(squadronReadout({ ...none, formation: 'spread' }, 1, 3)).toEqual({
+      formation: 'SPREAD',
+      wingmen: '1/3',
+      order: null,
+    });
+  });
+
+  it('shows the active order with its time left to a tenth of a second', () => {
+    const attack = { formation: 'tight', order: 'attack', orderTimer: 5.234 } as const;
+    expect(squadronReadout(attack, 2, 2)?.order).toBe('ATTACK 5.2s');
+    expect(squadronReadout({ ...attack, orderTimer: -0.4 }, 2, 2)?.order).toBe('ATTACK 0.0s');
+  });
+});
+
+describe('wingman arrows use the same edge placement as enemy arrows', () => {
+  it('a wingman off screen gets an arrow on the inset border; one on screen gets none', () => {
+    const out = createEdgeIndicator();
+    const body = { x: 3000, y: 0, radius: 24 };
+    expect(edgeIndicator(out, body, { x: 0, y: 0 }, view, screen, 30)).toBe(true);
+    expect(out.x).toBeCloseTo(screen.width - 30);
+    expect(out.angle).toBeCloseTo(0);
+    expect(
+      edgeIndicator(out, { x: 200, y: 100, radius: 24 }, { x: 0, y: 0 }, view, screen, 30),
+    ).toBe(false);
   });
 });
 
