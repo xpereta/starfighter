@@ -1,13 +1,37 @@
 import * as THREE from 'three';
+import { clamp } from '../core/math';
 import type { World } from '../core/world/world';
+import { createBackground } from './background';
+import { palette } from './palette';
+import { viewSize } from './view';
 
-/** Reference screen (Steam Deck). Visible world height at start, in world units. */
-const REFERENCE_ASPECT = 1280 / 800;
+/** Visible world width on the reference screen. Replaced by the speed-driven zoom in core/camera (issue #6). */
 const VIEW_WIDTH = 1600;
 
 export interface Renderer {
   render(world: World): void;
   dispose(): void;
+}
+
+/** Flat fighter silhouette, nose along +y, about 100 u long. */
+function fighterShape(): THREE.Shape {
+  const s = new THREE.Shape();
+  s.moveTo(0, 60);
+  s.lineTo(9, 28);
+  s.lineTo(14, 4);
+  s.lineTo(46, -26);
+  s.lineTo(46, -38);
+  s.lineTo(14, -24);
+  s.lineTo(8, -40);
+  s.lineTo(0, -34);
+  s.lineTo(-8, -40);
+  s.lineTo(-14, -24);
+  s.lineTo(-46, -38);
+  s.lineTo(-46, -26);
+  s.lineTo(-14, 4);
+  s.lineTo(-9, 28);
+  s.closePath();
+  return s;
 }
 
 export function createRenderer(container: HTMLElement): Renderer {
@@ -16,34 +40,28 @@ export function createRenderer(container: HTMLElement): Renderer {
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x05060d);
+  scene.background = new THREE.Color(palette.background);
 
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
 
-  // Placeholder flat ship: nose points up (+y).
-  const shape = new THREE.Shape();
-  shape.moveTo(0, 60);
-  shape.lineTo(40, -40);
-  shape.lineTo(0, -20);
-  shape.lineTo(-40, -40);
-  shape.closePath();
-  const ship = new THREE.Mesh(
-    new THREE.ShapeGeometry(shape),
-    new THREE.MeshBasicMaterial({ color: 0x4ee1ff }),
-  );
+  const background = createBackground();
+  scene.add(background.object);
+
+  const shipGeometry = new THREE.ShapeGeometry(fighterShape());
+  const shipMaterial = new THREE.MeshBasicMaterial({ color: palette.friendly });
+  const ship = new THREE.Mesh(shipGeometry, shipMaterial);
   scene.add(ship);
 
   function resize(): void {
     const w = window.innerWidth;
     const h = window.innerHeight;
     renderer.setSize(w, h);
-    // Same visible width regardless of screen size; height follows the aspect.
-    const aspect = w / h || REFERENCE_ASPECT;
-    const halfW = VIEW_WIDTH / 2;
-    camera.left = -halfW;
-    camera.right = halfW;
-    camera.top = halfW / aspect;
-    camera.bottom = -halfW / aspect;
+    // Same visible world area on every screen shape.
+    const view = viewSize(VIEW_WIDTH, w / h || 1);
+    camera.left = -view.width / 2;
+    camera.right = view.width / 2;
+    camera.top = view.height / 2;
+    camera.bottom = -view.height / 2;
     camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
@@ -52,15 +70,21 @@ export function createRenderer(container: HTMLElement): Renderer {
   return {
     render(world) {
       const { ship: s } = world;
-      // The placeholder mesh points up (+y); heading 0 means +x.
+      const { minSpeed, maxSpeed } = world.tuning.flight;
+      // The mesh points up (+y); heading 0 means +x.
       ship.position.set(s.x, s.y, 0);
       ship.rotation.z = s.heading - Math.PI / 2;
       // Stopgap: keep the ship centered. Replaced by core/camera (issue #6).
       camera.position.set(s.x, s.y, 0);
+      const speedFactor = clamp((s.speed - minSpeed) / (maxSpeed - minSpeed), 0, 1);
+      background.update(s.x, s.y, s.vx, s.vy, speedFactor);
       renderer.render(scene, camera);
     },
     dispose() {
       window.removeEventListener('resize', resize);
+      background.dispose();
+      shipGeometry.dispose();
+      shipMaterial.dispose();
       renderer.dispose();
     },
   };
