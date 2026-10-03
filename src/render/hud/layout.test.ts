@@ -102,7 +102,8 @@ describe('speedBar', () => {
     expect(speedBar(f.minSpeed, f).fill).toBe(0);
     expect(speedBar(f.maxSpeed, f).fill).toBe(1);
     expect(speedBar(9999, f).fill).toBe(1);
-    const bar = speedBar(f.cruiseSpeed, f);
+    const spread = { ...f, cornerSpeed: 180, cruiseSpeed: 250 }; // markers must differ to be ordered
+    const bar = speedBar(spread.cruiseSpeed, spread);
     expect(bar.fill).toBeCloseTo(bar.cruise);
     expect(bar.corner).toBeGreaterThan(0);
     expect(bar.corner).toBeLessThan(bar.cruise);
