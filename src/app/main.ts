@@ -20,7 +20,10 @@ const world = createWorld(Date.now() >>> 0, createTuning(), save.bestTrialTime);
 const renderer = createRenderer(document.body, world);
 const hud = createHud(document.body);
 const input = createInput();
-let devTools: { draw(world: World, frameSeconds: number): void } | null = null;
+let devTools: {
+  beforeStep(world: World): void;
+  draw(world: World, frameSeconds: number): void;
+} | null = null;
 if (devToolsEnabled) {
   void import('../dev').then((m) => {
     devTools = m.createDevTools(world, document.body);
@@ -28,6 +31,7 @@ if (devToolsEnabled) {
 }
 
 const loop = createFixedLoop((dt) => {
+  devTools?.beforeStep(world); // replay: record the inputs about to be used, or inject recorded ones
   stepWorld(world, dt);
   // Events live for one step; hand them to FX before the next step clears them.
   renderer.consumeEvents(world.events.events);

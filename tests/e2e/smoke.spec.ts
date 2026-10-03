@@ -35,6 +35,30 @@ test('dev tools load only with ?dev, and work without console errors', async ({ 
   expect(errors).toEqual([]);
 });
 
+test('replay: record a run, play it back, and it matches', async ({ page }) => {
+  await page.goto('/?dev');
+  await page.getByRole('button', { name: /Replay/ }).click();
+  const status = page.locator('.lil-gui input[disabled]').last();
+
+  await page.getByText('Record (restarts the run)').click();
+  await page.keyboard.down('KeyW');
+  await page.keyboard.down('Space');
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(1200);
+  await page.keyboard.up('KeyD');
+  await page.waitForTimeout(500);
+  await page.keyboard.up('Space');
+  await page.keyboard.up('KeyW');
+  await page.getByText('Stop', { exact: true }).click();
+  await expect(status).toHaveValue(/recorded/);
+
+  await page.getByText('Verify (headless)').click();
+  await expect(status).toHaveValue(/verify OK/);
+
+  await page.getByText('Play', { exact: true }).click();
+  await expect(status).toHaveValue(/matches the recording/, { timeout: 15_000 });
+});
+
 test.describe('high-DPI screens', () => {
   test.use({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
 
