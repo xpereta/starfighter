@@ -1,0 +1,20 @@
+# Installed automatically by `npm install` (prepare script). Keep these fast.
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: '*.{ts,js,json,jsonc,md,html,yml,yaml}'
+      run: npx prettier --write --ignore-unknown {staged_files}
+      stage_fixed: true
+    eslint:
+      glob: '*.{ts,js}'
+      run: npx eslint --max-warnings 0 {staged_files}
+
+pre-push:
+  commands:
+    no-push-to-main:
+      run: sh scripts/hooks/pre-push-guard.sh
+    typecheck:
+      run: npm run typecheck
+    unit-tests:
+      run: npm test
