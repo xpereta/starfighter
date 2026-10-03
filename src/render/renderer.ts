@@ -11,6 +11,9 @@ import { createSparks } from './sparks';
 import { createTargetRenderer } from './targets';
 import { palette } from './palette';
 
+/** Narrowest the ship gets mid-roll, so it never vanishes. */
+const MIN_ROLL_WIDTH = 0.15;
+
 export interface Renderer {
   /** Feed each simulation step's events (FX attach here). */
   consumeEvents(events: readonly GameEvent[]): void;
@@ -95,6 +98,8 @@ export function createRenderer(
       // The mesh points up (+y); heading 0 means +x.
       ship.position.set(s.x, s.y, 0);
       ship.rotation.z = s.heading - Math.PI / 2;
+      // Evade roll: squash the wingspan like a barrel roll seen from above.
+      ship.scale.x = s.roll === 0 ? 1 : Math.max(MIN_ROLL_WIDTH, Math.abs(Math.cos(s.roll)));
       // Camera state comes from core/camera; the visible area is the same on every screen shape.
       const cam = world.camera;
       const view = viewSize(cam.view, cam.aspect);

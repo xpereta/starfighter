@@ -18,6 +18,18 @@ export const flightParams = {
   arenaRadius: { default: 6000, min: 1000, max: 20000, unit: 'u' },
   steerGain: { default: 6, min: 1, max: 20, unit: '1/s' },
   boundaryTurnGain: { default: 6, min: 1, max: 20, unit: '1/s' },
+  evadeTime: { default: 0.45, min: 0.2, max: 1, unit: 's' },
+  evadeOffset: { default: 90, min: 0, max: 300, unit: 'u (sideways)' },
+  evadeIFrames: { default: 0.3, min: 0, max: 0.8, unit: 's invulnerable' },
+  evadeCooldown: { default: 2, min: 0.5, max: 5, unit: 's (from the start of the evade)' },
+  evadeSpeedBonus: { default: 0.15, min: 0, max: 0.5, unit: 'fraction of speed' },
+  evadeBreakTurnBoost: { default: 1.6, min: 1, max: 3, unit: 'x turn rate (no-sidestep variant)' },
+  evadeStickThreshold: {
+    default: 0.3,
+    min: 0,
+    max: 1,
+    unit: 'stick deflection that picks the side',
+  },
   throttleDeadband: { default: 0.05, min: 0, max: 0.3, unit: 'fraction' },
 } as const satisfies Record<string, ParamDef>;
 
@@ -26,8 +38,10 @@ export type SteeringScheme = 'point' | 'rotate';
 export type FlightConfig = { -readonly [K in keyof typeof flightParams]: number } & {
   /** A: point-to-steer (default). B: rotate. */
   steering: SteeringScheme;
+  /** Evade variant: true = sidestep + i-frames; false = only i-frames + a tight break turn. */
+  evadeSidestep: boolean;
 };
 
 export function createFlightConfig(): FlightConfig {
-  return { ...defaultsOf(flightParams), steering: 'point' };
+  return { ...defaultsOf(flightParams), steering: 'point', evadeSidestep: true };
 }
