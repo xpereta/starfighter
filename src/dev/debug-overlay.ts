@@ -3,12 +3,15 @@ import { turnRateLimit } from '../core/flight/flight';
 import { DEG } from '../core/math';
 import type { World } from '../core/world/world';
 import { worldToScreen } from '../render/hud/layout';
+import { createTrail, createTrailSampler } from './trail';
 
 const FONT = '12px ui-monospace, Menlo, Consolas, monospace';
 const CHART_W = 180;
 const CHART_H = 90;
 const VECTOR_PX = 120;
 const FRAME_EMA = 0.1; // smoothing for the FPS readout
+const TRAIL_SECONDS = 10; // how much flight history the trail keeps
+const TRAIL_MARK_TICKS = 60; // a dot every second of flight, to read speed from the spacing
 
 export interface DebugOverlay {
   /** Draws when `enabled`; always call once per frame so frame timing stays current. */
@@ -28,6 +31,8 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
   const screen = { width: 0, height: 0 };
   const p = { x: 0, y: 0 };
   let frameMs = 16.7;
+  const trail = createTrail(TRAIL_SECONDS * 60);
+  const trailSampler = createTrailSampler(trail);
 
   function resize(): void {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -53,6 +58,39 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
     g.beginPath();
     g.arc(x, y, Math.max(r, 1), 0, Math.PI * 2);
     g.stroke();
+  }
+
+  /** The ship's recent path: fades with age, white while invulnerable (evade), a dot each second. */
+  function drawTrail(
+    center: { x: number; y: number },
+    view: { width: number; height: number },
+  ): void {
+    let prevX = 0;
+    let prevY = 0;
+    const first = trail.pushed - trail.count;
+    trail.forEach((wx, wy, evading, i) => {
+      worldToScreen(p, wx, wy, center, view, screen);
+      if (i > 0) {
+        const age = i / trail.count; // 0 = oldest, 1 = newest
+        g.strokeStyle = evading
+          ? `rgba(255,255,255,${0.2 + 0.8 * age})`
+          : `rgba(78,225,255,${0.1 + 0.7 * age})`;
+        g.lineWidth = evading ? 3 : 2;
+        g.beginPath();
+        g.moveTo(prevX, prevY);
+        g.lineTo(p.x, p.y);
+        g.stroke();
+      }
+      if ((first + i) % TRAIL_MARK_TICKS === 0) {
+        g.fillStyle = `rgba(255,210,74,${0.2 + 0.8 * (i / trail.count)})`;
+        g.beginPath();
+        g.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        g.fill();
+      }
+      prevX = p.x;
+      prevY = p.y;
+    });
+    g.lineWidth = 1.5;
   }
 
   function drawTurnChart(world: World): void {
@@ -92,6 +130,8 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
   return {
     draw(world, frameSeconds, enabled) {
       frameMs += (frameSeconds * 1000 - frameMs) * FRAME_EMA;
+      // Sampled even while hidden, so the trail is already there when you switch the overlay on.
+      trailSampler.sample(world.tick, world.ship.x, world.ship.y, world.ship.invulnerable);
       g.clearRect(0, 0, screen.width, screen.height);
       if (!enabled) return;
       g.font = FONT;
@@ -125,6 +165,8 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
         screen.height / 2 + 8,
         '#ffd24a',
       );
+
+      drawTrail(center, view);
 
       // Hit circles.
       for (const t of world.targets) {
