@@ -18,3 +18,4 @@ One entry per decision: date — decision — why. Newest at the bottom. Agents:
 - 2026-10-03 — Hosting: Cloudflare Workers (Worker `starfighter`) built from GitHub, preview build per branch/PR.
 - 2026-10-03 — Prototype 1 proof of concept built as a single throwaway HTML file (`reference/prototype-1-poc.html`); it confirmed the flight/camera direction is promising — go ahead with the real Prototype 1 in the repo.
 - 2026-10-03 — Final tuning values are deliberately NOT set yet; the spec's numbers stay as starting defaults. Tuning happens in the real prototype, via the tuning panel, in playtest rounds.
+- 2026-10-03 — Agents merge PRs without `feel`/`feature` labels themselves once CI is green (squash); only `feel`/`feature` PRs wait for Xavi.

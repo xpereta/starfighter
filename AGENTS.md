@@ -59,7 +59,7 @@ docs/          source of truth for concept, architecture, specs, decisions
 ## Labels and review
 
 - Type: `feel` (changes how it plays), `feature` (new capability), `bug`, `tuning`, `tech`. Module: `flight` `camera` `weapons` `input` `render` `fx` `dev-tools` `world` `hud`.
-- PRs labeled `feel` or `feature` need Xavi's approval after playing the preview. Others merge on reviewer-session approval + green CI.
+- PRs labeled `feel` or `feature` need Xavi's approval after playing the preview. Others merge on reviewer-session approval + green CI: the agent merges them itself (squash, delete branch) and does not wait for Xavi.
 
 ## Definition of done
 
