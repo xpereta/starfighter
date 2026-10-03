@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
+import type { Fighter } from '../ai/fighters';
 import { createShip } from '../flight/flight';
 import { DEG } from '../math';
 import { hashWorld } from '../replay/hash';
@@ -328,7 +329,7 @@ describe('hits', () => {
   it('damages fighters through the shared id space', () => {
     const w = setup();
     w.tuning.missiles.wobbleAmount = 0;
-    w.fighters.push({ x: 700, y: 0, vx: 0, vy: 0, radius: 28, hp: 3, alive: true });
+    w.fighters.push({ x: 700, y: 0, vx: 0, vy: 0, radius: 28, hp: 3, alive: true } as Fighter);
     w.lockon.locks.push(FIGHTER_ID_BASE);
     tick(w, true);
     for (let i = 0; i < 120; i++) tick(w);

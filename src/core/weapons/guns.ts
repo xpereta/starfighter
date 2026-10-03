@@ -66,6 +66,8 @@ export function stepBullets(
   cfg: WeaponsConfig,
   events: EventQueue,
   dt: number,
+  /** More things to hit after `targets` (the enemy fighters); optional. */
+  extra: readonly Collider[] = NO_COLLIDERS,
 ): void {
   const { x, y, vx, vy, life } = bullets.data;
   for (let i = bullets.count - 1; i >= 0; i--) {
@@ -76,24 +78,40 @@ export function stepBullets(
       bullets.remove(i);
       continue;
     }
-    for (const t of targets) {
-      if (!t.alive) continue;
-      const dx = x[i]! - t.x;
-      const dy = y[i]! - t.y;
-      const reach = t.radius + cfg.bulletRadius;
-      if (dx * dx + dy * dy > reach * reach) continue;
-      const speed = Math.hypot(vx[i]!, vy[i]!) || 1;
-      t.hp -= cfg.bulletDamage;
-      events.emit({
-        type: 'Hit',
-        x: x[i]!,
-        y: y[i]!,
-        dirX: vx[i]! / speed,
-        dirY: vy[i]! / speed,
-        impulse: cfg.hitImpulse,
-      });
+    if (hitFirst(bullets, i, targets, cfg, events) || hitFirst(bullets, i, extra, cfg, events)) {
       bullets.remove(i);
-      break;
     }
   }
+}
+
+const NO_COLLIDERS: readonly Collider[] = [];
+
+/** Damages the first living, non-immune collider that bullet `i` overlaps. Returns true on a hit. */
+function hitFirst(
+  bullets: BulletPool,
+  i: number,
+  colliders: readonly Collider[],
+  cfg: WeaponsConfig,
+  events: EventQueue,
+): boolean {
+  const { x, y, vx, vy } = bullets.data;
+  for (const t of colliders) {
+    if (!t.alive || t.immune) continue;
+    const dx = x[i]! - t.x;
+    const dy = y[i]! - t.y;
+    const reach = t.radius + cfg.bulletRadius;
+    if (dx * dx + dy * dy > reach * reach) continue;
+    const speed = Math.hypot(vx[i]!, vy[i]!) || 1;
+    t.hp -= cfg.bulletDamage;
+    events.emit({
+      type: 'Hit',
+      x: x[i]!,
+      y: y[i]!,
+      dirX: vx[i]! / speed,
+      dirY: vy[i]! / speed,
+      impulse: cfg.hitImpulse,
+    });
+    return true;
+  }
+  return false;
 }

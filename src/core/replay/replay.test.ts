@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
+import { spawnFighter } from '../ai/waves';
 import { createRng } from '../rng/rng';
 import { createActions } from '../world/actions';
 import { createWorld, stepWorld, type World } from '../world/world';
@@ -185,7 +186,7 @@ describe('prototype 2 state in the hash', () => {
     world.missiles.spawn();
     const withMissile = hashWorld(world);
     expect(withMissile).not.toBe(withLock);
-    world.fighters.push({ x: 1, y: 2, vx: 0, vy: 0, radius: 28, hp: 3, alive: true });
+    spawnFighter(world, 1, 2, 0);
     const withFighter = hashWorld(world);
     expect(withFighter).not.toBe(withMissile);
     world.squadron.formation = 'spread';

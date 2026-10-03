@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
 import { hashWorld } from '../replay/hash';
+import type { Fighter } from '../ai/fighters';
 import { createShip } from '../flight/flight';
 import { DEG } from '../math';
 import type { Target } from '../world/target';
@@ -151,7 +152,7 @@ describe('acquisition', () => {
 
   it('locks fighters through the shared id space and never targets an id already locked', () => {
     const w = setup();
-    w.fighters.push({ x: 600, y: 0, vx: 0, vy: 0, radius: 28, hp: 3, alive: true });
+    w.fighters.push({ x: 600, y: 0, vx: 0, vy: 0, radius: 28, hp: 3, alive: true } as Fighter);
     addWingmen(w, 1);
     run(w, w.tuning.lockon.lockTime + 0.1);
     expect(w.lockon.locks).toEqual([FIGHTER_ID_BASE]);
@@ -252,7 +253,7 @@ describe('losing locks', () => {
 
   it('a stale fighter id is treated as dead', () => {
     const w = setup();
-    w.fighters.push({ x: 600, y: 0, vx: 0, vy: 0, radius: 28, hp: 3, alive: true });
+    w.fighters.push({ x: 600, y: 0, vx: 0, vy: 0, radius: 28, hp: 3, alive: true } as Fighter);
     run(w, w.tuning.lockon.lockTime + 0.1);
     expect(w.lockon.locks).toEqual([FIGHTER_ID_BASE]);
     w.fighters.length = 0;

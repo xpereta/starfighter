@@ -17,18 +17,7 @@ it('120 s of random flight with fighters and wingmen: locks are valid, unique, w
   for (let i = 0; i < 2; i++) {
     world.squadron.wingmen.push({ ship: createShip(tuning.flight), hp: 3, alive: true });
   }
-  for (let i = 0; i < 6; i++) {
-    const ang = rng.range(0, Math.PI * 2);
-    world.fighters.push({
-      x: Math.cos(ang) * rng.range(500, 2500),
-      y: Math.sin(ang) * rng.range(500, 2500),
-      vx: 0,
-      vy: 0,
-      radius: 28,
-      hp: 3,
-      alive: true,
-    });
-  }
+  // Waves of real enemy fighters spawn by themselves (prototype 2 track B).
 
   let acquired = 0;
   for (let i = 0; i < 120 * 60; i++) {
@@ -38,7 +27,7 @@ it('120 s of random flight with fighters and wingmen: locks are valid, unique, w
       a.throttle = rng.range(-1, 1);
     }
     // Fighters come and go, so locks also end by death and stale ids.
-    if (i % 200 === 0) {
+    if (i % 200 === 0 && world.fighters.length > 0) {
       const f = world.fighters[rng.int(world.fighters.length)]!;
       f.alive = !f.alive;
     }

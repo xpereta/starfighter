@@ -5,6 +5,8 @@ export interface Collider {
   radius: number;
   hp: number;
   alive: boolean;
+  /** True while bullets pass through it (e.g. a fighter in its evade i-frames). */
+  immune?: boolean;
 }
 
 export type TargetKind = 'static' | 'drone' | 'turret';
