@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import { createRng } from '../core/rng/rng';
+import { cameraParams } from '../../data/tuning/camera';
 import { palette } from './palette';
-import { layerShift, streak } from './view';
+import { coverTile, layerShift, streak } from './view';
 
-const TILE = 2400; // world units; larger than the biggest visible half-diagonal
+/** Star counts below are per BASE_TILE x BASE_TILE area; the tile grows with the largest allowed view. */
+const BASE_TILE = 2400;
+const TILE = coverTile(cameraParams.viewMax.max);
+const DENSITY = (TILE / BASE_TILE) ** 2;
 const BACKGROUND_SEED = 90210;
 
 /** Far to near. depth < 1 scrolls slower than the world, giving parallax. */
@@ -50,7 +54,7 @@ export function createBackground(): Background {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute(
       'position',
-      new THREE.BufferAttribute(tiledPositions(layer.count, rng), 3),
+      new THREE.BufferAttribute(tiledPositions(Math.round(layer.count * DENSITY), rng), 3),
     );
     const material = new THREE.PointsMaterial({
       color: palette.star,
@@ -68,7 +72,7 @@ export function createBackground(): Background {
   });
 
   // Dust streaks: fixed anchor points; the far end is moved along the velocity each frame.
-  const anchors = tiledPositions(DUST.count, rng);
+  const anchors = tiledPositions(Math.round(DUST.count * DENSITY), rng);
   const dustCount = anchors.length / 3;
   const segmentPositions = new Float32Array(dustCount * 2 * 3);
   const dustGeometry = new THREE.BufferGeometry();

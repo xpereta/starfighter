@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { layerShift, streak } from './view';
+import { cameraParams } from '../../data/tuning/camera';
+import { viewSize } from '../core/camera/view';
+import { coverTile, layerShift, streak, WIDEST_ASPECT } from './view';
 
 describe('layerShift', () => {
   const T = 2400;
@@ -26,5 +28,22 @@ describe('streak', () => {
     expect(streak(0.4)).toEqual({ length: 0, opacity: 0 });
     expect(streak(1).length).toBeGreaterThan(streak(0.75).length);
     expect(streak(1).opacity).toBeGreaterThan(streak(0.75).opacity);
+  });
+});
+
+describe('coverTile', () => {
+  it('exceeds the half-diagonal of the largest allowed view on every screen shape', () => {
+    for (const maxWidth of [cameraParams.viewMax.max, 7800, 12000]) {
+      const tile = coverTile(maxWidth);
+      for (const aspect of [9 / 32, 0.5, 1, 1.6, 16 / 9, 21 / 9, WIDEST_ASPECT]) {
+        const size = viewSize(maxWidth, aspect);
+        expect(tile).toBeGreaterThanOrEqual(Math.hypot(size.width, size.height) / 2);
+      }
+    }
+  });
+
+  it('grows with the view and rounds to 100', () => {
+    expect(coverTile(7800)).toBeGreaterThan(coverTile(4500));
+    expect(coverTile(7800) % 100).toBe(0);
   });
 });
