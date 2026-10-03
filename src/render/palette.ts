@@ -7,6 +7,10 @@ export const palette = {
   turret: 0xc084fc,
   projectile: 0xfff27a,
   enemyShot: 0xff8fb0,
+  fighter: 0xff3b6b,
+  wingman: 0x7dffb0,
+  missile: 0xffffff,
+  lockRing: 0xffd24a,
   star: 0x9fb4d9,
   dust: 0xcfe0ff,
 } as const;

@@ -101,7 +101,8 @@ export function createReplayControls(
       if (!replay) return say('nothing recorded or imported yet');
       if (
         replay.tuning.weapons.bulletCap !== world.tuning.weapons.bulletCap ||
-        replay.tuning.arena.enemyShotCap !== world.tuning.arena.enemyShotCap
+        replay.tuning.arena.enemyShotCap !== world.tuning.arena.enemyShotCap ||
+        replay.tuning.missiles.missileCap !== world.tuning.missiles.missileCap
       ) {
         return say('error: replay uses different pool sizes than this build');
       }

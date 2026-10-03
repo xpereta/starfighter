@@ -8,6 +8,10 @@ import { createCameraConfig, type CameraConfig } from './camera';
 import { createHudConfig, type HudConfig } from './hud';
 import { createFlightConfig, type FlightConfig } from './flight';
 import { createWeaponsConfig, type WeaponsConfig } from './weapons';
+import { createLockOnConfig, lockonParams, type LockOnConfig } from './lockon';
+import { createMissilesConfig, missilesParams, type MissilesConfig } from './missiles';
+import { createFighterConfig, fighterParams, type FighterConfig } from './fighter';
+import { createSquadronConfig, squadronParams, type SquadronConfig } from './squadron';
 
 /** All live-tunable values. Core reads these through `world.tuning`; the dev panel edits them. */
 export interface Tuning {
@@ -16,6 +20,10 @@ export interface Tuning {
   weapons: WeaponsConfig;
   arena: ArenaConfig;
   hud: HudConfig;
+  lockon: LockOnConfig;
+  missiles: MissilesConfig;
+  fighter: FighterConfig;
+  squadron: SquadronConfig;
 }
 
 export function createTuning(): Tuning {
@@ -25,6 +33,10 @@ export function createTuning(): Tuning {
     weapons: createWeaponsConfig(),
     arena: createArenaConfig(),
     hud: createHudConfig(),
+    lockon: createLockOnConfig(),
+    missiles: createMissilesConfig(),
+    fighter: createFighterConfig(),
+    squadron: createSquadronConfig(),
   };
 }
 
@@ -35,6 +47,10 @@ export const tuningParams = {
   weapons: weaponsParams,
   arena: arenaParams,
   hud: hudParams,
+  lockon: lockonParams,
+  missiles: missilesParams,
+  fighter: fighterParams,
+  squadron: squadronParams,
 } as const;
 
 /** Non-numeric tuning values and the options they accept. */
@@ -44,6 +60,10 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   weapons: {},
   arena: {},
   hud: {},
+  lockon: {},
+  missiles: {},
+  fighter: {},
+  squadron: {},
 };
 
 /** Plain-language tooltip for each toggle, keyed `group.name` (what it does, and what each option means). */

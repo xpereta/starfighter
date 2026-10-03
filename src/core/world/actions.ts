@@ -13,6 +13,12 @@ export interface Actions {
   respawn: boolean;
   /** Start the time trial (edge-triggered by the world). */
   startTrial: boolean;
+  /** Launch the missile salvo at the locked targets (edge-triggered by the weapons module). */
+  launch: boolean;
+  /** Order: wingmen attack my target (edge-triggered). */
+  attackOrder: boolean;
+  /** Order: cycle the formation tight <-> spread (edge-triggered). */
+  cycleFormation: boolean;
 }
 
 export function createActions(): Actions {
@@ -25,5 +31,8 @@ export function createActions(): Actions {
     evade: false,
     respawn: false,
     startTrial: false,
+    launch: false,
+    attackOrder: false,
+    cycleFormation: false,
   };
 }

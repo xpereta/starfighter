@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { GameEvent } from '../core/events/events';
 import { createPool } from '../core/world/pool';
-import type { TargetKind } from '../core/world/target';
+import type { EntityKind } from '../core/world/target';
 import type { QualitySettings } from '../../data/quality';
 import { palette } from './palette';
 
@@ -10,7 +10,9 @@ const SPEED_MAX = 140;
 const SPIN_MAX = 6; // rad/s
 const SHARD_SIZE = 0.45; // fraction of the dead target's radius
 
-const KIND_COLOR: Record<TargetKind, number> = {
+const KIND_COLOR: Record<EntityKind, number> = {
+  fighter: palette.fighter,
+  wingman: palette.wingman,
   static: palette.enemyStatic,
   drone: palette.enemy,
   turret: palette.turret,

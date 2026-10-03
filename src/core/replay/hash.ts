@@ -1,3 +1,7 @@
+import { mixFighters } from '../ai/fighters';
+import { mixLockOn } from '../lockon/lockon';
+import { mixSquadron } from '../squadron/squadron';
+import { mixMissiles } from '../weapons/missiles';
 import type { World } from '../world/world';
 
 const FNV_OFFSET = 0x811c9dc5;
@@ -35,6 +39,10 @@ export function hashWorld(world: World): string {
   mix(world.guns.barrel);
   mixPool(world.bullets);
   mixPool(world.enemyShots);
+  mixLockOn(mix, world.lockon);
+  mixMissiles(mix, world.missiles);
+  mixFighters(mix, world.fighters);
+  mixSquadron(mix, world.squadron);
   for (const t of world.targets) {
     for (const v of [t.x, t.y, t.hp, t.vx, t.vy, t.angle, t.cooldown, t.respawnTimer]) mix(v);
     mix(t.alive ? 1 : 0);
