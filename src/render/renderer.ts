@@ -2,11 +2,8 @@ import * as THREE from 'three';
 import { clamp } from '../core/math';
 import type { World } from '../core/world/world';
 import { createBackground } from './background';
+import { viewSize } from '../core/camera/view';
 import { palette } from './palette';
-import { viewSize } from './view';
-
-/** Visible world width on the reference screen. Replaced by the speed-driven zoom in core/camera (issue #6). */
-const VIEW_WIDTH = 1600;
 
 export interface Renderer {
   render(world: World): void;
@@ -56,13 +53,6 @@ export function createRenderer(container: HTMLElement): Renderer {
     const w = window.innerWidth;
     const h = window.innerHeight;
     renderer.setSize(w, h);
-    // Same visible world area on every screen shape.
-    const view = viewSize(VIEW_WIDTH, w / h || 1);
-    camera.left = -view.width / 2;
-    camera.right = view.width / 2;
-    camera.top = view.height / 2;
-    camera.bottom = -view.height / 2;
-    camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
   resize();
@@ -74,10 +64,17 @@ export function createRenderer(container: HTMLElement): Renderer {
       // The mesh points up (+y); heading 0 means +x.
       ship.position.set(s.x, s.y, 0);
       ship.rotation.z = s.heading - Math.PI / 2;
-      // Stopgap: keep the ship centered. Replaced by core/camera (issue #6).
-      camera.position.set(s.x, s.y, 0);
+      // Camera state comes from core/camera; the visible area is the same on every screen shape.
+      const cam = world.camera;
+      const view = viewSize(cam.view, cam.aspect);
+      camera.left = -view.width / 2;
+      camera.right = view.width / 2;
+      camera.top = view.height / 2;
+      camera.bottom = -view.height / 2;
+      camera.updateProjectionMatrix();
+      camera.position.set(cam.x + cam.shakeX, cam.y + cam.shakeY, 0);
       const speedFactor = clamp((s.speed - minSpeed) / (maxSpeed - minSpeed), 0, 1);
-      background.update(s.x, s.y, s.vx, s.vy, speedFactor);
+      background.update(cam.x, cam.y, s.vx, s.vy, speedFactor);
       renderer.render(scene, camera);
     },
     dispose() {
