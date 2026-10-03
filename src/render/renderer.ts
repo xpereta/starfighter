@@ -1,11 +1,16 @@
 import * as THREE from 'three';
 import { clamp } from '../core/math';
 import type { World } from '../core/world/world';
+import type { GameEvent } from '../core/events/events';
 import { createBackground } from './background';
+import { createBulletRenderer } from './bullets';
 import { viewSize } from '../core/camera/view';
+import { createSparks } from './sparks';
 import { palette } from './palette';
 
 export interface Renderer {
+  /** Feed each simulation step's events (FX attach here). */
+  consumeEvents(events: readonly GameEvent[]): void;
   render(world: World): void;
   dispose(): void;
 }
@@ -31,7 +36,7 @@ function fighterShape(): THREE.Shape {
   return s;
 }
 
-export function createRenderer(container: HTMLElement): Renderer {
+export function createRenderer(container: HTMLElement, world: World): Renderer {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
@@ -43,6 +48,12 @@ export function createRenderer(container: HTMLElement): Renderer {
 
   const background = createBackground();
   scene.add(background.object);
+
+  const bullets = createBulletRenderer(world.bullets.capacity);
+  scene.add(bullets.object);
+  const sparks = createSparks();
+  scene.add(sparks.object);
+  let lastTime = performance.now();
 
   const shipGeometry = new THREE.ShapeGeometry(fighterShape());
   const shipMaterial = new THREE.MeshBasicMaterial({ color: palette.friendly });
@@ -58,6 +69,7 @@ export function createRenderer(container: HTMLElement): Renderer {
   resize();
 
   return {
+    consumeEvents: (events) => sparks.consume(events),
     render(world) {
       const { ship: s } = world;
       const { minSpeed, maxSpeed } = world.tuning.flight;
@@ -75,11 +87,17 @@ export function createRenderer(container: HTMLElement): Renderer {
       camera.position.set(cam.x + cam.shakeX, cam.y + cam.shakeY, 0);
       const speedFactor = clamp((s.speed - minSpeed) / (maxSpeed - minSpeed), 0, 1);
       background.update(cam.x, cam.y, s.vx, s.vy, speedFactor);
+      bullets.update(world.bullets);
+      const now = performance.now();
+      sparks.update(Math.min((now - lastTime) / 1000, 0.1));
+      lastTime = now;
       renderer.render(scene, camera);
     },
     dispose() {
       window.removeEventListener('resize', resize);
       background.dispose();
+      bullets.dispose();
+      sparks.dispose();
       shipGeometry.dispose();
       shipMaterial.dispose();
       renderer.dispose();

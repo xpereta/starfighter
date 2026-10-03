@@ -2,8 +2,17 @@ import { createEventQueue, type EventQueue } from '../events/events';
 import { createRng, type Rng } from '../rng/rng';
 import type { Tuning } from '../../../data/tuning';
 import { createCamera, stepCamera, type Camera } from '../camera/camera';
+import {
+  createBulletPool,
+  createGunState,
+  stepBullets,
+  stepGuns,
+  type BulletPool,
+  type GunState,
+} from '../weapons/guns';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
 import { createActions, type Actions } from './actions';
+import type { Target } from './target';
 
 /** Shared world state. Gameplay modules read and write this plain data; no hidden state elsewhere. */
 export interface World {
@@ -16,6 +25,10 @@ export interface World {
   readonly tuning: Tuning;
   readonly ship: Ship;
   readonly camera: Camera;
+  readonly guns: GunState;
+  readonly bullets: BulletPool;
+  /** Things bullets can hit (filled by the arena in a later issue). */
+  readonly targets: Target[];
   /** Fixed steps simulated so far. */
   tick: number;
   /** Simulated seconds (tick * dt). */
@@ -32,6 +45,9 @@ export function createWorld(seed: number, tuning: Tuning): World {
     tuning,
     ship,
     camera: createCamera(ship, tuning.flight, tuning.camera),
+    guns: createGunState(),
+    bullets: createBulletPool(tuning.weapons),
+    targets: [],
     tick: 0,
     time: 0,
   };
@@ -43,6 +59,17 @@ export function stepWorld(world: World, dt: number): void {
   world.tick += 1;
   world.time += dt;
   stepFlight(world.ship, world.actions, world.tuning.flight, dt);
+  stepGuns(
+    world.guns,
+    world.bullets,
+    world.ship,
+    world.actions,
+    world.tuning.weapons,
+    world.rng,
+    world.events,
+    dt,
+  );
+  stepBullets(world.bullets, world.targets, world.tuning.weapons, world.events, dt);
   // Camera runs last so it sees this step's events (shake) and final ship state.
   stepCamera(
     world.camera,
