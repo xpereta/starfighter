@@ -1,6 +1,7 @@
 import type { Ship } from '../flight/flight';
 import type { Actions } from '../world/actions';
 import type { World } from '../world/world';
+import { stepOrders } from './orders';
 import { stepWingmen } from './wingmen';
 
 export type Formation = 'tight' | 'spread';
@@ -31,10 +32,12 @@ export interface Squadron {
   order: Order;
   /** Seconds left on the active order. */
   orderTimer: number;
+  /** Lockable id (see core/world/lockable.ts) the attack order is aimed at, or -1 when there is no order. */
+  orderTargetId: number;
 }
 
 export function createSquadron(): Squadron {
-  return { wingmen: [], formation: 'tight', order: 'none', orderTimer: 0 };
+  return { wingmen: [], formation: 'tight', order: 'none', orderTimer: 0, orderTargetId: -1 };
 }
 
 export function livingWingmen(squadron: Squadron): number {
@@ -48,6 +51,7 @@ export function livingWingmen(squadron: Squadron): number {
  * engage enemies and can be shot down. Runs after the fighters and before lock-on each step.
  */
 export function stepSquadron(world: World): void {
+  stepOrders(world); // first: the order may change what the wingmen do this step
   stepWingmen(world);
 }
 
@@ -56,6 +60,7 @@ export function mixSquadron(mix: (n: number) => void, squadron: Squadron): void 
   mix(squadron.formation === 'tight' ? 0 : 1);
   mix(squadron.order === 'none' ? 0 : 1);
   mix(squadron.orderTimer);
+  mix(squadron.orderTargetId);
   mix(squadron.wingmen.length);
   for (const w of squadron.wingmen) {
     const s = w.ship;

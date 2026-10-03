@@ -88,6 +88,30 @@ export function blinkOn(time: number, hz: number): boolean {
   return Math.floor(time * hz * 2) % 2 === 0;
 }
 
+export interface SquadronReadout {
+  /** 'TIGHT' or 'SPREAD'. */
+  formation: string;
+  /** Living / total wingmen, e.g. '2/2'. */
+  wingmen: string;
+  /** The active order with its time left, e.g. 'ATTACK 5.2s', or null when there is none. */
+  order: string | null;
+}
+
+/** The squadron lines of the HUD; null when there are no wingmen (nothing to show). */
+export function squadronReadout(
+  squadron: { formation: 'tight' | 'spread'; order: 'none' | 'attack'; orderTimer: number },
+  alive: number,
+  total: number,
+): SquadronReadout | null {
+  if (total <= 0) return null;
+  return {
+    formation: squadron.formation === 'tight' ? 'TIGHT' : 'SPREAD',
+    wingmen: `${alive}/${total}`,
+    order:
+      squadron.order === 'attack' ? `ATTACK ${Math.max(0, squadron.orderTimer).toFixed(1)}s` : null,
+  };
+}
+
 /** World point to screen px (origin top-left; world y is up, screen y is down). Fills `out`. */
 export function worldToScreen(
   out: { x: number; y: number },

@@ -26,7 +26,7 @@ const lead: Point = { x: 0, y: 0 };
 let pushX = 0;
 let pushY = 0;
 
-interface Body {
+export interface Body {
   x: number;
   y: number;
   vx: number;
@@ -36,7 +36,7 @@ interface Body {
 }
 
 /** The enemy behind a lockable id (see core/world/lockable.ts), or null. */
-function bodyOf(world: World, id: number): Body | null {
+export function bodyOf(world: World, id: number): Body | null {
   if (id < 0) return null;
   const body = id >= FIGHTER_ID_BASE ? world.fighters[id - FIGHTER_ID_BASE] : world.targets[id];
   return body ?? null;
@@ -62,8 +62,12 @@ function engageable(
   return (body.x - w.ship.x) ** 2 + (body.y - w.ship.y) ** 2 <= range * range;
 }
 
-/** Keeps the current enemy while it stays valid, otherwise picks the nearest engageable one (-1 for none). */
+/**
+ * Keeps the current enemy while it stays valid, otherwise picks the nearest engageable one (-1 for
+ * none). Under an attack order every wingman goes for the order's target, whatever the range.
+ */
 function pickEngaged(world: World, w: Wingman, cfg: SquadronConfig): number {
+  if (world.squadron.order === 'attack') return world.squadron.orderTargetId;
   const current = bodyOf(world, w.engagedId);
   if (current && engageable(world, w, w.engagedId, current, cfg, ENGAGE_HYSTERESIS)) {
     return w.engagedId;
