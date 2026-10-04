@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "board": "node scripts/board-sync.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"
