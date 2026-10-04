@@ -278,3 +278,46 @@ describe('the replay hash covers the squadron state', () => {
     expect(hashWorld(runReplay(replay))).toBe(hashWorld(world));
   });
 });
+
+describe('feedback when Attack my target cannot act', () => {
+  it('shows "no target" when there is nothing to aim at, and clears it after orderCueTime', () => {
+    const world = arena();
+    press(world, 'attackOrder');
+    expect(world.squadron.order).toBe('none');
+    expect(world.squadron.cue).toBe('no-target');
+    expect(world.squadron.cueTimer).toBeGreaterThan(0);
+    steps(world, world.tuning.squadron.orderCueTime + 0.1);
+    expect(world.squadron.cue).toBe('none');
+    expect(world.squadron.cueTimer).toBe(0);
+  });
+
+  it('shows "no wingmen" when there is no living wingman, even if enemies exist', () => {
+    const world = arena(0);
+    enemyAt(world, 600, 0);
+    press(world, 'attackOrder');
+    expect(world.squadron.order).toBe('none');
+    expect(world.squadron.cue).toBe('no-wingmen');
+  });
+
+  it('shows no cue when the order works, and no cue when a second press cancels it', () => {
+    const world = arena();
+    enemyAt(world, 600, 0);
+    press(world, 'attackOrder');
+    expect(world.squadron.order).toBe('attack');
+    expect(world.squadron.cue).toBe('none');
+    press(world, 'attackOrder'); // cancels
+    expect(world.squadron.order).toBe('none');
+    expect(world.squadron.cue).toBe('none');
+  });
+
+  it('restarting the cue on every failed press, and the cue is part of the replay hash', () => {
+    const a = arena();
+    const b = arena();
+    expect(hashWorld(a)).toBe(hashWorld(b));
+    press(a, 'attackOrder');
+    press(b, 'cycleFormation');
+    press(b, 'cycleFormation'); // back to tight, no cue
+    expect(a.squadron.cue).toBe('no-target');
+    expect(hashWorld(a)).not.toBe(hashWorld(b));
+  });
+});
