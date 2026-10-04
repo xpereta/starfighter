@@ -74,11 +74,12 @@ export function slotOf(
   }
   let rank = 0;
   let living = 0;
-  world.squadron.wingmen.forEach((w, j) => {
-    if (!w.alive) return;
+  const wingmen = world.squadron.wingmen;
+  for (let j = 0; j < wingmen.length; j++) {
+    if (!wingmen[j]!.alive) continue;
     if (j < i) rank++;
     living++;
-  });
+  }
   slotRank.index = rank;
   slotRank.count = Math.max(living, 1);
   return slotRank;
@@ -172,6 +173,11 @@ export function createWingman(world: World, index: number, count: number, pilotI
   return wingman;
 }
 
+function hasWingman(wingmen: readonly Wingman[], pilotId: number): boolean {
+  for (const w of wingmen) if (w.pilotId === pilotId) return true;
+  return false;
+}
+
 /**
  * Practice mode: grows or shrinks the wingman list to `wingmanCount` (this also re-creates them after
  * a respawn). Run mode: every active pilot is a wingman (the list is never shrunk, so lost pilots stay
@@ -181,8 +187,9 @@ function syncCount(world: World): number {
   const wingmen = world.squadron.wingmen;
   if (world.run.mode === 'run') {
     for (const pilot of world.pilots.roster) {
-      if (pilot.status !== 'active' || wingmen.some((w) => w.pilotId === pilot.id)) continue;
-      const living = wingmen.filter((w) => w.alive).length;
+      if (pilot.status !== 'active' || hasWingman(wingmen, pilot.id)) continue;
+      let living = 0;
+      for (const w of wingmen) if (w.alive) living++;
       wingmen.push(createWingman(world, living, living + 1, pilot.id));
     }
     return wingmen.length;
