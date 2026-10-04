@@ -182,6 +182,10 @@ export function stepMissiles(world: World): void {
     assignSalvo(world.lockon.locks, pilotOrder.length, assignment);
     salvo.pending.push(...assignment);
     salvo.pilots.push(...pilotOrder);
+    // Firing spends the locks (Xavi's call): the salvo keeps the targets it was assigned, but the
+    // lock set empties, so the next salvo needs fresh locks. A target mid-acquisition keeps filling.
+    world.lockon.locks.length = 0;
+    world.lockon.graces.length = 0;
     salvo.launched = 0;
     salvo.nextIn = 0;
     salvo.cooldown = cfg.salvoCooldown;

@@ -128,6 +128,7 @@ describe('launch rules', () => {
       count();
     }
     expect(salvos).toBe(1);
+    w.lockon.locks.push(0); // a launch spends the locks, so the next salvo needs a fresh one
     tick(w, false);
     tick(w, true);
     count();
@@ -145,6 +146,7 @@ describe('launch rules', () => {
     expect(eventsOf(w, 'SalvoFired')).toBe(0);
     tick(w, false);
     for (let t = 0; t < 0.4; t += DT) tick(w, false);
+    w.lockon.locks.push(0); // fresh lock after the first salvo spent its own
     tick(w, true); // pressed after it
     expect(eventsOf(w, 'SalvoFired')).toBe(1);
   });
@@ -581,5 +583,48 @@ describe('every pilot fires from their own ship', () => {
     const base = hashOf();
     w.missiles.salvo.pilots.push(1);
     expect(hashOf()).not.toBe(base);
+  });
+});
+
+describe('a launch spends the locks', () => {
+  it('empties the lock set and its grace timers, but the salvo keeps the targets it was assigned', () => {
+    const w = setup(1);
+    w.targets.push(target(3000, 0), target(3000, 400));
+    w.lockon.locks.push(0, 1);
+    w.lockon.graces.push(0, 0.2);
+    const launched: number[] = [];
+    tick(w, true);
+    expect(w.lockon.locks).toEqual([]);
+    expect(w.lockon.graces).toEqual([]);
+    for (let i = 0; i < 60; i++) {
+      for (const e of w.events.events) if (e.type === 'MissileLaunched') launched.push(e.targetId);
+      tick(w);
+    }
+    expect(launched).toEqual([0, 1]); // both missiles still left at their assigned targets
+  });
+
+  it('cannot fire again after the cooldown until new locks are acquired', () => {
+    const w = setup();
+    w.targets.push(target(3000, 0));
+    w.lockon.locks.push(0);
+    tick(w, true);
+    for (let t = 0; t < w.tuning.missiles.salvoCooldown + 1; t += DT) tick(w, false);
+    tick(w, true); // cooldown over, but no locks left
+    expect(eventsOf(w, 'SalvoFired')).toBe(0);
+    w.lockon.locks.push(0);
+    tick(w, false);
+    tick(w, true);
+    expect(eventsOf(w, 'SalvoFired')).toBe(1);
+  });
+
+  it('does not stop a target being acquired from completing its lock afterwards', () => {
+    const w = setup();
+    w.targets.push(target(800, 0), target(800, 200));
+    w.lockon.locks.push(0);
+    w.lockon.acquiringId = 1;
+    w.lockon.progress = 0.5;
+    tick(w, true);
+    expect(w.lockon.acquiringId).toBe(1);
+    expect(w.lockon.progress).toBe(0.5);
   });
 });
