@@ -1,4 +1,5 @@
 import type { World } from '../core/world/world';
+import { PAD } from '../render/hud/hud';
 import { clearChatter, createChatter, feedChatter, lineAlpha, stepChatter } from './chatter';
 import { menuVisible } from './menu-model';
 import { objectiveText, rosterRows, type RosterRow } from './roster';
@@ -9,15 +10,23 @@ import { objectiveText, rosterRows, type RosterRow } from './roster';
  * Shown in run mode during a battle; practice mode never shows it.
  */
 
+/**
+ * The canvas HUD's top-left lines have baselines at PAD+10, PAD+30 and PAD+50 (an order or cue), and
+ * the centre warning "RETURN TO ARENA" sits at PAD+50 too. The roster starts below the last of them, and
+ * the objective sits between the first line and that warning (a 14px font is about 18px tall).
+ */
+export const ROSTER_TOP = PAD + 58;
+export const OBJECTIVE_TOP = PAD + 16;
+
 export const HUD_CSS = `
 #run-hud { position: fixed; inset: 0; z-index: 5; pointer-events: none; font: 600 14px/1.3 ui-monospace, Menlo, Consolas, monospace; color: #f2f6ff; }
 #run-hud[hidden] { display: none; }
-#run-hud .roster { position: absolute; left: 24px; top: 68px; max-width: min(300px, 40vw); display: grid; gap: 2px; }
+#run-hud .roster { position: absolute; left: ${PAD}px; top: ${ROSTER_TOP}px; max-width: min(300px, 40vw); display: grid; gap: 2px; }
 #run-hud .roster .row { overflow-wrap: anywhere; }
 #run-hud .roster .row.fallen { text-decoration: line-through; opacity: 0.55; }
 #run-hud .roster .trait { color: #aab4c8; font-weight: 400; }
 #run-hud .roster .pips { letter-spacing: 0.1em; color: #6cf0a0; }
-#run-hud .objective { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); max-width: 90vw; text-align: center; color: #ffd24a; letter-spacing: 0.05em; }
+#run-hud .objective { position: absolute; left: 50%; top: ${OBJECTIVE_TOP}px; transform: translateX(-50%); max-width: 90vw; text-align: center; color: #ffd24a; letter-spacing: 0.05em; }
 #run-hud .chatter { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); width: min(560px, 90vw); display: grid; gap: 4px; text-align: center; }
 #run-hud .chatter .line { padding: 3px 10px; border-radius: 4px; background: rgba(5, 6, 13, 0.7); overflow-wrap: anywhere; }
 `;

@@ -21,7 +21,8 @@ import {
 } from './layout';
 
 const FONT = '600 14px ui-monospace, Menlo, Consolas, monospace';
-const PAD = 24;
+/** Margin (px) of the canvas HUD text; the DOM run HUD (src/ui/hud-view.ts) lays out around its lines. */
+export const PAD = 24;
 const BAR_W = 220;
 const BAR_H = 10;
 const EVADE_W = 120;

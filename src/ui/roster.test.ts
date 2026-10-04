@@ -3,6 +3,8 @@ import { createTuning } from '../../data/tuning';
 import type { Pilot } from '../core/pilots/pilots';
 import type { Wingman } from '../core/squadron/squadron';
 import { createWorld, type World } from '../core/world/world';
+import { PAD } from '../render/hud/hud';
+import { HUD_CSS, OBJECTIVE_TOP, ROSTER_TOP } from './hud-view';
 import { hostileCount, hullPips, objectiveText, pilotHull, rosterRows } from './roster';
 
 const pilot = (id: number, name: string, lost = false): Pilot => ({
@@ -90,5 +92,17 @@ describe('objective line', () => {
     w.run.phase = 'battle';
     w.run.mode = 'practice';
     expect(objectiveText(w)).toBeNull();
+  });
+});
+
+describe('run HUD layout', () => {
+  it('the roster and the objective clear the canvas HUD lines (order cue, RETURN TO ARENA)', () => {
+    const lastBaseline = PAD + 50; // ORDER / cue line and the RETURN TO ARENA warning
+    const lineHeight = 18; // 14px font at 1.3
+    expect(ROSTER_TOP).toBeGreaterThan(lastBaseline + 4); // below the baseline and its descenders
+    expect(OBJECTIVE_TOP + lineHeight).toBeLessThan(lastBaseline - 14); // above the warning text
+    expect(OBJECTIVE_TOP).toBeGreaterThan(PAD + 10 + 4); // below the first status line
+    expect(HUD_CSS).toContain(`top: ${ROSTER_TOP}px`);
+    expect(HUD_CSS).toContain(`top: ${OBJECTIVE_TOP}px`);
   });
 });
