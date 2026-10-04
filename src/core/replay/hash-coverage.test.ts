@@ -177,5 +177,14 @@ describe('every gameplay field is in the replay hash', () => {
     const c = hashWorld(w);
     w.missiles.salvo.pending.push(3);
     expect(hashWorld(w)).not.toBe(c);
+    // The run's arrays (the pick on offer, the veterans on offer and the ticked ones; see core/run).
+    for (const list of [w.run.candidates, w.run.available, w.run.selectedVeterans]) {
+      const before = hashWorld(w);
+      (list as unknown[]).push(
+        list === w.run.selectedVeterans ? 4 : { id: 4, name: 'A B', trait: 'bold' },
+      );
+      expect(hashWorld(w)).not.toBe(before);
+      list.pop();
+    }
   });
 });
