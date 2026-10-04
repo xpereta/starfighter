@@ -4,12 +4,17 @@ import { DEG } from '../core/math';
 import type { World } from '../core/world/world';
 import { worldToScreen } from '../render/hud/layout';
 import { drawLockDebug } from './lock-debug';
+import { arenaCircle, distanceToEdge, nearestEdgePoint, type ArenaCircle } from './arena-edge';
 import { createTrail, createTrailSampler } from './trail';
+import { vectorEnd, velocityLength } from './vectors';
 
 const FONT = '12px ui-monospace, Menlo, Consolas, monospace';
 const CHART_W = 180;
 const CHART_H = 90;
 const VECTOR_PX = 120;
+/** Others' indicators are shorter than the player's, but grow with speed the same way. */
+const OTHER_VECTOR_PX = 80;
+const VELOCITY_COLOR = '#ffffff';
 const FRAME_EMA = 0.1; // smoothing for the FPS readout
 const TRAIL_SECONDS = 10; // how much flight history the trail keeps
 const TRAIL_MARK_TICKS = 60; // a dot every second of flight, to read speed from the spacing
@@ -32,6 +37,9 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
   const screen = { width: 0, height: 0 };
   const p = { x: 0, y: 0 };
   let frameMs = 16.7;
+  const arenaScratch: ArenaCircle = { x: 0, y: 0, radius: 0 };
+  const edgePoint = { x: 0, y: 0 };
+  const tip = { x: 0, y: 0 };
   const trail = createTrail(TRAIL_SECONDS * 60);
   const trailSampler = createTrailSampler(trail);
 
@@ -92,6 +100,25 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
       prevY = p.y;
     });
     g.lineWidth = 1.5;
+  }
+
+  /** Nose (faction colour, fixed length) and velocity (white, grows with speed) from one ship. */
+  function drawShipVectors(
+    ship: { x: number; y: number; heading: number; vx: number; vy: number; speed: number },
+    center: { x: number; y: number },
+    view: { width: number; height: number },
+    noseColor: string,
+    basePx: number,
+    maxSpeed: number,
+  ): void {
+    worldToScreen(p, ship.x, ship.y, center, view, screen);
+    if (p.x < -200 || p.x > screen.width + 200 || p.y < -200 || p.y > screen.height + 200) return;
+    const x = p.x;
+    const y = p.y;
+    vectorEnd(tip, x, y, Math.cos(ship.heading), Math.sin(ship.heading), basePx);
+    line(x, y, tip.x, tip.y, noseColor);
+    vectorEnd(tip, x, y, ship.vx, ship.vy, velocityLength(ship.speed, maxSpeed, basePx));
+    line(x, y, tip.x, tip.y, VELOCITY_COLOR);
   }
 
   function drawTurnChart(world: World): void {
@@ -170,6 +197,25 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
       drawTrail(center, view);
       drawLockDebug(g, world, center, view, screen);
 
+      // Arena boundary: the circle the ship is pushed back into, with a label where it is nearest to you.
+      const arena = world.tuning.flight.arenaRadius;
+      arenaCircle(arenaScratch, arena, center, view, screen);
+      g.strokeStyle = 'rgba(255,90,95,0.85)';
+      g.lineWidth = 2;
+      g.setLineDash([14, 10]);
+      g.beginPath();
+      g.arc(arenaScratch.x, arenaScratch.y, arenaScratch.radius, 0, Math.PI * 2);
+      g.stroke();
+      g.setLineDash([]);
+      g.lineWidth = 1.5;
+      nearestEdgePoint(edgePoint, center, arena);
+      worldToScreen(p, edgePoint.x, edgePoint.y, center, view, screen);
+      if (p.x > 40 && p.x < screen.width - 40 && p.y > 20 && p.y < screen.height - 20) {
+        g.fillStyle = 'rgba(255,90,95,0.95)';
+        g.textAlign = 'center';
+        g.fillText(`ARENA EDGE (${arena} u)`, p.x, p.y - 8);
+      }
+
       // Hit circles.
       for (const t of world.targets) {
         if (!t.alive) continue;
@@ -209,25 +255,32 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
         ship.invulnerable ? '#ffffff' : '#4ee1ff',
       );
 
-      // Nose (cyan) vs velocity (green): the gap is the slide.
-      const shipX = p.x;
-      const shipY = p.y;
-      line(
-        shipX,
-        shipY,
-        shipX + Math.cos(ship.heading) * VECTOR_PX,
-        shipY - Math.sin(ship.heading) * VECTOR_PX,
-        '#4ee1ff',
-      );
-      const speedFrac = ship.speed / world.tuning.flight.maxSpeed;
-      const vLen = Math.hypot(ship.vx, ship.vy) || 1;
-      line(
-        shipX,
-        shipY,
-        shipX + (ship.vx / vLen) * VECTOR_PX * speedFrac,
-        shipY - (ship.vy / vLen) * VECTOR_PX * speedFrac,
-        '#7dff7d',
-      );
+      // Direction indicators: the nose in the faction colour (player cyan, wingmen green, enemy fighters
+      // red) and the velocity in white. The velocity vector grows with speed, and the gap between the two
+      // is the slide.
+      drawShipVectors(world.ship, center, view, '#4ee1ff', VECTOR_PX, world.tuning.flight.maxSpeed);
+      for (const w of world.squadron.wingmen) {
+        if (w.alive)
+          drawShipVectors(
+            w.ship,
+            center,
+            view,
+            '#7dffb0',
+            OTHER_VECTOR_PX,
+            world.tuning.flight.maxSpeed,
+          );
+      }
+      for (const f of world.fighters) {
+        if (f.alive)
+          drawShipVectors(
+            f.ship,
+            center,
+            view,
+            '#ff3b6b',
+            OTHER_VECTOR_PX,
+            world.tuning.flight.maxSpeed,
+          );
+      }
 
       drawTurnChart(world);
 
@@ -239,6 +292,7 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
         `bullets ${world.bullets.count}/${world.bullets.capacity}`,
         `enemy shots ${world.enemyShots.count}/${world.enemyShots.capacity}`,
         `targets ${alive}/${world.targets.length}`,
+        `arena edge ${distanceToEdge(ship.x, ship.y, arena).toFixed(0)} u`,
         `tick ${world.tick}`,
       ];
       lines.forEach((text, i) =>
