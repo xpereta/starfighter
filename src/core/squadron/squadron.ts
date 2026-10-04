@@ -22,6 +22,8 @@ export interface Wingman {
   engagedId: number;
   /** Seconds until it returns after being shot down (test arena only). */
   respawnTimer: number;
+  /** 0..1: how far it is from its slot (0 in the slot, 1 far away); scales its catch-up boost. */
+  catchUp: number;
 }
 
 /**
@@ -88,5 +90,6 @@ export function mixSquadron(mix: (n: number) => void, squadron: Squadron): void 
     mix(w.fireCooldown);
     mix(w.engagedId);
     mix(w.respawnTimer);
+    mix(w.catchUp);
   }
 }
