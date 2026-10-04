@@ -6,6 +6,7 @@ import { worldToScreen } from '../render/hud/layout';
 import { drawLockDebug } from './lock-debug';
 import { arenaCircle, distanceToEdge, nearestEdgePoint, type ArenaCircle } from './arena-edge';
 import { drawIntents } from './intent-overlay';
+import { readoutLayout, type ReadoutLayout } from './readout-layout';
 import { createTrail, createTrailSampler } from './trail';
 import { vectorEnd, velocityLength } from './vectors';
 
@@ -122,10 +123,10 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
     line(x, y, tip.x, tip.y, VELOCITY_COLOR);
   }
 
-  function drawTurnChart(world: World): void {
+  function drawTurnChart(world: World, lay: ReadoutLayout): void {
     const cfg = world.tuning.flight;
-    const x0 = screen.width / 2 - CHART_W / 2;
-    const y0 = screen.height - CHART_H - 20;
+    const x0 = lay.chartX;
+    const y0 = lay.chartY;
     const top = turnRateLimit(cfg, cfg.cornerSpeed) * 1.15;
     const sx = (speed: number): number =>
       x0 + ((speed - cfg.minSpeed) / (cfg.maxSpeed - cfg.minSpeed)) * CHART_W;
@@ -285,11 +286,7 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
           );
       }
 
-      drawTurnChart(world);
-
       const alive = world.targets.filter((t) => t.alive).length;
-      g.fillStyle = 'rgba(255,255,255,0.9)';
-      g.textAlign = 'center';
       const lines = [
         `${(1000 / frameMs).toFixed(0)} fps  ${frameMs.toFixed(1)} ms`,
         `bullets ${world.bullets.count}/${world.bullets.capacity}`,
@@ -298,13 +295,16 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
         `arena edge ${distanceToEdge(ship.x, ship.y, arena).toFixed(0)} u`,
         `tick ${world.tick}`,
       ];
-      lines.forEach((text, i) =>
-        g.fillText(
-          text,
-          screen.width / 2,
-          screen.height - CHART_H - 50 - (lines.length - 1 - i) * 16,
-        ),
-      );
+      // A column at the top-left, under the HUD text: nothing over the middle of the screen.
+      const lay = readoutLayout(lines.length, CHART_H);
+      g.textAlign = 'left';
+      let widest = 0;
+      for (const text of lines) widest = Math.max(widest, g.measureText(text).width);
+      g.fillStyle = 'rgba(0,0,0,0.45)';
+      g.fillRect(lay.textX - 6, lay.boxY, widest + 12, lay.boxHeight);
+      g.fillStyle = 'rgba(255,255,255,0.9)';
+      lines.forEach((text, i) => g.fillText(text, lay.textX, lay.lineY(i)));
+      drawTurnChart(world, lay);
     },
     dispose() {
       window.removeEventListener('resize', resize);
