@@ -7,9 +7,9 @@ import {
   diffFromDefaults,
   formatDefaultsPatch,
   parsePreset,
+  presetToggles,
   RELOAD_ONLY,
   serializePreset,
-  TOGGLES,
   TUNED_GROUPS,
   type TunedGroup,
 } from './presets';
@@ -165,6 +165,7 @@ export function createPanel(world: World): Panel {
     missiles: 'Missiles',
     fighter: 'Enemy fighter',
     squadron: 'Wingmen',
+    arena: 'Arena',
   };
   const names = [
     'Flight',
@@ -174,7 +175,7 @@ export function createPanel(world: World): Panel {
     ...TUNED_GROUPS.flatMap((g) => {
       const n = groupSection[g];
       const visible = Object.keys(tuningParams[g]).filter((k) => !RELOAD_ONLY.has(k));
-      const hasRows = visible.length + Object.keys(TOGGLES[g]).length > 0;
+      const hasRows = visible.length + Object.keys(presetToggles(g)).length > 0;
       return n && hasRows ? [n] : [];
     }),
   ];
@@ -204,7 +205,7 @@ export function createPanel(world: World): Panel {
   for (const group of TUNED_GROUPS) {
     const values = tuning[group] as unknown as Group;
     const base = defaults[group] as unknown as Group;
-    for (const [key, options] of Object.entries(TOGGLES[group])) {
+    for (const [key, options] of Object.entries(presetToggles(group))) {
       track(
         choiceRow<string | boolean>(ctx, {
           id: `${group}.${key}`,

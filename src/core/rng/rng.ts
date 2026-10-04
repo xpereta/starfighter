@@ -6,6 +6,8 @@ export interface Rng {
   range(min: number, max: number): number;
   /** Uniform integer in [0, maxExclusive). */
   int(maxExclusive: number): number;
+  /** The generator's internal state: part of the replay hash, since it decides the future. */
+  getState(): number;
 }
 
 export function createRng(seed: number): Rng {
@@ -21,5 +23,6 @@ export function createRng(seed: number): Rng {
     next,
     range: (min, max) => min + next() * (max - min),
     int: (maxExclusive) => Math.floor(next() * maxExclusive),
+    getState: () => state,
   };
 }

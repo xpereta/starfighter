@@ -7,3 +7,5 @@
 - **Rules that keep it working:** core uses only the seeded RNG and the fixed step; any new gameplay state must be added to `hashWorld`. Replays assume the default pool sizes.
 - **Used by:** the dev panel's Replay folder (record, stop, play, verify, export, import).
 - **Test:** `replay.test.ts`; `tests/sim/replay.sim.test.ts` (120 s random inputs: determinism, no NaN, bounds, pool caps).
+
+- **Hash audit (`hash-coverage.test.ts`):** the test perturbs every field of every gameplay state object (ship, guns, lock-on, squadron, wingmen, fighters, targets, salvo, trial, stats, `prev`, every pool field, and the RNG state) and fails by name if the hash does not change. A new state field that is not hashed fails there; fields that are deliberately not state are listed with a reason (`EXEMPT`). Format version 4.

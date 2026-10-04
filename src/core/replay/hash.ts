@@ -31,10 +31,12 @@ export function hashWorld(world: World): string {
 
   mix(world.tick);
   mix(world.time);
+  mix(world.rng.getState()); // consuming randomness changes the future, so it is state
   const s = world.ship;
   for (const v of [s.x, s.y, s.heading, s.omega, s.speed, s.vx, s.vy]) mix(v);
   for (const v of [s.evadeTimer, s.evadeCooldown, s.evadeSide, s.roll]) mix(v);
   mix(s.invulnerable ? 1 : 0);
+  mix(s.evadeHeld ? 1 : 0);
   mix(world.guns.cooldown);
   mix(world.guns.barrel);
   mixPool(world.bullets);
@@ -46,8 +48,31 @@ export function hashWorld(world: World): string {
   for (const t of world.targets) {
     for (const v of [t.x, t.y, t.hp, t.vx, t.vy, t.angle, t.cooldown, t.respawnTimer]) mix(v);
     mix(t.alive ? 1 : 0);
+    // The fixed layout of a target (it is rebuilt on every respawn).
+    for (const v of [
+      t.radius,
+      t.maxHp,
+      t.homeX,
+      t.homeY,
+      t.speed,
+      t.orbitX,
+      t.orbitY,
+      t.orbitRadius,
+      t.omega,
+    ])
+      mix(v);
   }
-  const { trial, stats } = world;
+  const { trial, stats, prev } = world;
+  // Last step's buttons: they decide whether a held button counts as a fresh press.
+  for (const b of [
+    prev.respawn,
+    prev.startTrial,
+    prev.launch,
+    prev.attackOrder,
+    prev.cycleFormation,
+  ]) {
+    mix(b ? 1 : 0);
+  }
   mix(trial.active ? 1 : 0);
   mix(trial.time);
   mix(trial.last ?? -1);

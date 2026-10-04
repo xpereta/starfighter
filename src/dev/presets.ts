@@ -10,13 +10,24 @@ export const TUNED_GROUPS = [
   'missiles',
   'fighter',
   'squadron',
+  'arena',
 ] as const;
 export type TunedGroup = (typeof TUNED_GROUPS)[number];
 
 export const TOGGLES = tuningToggles;
 
 /** Pools are sized when the world is created, so these only take effect after a reload. */
-export const RELOAD_ONLY = new Set(['bulletCap', 'missileCap']);
+export const RELOAD_ONLY = new Set(['bulletCap', 'missileCap', 'enemyShotCap']);
+
+/** Debug switches that are not tuning: they have their own row in the Debug section and are not saved in presets. */
+const DEBUG_TOGGLES = new Set(['arena.enemiesFrozen']);
+
+/** The toggles of a group that belong in the panel sections and in presets. */
+export function presetToggles(group: TunedGroup): Record<string, readonly (string | boolean)[]> {
+  return Object.fromEntries(
+    Object.entries(TOGGLES[group]).filter(([key]) => !DEBUG_TOGGLES.has(`${group}.${key}`)),
+  );
+}
 
 const FORMAT = 'starfighter-tuning';
 export const PRESET_VERSION = 1;
@@ -37,7 +48,7 @@ export function serializePreset(tuning: Tuning, name: string): string {
   for (const group of TUNED_GROUPS) {
     const out: Record<string, number | string | boolean> = {};
     const src = groupOf(tuning, group);
-    for (const key of [...Object.keys(defsOf(group)), ...Object.keys(TOGGLES[group])])
+    for (const key of [...Object.keys(defsOf(group)), ...Object.keys(presetToggles(group))])
       out[key] = src[key]!;
     values[group] = out;
   }
@@ -112,7 +123,7 @@ export function diffFromDefaults(tuning: Tuning, defaults: Tuning): Change[] {
   for (const group of TUNED_GROUPS) {
     const now = groupOf(tuning, group);
     const base = groupOf(defaults, group);
-    for (const key of [...Object.keys(defsOf(group)), ...Object.keys(TOGGLES[group])]) {
+    for (const key of [...Object.keys(defsOf(group)), ...Object.keys(presetToggles(group))]) {
       if (now[key] !== base[key])
         changes.push({ path: `${group}.${key}`, from: base[key]!, to: now[key]! });
     }
