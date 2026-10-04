@@ -177,6 +177,13 @@ export const squadronParams = {
     unit: 's',
     note: 'How long the Attack my target order lasts. Wingmen drop everything to chase and shoot your target, then fall back into formation. Higher = a longer commitment (and a more exposed squadron); lower = a quick strike.',
   },
+  orderCueTime: {
+    default: 1.2,
+    min: 0.3,
+    max: 4,
+    unit: 's',
+    note: 'How long the "NO TARGET" / "NO WINGMEN" message stays on screen when Attack my target cannot do anything. Higher = harder to miss; lower = less clutter.',
+  },
   attackSearchRange: {
     default: 2500,
     min: 500,
