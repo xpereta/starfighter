@@ -159,8 +159,8 @@ describe('evade', () => {
     expect(ship.evadeTimer).toBeGreaterThan(0);
   });
 
-  it('picks the side from the rotate input and from the stick relative to the nose', () => {
-    const cfg = cfgWith();
+  it('picks the side from the rotate input and from the stick relative to the nose (point steering)', () => {
+    const cfg = cfgWith({ steering: 'point' });
     expect(evadeFor(cfg, { rotate: 1 }, 0.05).ship.evadeSide).toBe(-1); // turning right: dodge right
     expect(evadeFor(cfg, { rotate: -1 }, 0.05).ship.evadeSide).toBe(1);
     // Nose along +x (left is +y): stick down is to the right of the nose.
@@ -207,8 +207,20 @@ describe('evade', () => {
     expect(count()).toBe(3);
   });
 
+  it('with rotate steering (the default) the side follows the stick X, and a stick Y alone gives the default left', () => {
+    const cfg = cfgWith({ steering: 'rotate' });
+    expect(cfg.steering).toBe(createFlightConfig().steering);
+    expect(evadeFor(cfg, { steerX: 1 }, 0.05).ship.evadeSide).toBe(-1); // stick right: dodge right
+    expect(evadeFor(cfg, { steerX: -1 }, 0.05).ship.evadeSide).toBe(1);
+    expect(evadeFor(cfg, { steerY: -1 }, 0.05).ship.evadeSide).toBe(1); // up/down means nothing here
+  });
+
+  it('rotate steering is the default', () => {
+    expect(createFlightConfig().steering).toBe('rotate');
+  });
+
   it('sidesteps by evadeOffset toward the chosen side and adds a speed bonus', () => {
-    const cfg = cfgWith();
+    const cfg = cfgWith({ steering: 'point' });
     const base = createShip(cfg);
     run(base, actions(), cfg, cfg.evadeTime);
     const left = evadeFor(cfg, {}, cfg.evadeTime).ship;
