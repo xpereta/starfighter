@@ -7,6 +7,7 @@
 - **Time trial (`trial.ts`):** `T` / Start revives every drone and starts the clock; the run ends when all drones are down; `best` is kept across respawns and persisted by the app (`src/app/save.ts`, versioned).
 - **Respawn:** `R` / Y resets the ship, shots and arena layout and stops the trial (best time is kept).
 - **Prototype 2 slots:** `lockon`, `missiles`, `fighters`, `squadron` and their step functions are in the fixed step order (flight, fighters, squadron, lock-on, guns, missiles, bullets, kills, targets, enemy shots, waves, trial, camera). Each module owns its file and its replay-hash hook; see its README. The hooks are not handed `dt`: `stepSeconds(world)` (`clock.ts`) recovers the fixed step length from `time / tick`.
+- **Prototype 3 slots:** `run` (phase machine, practice mode by default), `pilots` (the run's roster) and `pods` (rescue pods; `pods.ts`, stepped after the enemy shots) are in the fixed step order (`stepRun` first, `stepPods` before the waves), with their replay-hash hooks (`mixRun`, `mixPilots`, `mixPods`); see their READMEs and `docs/specs/prototype-3-pilots.md`.
 - **Events:** clears the queue at the start of each step; systems emit during it.
 - **Parameters:** the seed, `data/tuning/arena.ts` (pool caps are read at world creation). Shard counts are visual quality settings in `data/quality.ts`, never gameplay.
 - **Test:** `pool.test.ts`, `arena.test.ts`, `trial.test.ts`, `world.test.ts`, and `tests/sim`.

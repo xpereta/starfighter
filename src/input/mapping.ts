@@ -14,6 +14,10 @@ const BTN_RESPAWN = 3; // Y
 const BTN_FORMATION = 4; // LB
 const BTN_ORDER = 5; // RB
 const BTN_TRIAL = 9; // Start
+const BTN_DPAD_UP = 12;
+const BTN_DPAD_DOWN = 13;
+/** Stick deflection that counts as a menu up/down press. */
+const MENU_STICK = 0.6;
 const BTN_LT = 6;
 const BTN_RT = 7;
 
@@ -44,6 +48,11 @@ export function mapGamepad(pad: GamepadSnapshot, deadzone: number): Actions {
     launch: pad.buttons[BTN_LAUNCH]?.pressed ?? false,
     attackOrder: pad.buttons[BTN_ORDER]?.pressed ?? false,
     cycleFormation: pad.buttons[BTN_FORMATION]?.pressed ?? false,
+    // Menus: D-pad or the stick for up/down, A to confirm, B to go back (the same buttons also fly the ship in battle).
+    menuUp: (pad.buttons[BTN_DPAD_UP]?.pressed ?? false) || (pad.axes[1] ?? 0) < -MENU_STICK,
+    menuDown: (pad.buttons[BTN_DPAD_DOWN]?.pressed ?? false) || (pad.axes[1] ?? 0) > MENU_STICK,
+    menuSelect: pad.buttons[BTN_FIRE]?.pressed ?? false,
+    menuBack: pad.buttons[BTN_LAUNCH]?.pressed ?? false,
   };
 }
 
@@ -63,6 +72,10 @@ export function mapKeyboard(codes: ReadonlySet<string>): Actions {
     launch: codes.has('KeyE'),
     attackOrder: codes.has('KeyF'),
     cycleFormation: codes.has('KeyQ'),
+    menuUp: codes.has('ArrowUp') || codes.has('KeyW'),
+    menuDown: codes.has('ArrowDown') || codes.has('KeyS'),
+    menuSelect: codes.has('Enter') || codes.has('Space'),
+    menuBack: codes.has('Escape') || codes.has('Backspace'),
   };
 }
 
@@ -82,6 +95,10 @@ export function mergeActions(a: Actions, b: Actions): Actions {
     launch: a.launch || b.launch,
     attackOrder: a.attackOrder || b.attackOrder,
     cycleFormation: a.cycleFormation || b.cycleFormation,
+    menuUp: a.menuUp || b.menuUp,
+    menuDown: a.menuDown || b.menuDown,
+    menuSelect: a.menuSelect || b.menuSelect,
+    menuBack: a.menuBack || b.menuBack,
   };
 }
 

@@ -4,7 +4,9 @@ import { createCamera, stepCamera, type Camera } from '../camera/camera';
 import { createEventQueue, type EventQueue } from '../events/events';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
 import { createLockOn, stepLockOn, type LockOn } from '../lockon/lockon';
+import { createPilots, type Pilots } from '../pilots/pilots';
 import { createRng, type Rng } from '../rng/rng';
+import { createRun, stepRun, type Run } from '../run/run';
 import { createSquadron, stepSquadron, type Squadron } from '../squadron/squadron';
 import {
   createBulletPool,
@@ -24,6 +26,7 @@ import {
   stepTargets,
   type EnemyShotPool,
 } from './arena';
+import { stepPods, type Pod } from './pods';
 import type { Target } from './target';
 import { createTrial, startTrial, stepTrial, type Trial } from './trial';
 
@@ -48,6 +51,10 @@ export interface World {
   readonly missiles: MissilePool;
   readonly fighters: Fighter[];
   readonly squadron: Squadron;
+  /** Prototype 3: the run flow, the run's pilots and rescue pods (see docs/specs/prototype-3-pilots.md). */
+  readonly run: Run;
+  readonly pilots: Pilots;
+  readonly pods: Pod[];
   readonly trial: Trial;
   readonly stats: { kills: number; hitsTaken: number };
   /** Previous-step button states, for edge-triggered actions. */
@@ -58,6 +65,11 @@ export interface World {
     launch: boolean;
     attackOrder: boolean;
     cycleFormation: boolean;
+    /** Menu buttons: read by the run, edge-triggered against last step. */
+    menuUp: boolean;
+    menuDown: boolean;
+    menuSelect: boolean;
+    menuBack: boolean;
   };
   /** Fixed steps simulated so far. */
   tick: number;
@@ -89,6 +101,9 @@ export function createWorld(
     missiles: createMissilePool(tuning.missiles),
     fighters: [],
     squadron: createSquadron(),
+    run: createRun(),
+    pilots: createPilots(),
+    pods: [],
     trial: createTrial(bestTrialTime),
     stats: { kills: 0, hitsTaken: 0 },
     prev: {
@@ -97,6 +112,10 @@ export function createWorld(
       launch: false,
       attackOrder: false,
       cycleFormation: false,
+      menuUp: false,
+      menuDown: false,
+      menuSelect: false,
+      menuBack: false,
     },
     tick: 0,
     time: 0,
@@ -115,6 +134,7 @@ export function resetWorld(world: World): void {
   Object.assign(world.lockon, createLockOn());
   Object.assign(world.squadron, createSquadron());
   world.fighters.length = 0;
+  world.pods.length = 0;
   world.trial.active = false;
   world.trial.time = 0;
   const aspect = world.camera.aspect;
@@ -134,6 +154,7 @@ export function stepWorld(world: World, dt: number): void {
   prev.respawn = actions.respawn;
   prev.startTrial = actions.startTrial;
 
+  stepRun(world); // prototype 3 (A2): run phases, battles and menus
   stepFlight(world.ship, actions, tuning.flight, world.events, dt);
   stepFighters(world); // prototype 2 (B1): enemy fighters
   stepSquadron(world); // prototype 2 (B2/B3): wingmen and orders
@@ -177,6 +198,7 @@ export function stepWorld(world: World, dt: number): void {
       dt,
     );
   }
+  stepPods(world); // prototype 3 (B1): rescue pods
   stepWaves(world); // prototype 2 (B1): next wave of enemy fighters
   stepTrial(world.trial, world.targets, dt);
   // Camera runs last so it sees this step's events (shake) and final ship state.
@@ -192,4 +214,8 @@ export function stepWorld(world: World, dt: number): void {
   prev.launch = actions.launch;
   prev.attackOrder = actions.attackOrder;
   prev.cycleFormation = actions.cycleFormation;
+  prev.menuUp = actions.menuUp;
+  prev.menuDown = actions.menuDown;
+  prev.menuSelect = actions.menuSelect;
+  prev.menuBack = actions.menuBack;
 }

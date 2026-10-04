@@ -12,6 +12,10 @@ import { createLockOnConfig, lockonParams, type LockOnConfig } from './lockon';
 import { createMissilesConfig, missilesParams, type MissilesConfig } from './missiles';
 import { createFighterConfig, fighterParams, type FighterConfig } from './fighter';
 import { createSquadronConfig, squadronParams, type SquadronConfig } from './squadron';
+import { createRunConfig, runParams, type RunConfig } from './run';
+import { createPilotsConfig, pilotsParams, type PilotsConfig } from './pilots';
+import { createRescueConfig, rescueParams, type RescueConfig } from './rescue';
+import { createChatterConfig, chatterParams, type ChatterConfig } from './chatter';
 
 /** All live-tunable values. Core reads these through `world.tuning`; the dev panel edits them. */
 export interface Tuning {
@@ -24,6 +28,10 @@ export interface Tuning {
   missiles: MissilesConfig;
   fighter: FighterConfig;
   squadron: SquadronConfig;
+  run: RunConfig;
+  pilots: PilotsConfig;
+  rescue: RescueConfig;
+  chatter: ChatterConfig;
 }
 
 export function createTuning(): Tuning {
@@ -37,6 +45,10 @@ export function createTuning(): Tuning {
     missiles: createMissilesConfig(),
     fighter: createFighterConfig(),
     squadron: createSquadronConfig(),
+    run: createRunConfig(),
+    pilots: createPilotsConfig(),
+    rescue: createRescueConfig(),
+    chatter: createChatterConfig(),
   };
 }
 
@@ -51,6 +63,10 @@ export const tuningParams = {
   missiles: missilesParams,
   fighter: fighterParams,
   squadron: squadronParams,
+  run: runParams,
+  pilots: pilotsParams,
+  rescue: rescueParams,
+  chatter: chatterParams,
 } as const;
 
 /** Non-numeric tuning values and the options they accept. */
@@ -64,6 +80,10 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   missiles: {},
   fighter: {},
   squadron: { slotAnchor: ['velocity', 'nose'] },
+  run: {},
+  pilots: {},
+  rescue: {},
+  chatter: {},
 };
 
 /** Plain-language tooltip for each toggle, keyed `group.name` (what it does, and what each option means). */

@@ -166,6 +166,10 @@ export function createPanel(world: World): Panel {
     fighter: 'Enemy fighter',
     squadron: 'Wingmen',
     arena: 'Arena',
+    run: 'Run',
+    pilots: 'Pilots',
+    rescue: 'Rescue',
+    chatter: 'Chatter',
   };
   const names = [
     'Flight',

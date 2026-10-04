@@ -63,6 +63,10 @@ describe('mapKeyboard', () => {
       launch: false,
       attackOrder: false,
       cycleFormation: false,
+      menuUp: true,
+      menuDown: false,
+      menuSelect: true,
+      menuBack: false,
     });
     expect(mapKeyboard(new Set(['ArrowLeft', 'ArrowDown'])).rotate).toBe(-1);
   });
@@ -89,6 +93,21 @@ describe('mapKeyboard', () => {
     expect([none.launch, none.attackOrder, none.cycleFormation]).toEqual([false, false, false]);
   });
 
+  it('maps the menu controls: arrows/W/S, Enter/Space, Esc/Backspace; D-pad or stick, A, B on a pad', () => {
+    const k = mapKeyboard(new Set(['ArrowUp', 'Enter', 'Escape']));
+    expect([k.menuUp, k.menuDown, k.menuSelect, k.menuBack]).toEqual([true, false, true, true]);
+    const k2 = mapKeyboard(new Set(['KeyS', 'Space', 'Backspace']));
+    expect([k2.menuUp, k2.menuDown, k2.menuSelect, k2.menuBack]).toEqual([false, true, true, true]);
+    const dpad = mapGamepad(pad([0, 0], { 12: 1 }), 0.15);
+    expect([dpad.menuUp, dpad.menuDown]).toEqual([true, false]);
+    expect(mapGamepad(pad([0, 0], { 13: 1 }), 0.15).menuDown).toBe(true);
+    expect(mapGamepad(pad([0, -0.9]), 0.15).menuUp).toBe(true); // stick pushed up (gamepad y is negative up)
+    expect(mapGamepad(pad([0, 0.9]), 0.15).menuDown).toBe(true);
+    expect(mapGamepad(pad([0, -0.3]), 0.15).menuUp).toBe(false); // a gentle push is not a menu press
+    const ab = mapGamepad(pad([0, 0], { 0: 1, 1: 1 }), 0.15);
+    expect([ab.menuSelect, ab.menuBack]).toEqual([true, true]);
+  });
+
   it('gives neutral actions with nothing pressed', () => {
     expect(mapKeyboard(new Set())).toEqual(createActions());
   });
@@ -110,6 +129,10 @@ describe('mergeActions', () => {
       launch: false,
       attackOrder: false,
       cycleFormation: false,
+      menuUp: false,
+      menuDown: false,
+      menuSelect: false,
+      menuBack: false,
     });
   });
 });
