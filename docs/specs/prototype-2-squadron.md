@@ -48,7 +48,7 @@ A basic fighter that makes the dogfight real. It uses the **same flight model** 
 - Friendly color, distinct from the player's silhouette.
 
 ## 5. Orders
-- **LB / key Q: cycle formation** tight ↔ spread. **RB / key F: attack my target:** for `attackOrderTime` 8 s every wingman pursues and fires at the player's first locked target (or, with no locks, the enemy nearest the nose); it ends early if the target dies, then they return to the current formation. A second press cancels.
+- **LB / key Q: cycle formation** tight ↔ spread. **RB / key F: attack my target:** for `attackOrderTime` 8 s every wingman pursues and fires at the enemy nearest the player's nose within `attackSearchRange` (the order has its own target and does **not** use the missile locks; the target is marked on screen with green brackets and "ATTACK"); it ends early if the target dies, then they return to the current formation. A second press cancels.
 - One button each, no menus, no pauses. `OrderGiven{order}` event.
 - Controller map is the concept's draft: A guns · B launch · X evade · RB attack my target · LB cycle formation.
 
