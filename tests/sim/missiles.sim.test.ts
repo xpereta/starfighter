@@ -17,6 +17,7 @@ function play(seed: number) {
   const a = world.actions;
   let salvos = 0;
   let launched = 0;
+  let fromWingmen = 0;
   let hits = 0;
   for (let i = 0; i < 120 * 60; i++) {
     if (i % 20 === 0) {
@@ -43,8 +44,11 @@ function play(seed: number) {
     stepWorld(world, DT);
     for (const e of world.events.events) {
       if (e.type === 'SalvoFired') salvos++;
-      else if (e.type === 'MissileLaunched') launched++;
-      else if (e.type === 'Hit') hits++;
+      else if (e.type === 'MissileLaunched') {
+        launched++;
+        // The player's missiles leave from their nose (about 50 u away); anything farther came from a wingman.
+        if (Math.hypot(e.x - world.ship.x, e.y - world.ship.y) > 90) fromWingmen++;
+      } else if (e.type === 'Hit') hits++;
     }
     const m = world.missiles;
     expect(m.count).toBeLessThanOrEqual(m.capacity);
@@ -58,12 +62,14 @@ function play(seed: number) {
     }
     expect(Number.isFinite(m.salvo.cooldown)).toBe(true);
   }
-  return { world, salvos, launched, hits };
+  return { world, salvos, launched, hits, fromWingmen };
 }
 
 it('120 s of random play with locks, wingmen and salvos: no NaN, pool within cap, missiles hit things', () => {
-  const { salvos, launched, hits } = play(21);
+  const { salvos, launched, hits, fromWingmen } = play(21);
   expect(salvos).toBeGreaterThan(0);
+  expect(fromWingmen, 'wingmen fire their own missiles').toBeGreaterThan(0);
+  expect(fromWingmen).toBeLessThan(launched); // the player fires too
   expect(launched).toBeGreaterThanOrEqual(salvos);
   expect(hits).toBeGreaterThan(0);
 });
