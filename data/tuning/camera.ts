@@ -26,16 +26,16 @@ export const cameraParams = {
   lookAhead: {
     default: 0.3,
     min: 0,
-    max: 1,
+    max: 2,
     unit: '',
-    note: 'How far the camera leans toward where you are heading as speed rises, in half screen widths. Higher = see farther ahead sooner; lower = ship stays near the center.',
+    note: 'How far the camera leans toward where you are heading as speed rises, in half screen widths. Higher = see farther ahead sooner, reaching the cap at lower speeds; lower = ship stays near the center. Never more than Look ahead max, and Safe frame still keeps the ship off the edge.',
   },
   lookAheadMax: {
     default: 0.3,
     min: 0,
-    max: 0.5,
+    max: 1,
     unit: '',
-    note: 'Hard cap on that lean. Higher = lets the ship sit far from the center at speed; 0 = camera always centered on the ship. The cap only matters when Look ahead is large enough to reach it.',
+    note: 'Hard cap on that lean, in half screen widths (1 = ship at the very edge). Higher = the ship can sit far from the center at speed; 0 = always centered. Safe frame still keeps the ship off the edge: for the strongest lean raise this and lower Safe frame.',
   },
   lookLerp: {
     default: 3,

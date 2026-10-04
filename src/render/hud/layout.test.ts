@@ -7,6 +7,7 @@ import {
   distanceStyle,
   edgeIndicator,
   evadeReadiness,
+  orderCueText,
   speedBar,
   squadronReadout,
   throttleState,
@@ -192,5 +193,14 @@ describe('worldToScreen', () => {
     const p = { x: 0, y: 0 };
     worldToScreen(p, 500, 0, { x: 500, y: 0 }, view, screen);
     expect(p.x).toBeCloseTo(640);
+  });
+});
+
+describe('orderCueText', () => {
+  it('names why an order press did nothing, only while the cue timer runs', () => {
+    expect(orderCueText({ cue: 'no-target', cueTimer: 0.5 })).toBe('ATTACK: NO TARGET');
+    expect(orderCueText({ cue: 'no-wingmen', cueTimer: 0.5 })).toBe('ATTACK: NO WINGMEN');
+    expect(orderCueText({ cue: 'no-target', cueTimer: 0 })).toBeNull();
+    expect(orderCueText({ cue: 'none', cueTimer: 1 })).toBeNull();
   });
 });
