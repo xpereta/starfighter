@@ -74,3 +74,28 @@ it('the new buttons are edge-tracked at the end of the step', () => {
   stepWorld(world, 1 / 60);
   expect(world.prev.launch).toBe(true); // modules saw prev=false during the step that pressed it
 });
+
+it('Prototype 3 slots exist: practice mode by default, an empty roster and no pods', () => {
+  const world = createWorld(3, createTuning());
+  expect(world.run).toMatchObject({
+    mode: 'practice',
+    phase: 'battle',
+    battle: 0,
+    wave: 0,
+    result: 'none',
+  });
+  expect(world.pilots).toEqual({ roster: [], nextId: 1 });
+  expect(world.pods).toEqual([]);
+  world.pods.push({ x: 1, y: 2, vx: 0, vy: 0, hp: 3, alive: true, progress: 0, pilotId: 1 });
+  world.actions.respawn = true;
+  stepWorld(world, 1 / 60);
+  expect(world.pods).toEqual([]); // a respawn clears pods
+});
+
+it('the menu buttons are edge-tracked at the end of the step', () => {
+  const world = createWorld(3, createTuning());
+  world.actions.menuSelect = true;
+  expect(world.prev.menuSelect).toBe(false);
+  stepWorld(world, 1 / 60);
+  expect(world.prev.menuSelect).toBe(true);
+});

@@ -1,7 +1,10 @@
 import { mixFighters } from '../ai/fighters';
 import { mixLockOn } from '../lockon/lockon';
+import { mixPilots } from '../pilots/pilots';
+import { mixRun } from '../run/run';
 import { mixSquadron } from '../squadron/squadron';
 import { mixMissiles } from '../weapons/missiles';
+import { mixPods } from '../world/pods';
 import type { World } from '../world/world';
 
 const FNV_OFFSET = 0x811c9dc5;
@@ -45,9 +48,14 @@ export function hashWorld(world: World): string {
   mixMissiles(mix, world.missiles);
   mixFighters(mix, world.fighters);
   mixSquadron(mix, world.squadron);
+  mixRun(mix, world.run);
+  mixPilots(mix, world.pilots);
+  mixPods(mix, world.pods);
   for (const t of world.targets) {
     for (const v of [t.x, t.y, t.hp, t.vx, t.vy, t.angle, t.cooldown, t.respawnTimer]) mix(v);
     mix(t.alive ? 1 : 0);
+    mix(['static', 'drone', 'turret'].indexOf(t.kind));
+    mix(['static', 'straight', 'circle'].indexOf(t.mode));
     // The fixed layout of a target (it is rebuilt on every respawn).
     for (const v of [
       t.radius,
@@ -70,6 +78,10 @@ export function hashWorld(world: World): string {
     prev.launch,
     prev.attackOrder,
     prev.cycleFormation,
+    prev.menuUp,
+    prev.menuDown,
+    prev.menuSelect,
+    prev.menuBack,
   ]) {
     mix(b ? 1 : 0);
   }

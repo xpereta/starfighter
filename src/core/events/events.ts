@@ -21,7 +21,19 @@ export type GameEvent =
   | { type: 'SalvoFired'; count: number }
   | { type: 'MissileLaunched'; x: number; y: number; angle: number; targetId: number }
   // Squadron orders.
-  | { type: 'OrderGiven'; order: 'attack' | 'tight' | 'spread' };
+  | { type: 'OrderGiven'; order: 'attack' | 'tight' | 'spread' }
+  // Run flow (Prototype 3).
+  | { type: 'BattleStarted'; battle: number }
+  | { type: 'WaveStarted'; battle: number; wave: number }
+  | { type: 'BattleCleared'; battle: number }
+  | { type: 'RunEnded'; result: 'victory' | 'defeat' }
+  // Pilots and rescue pods.
+  | { type: 'PilotJoined'; pilotId: number; how: 'rescue' | 'pick' | 'veteran' }
+  | { type: 'PilotLost'; pilotId: number }
+  | { type: 'PilotKill'; pilotId: number }
+  | { type: 'PodSpawned'; x: number; y: number }
+  | { type: 'PodRescued'; pilotId: number }
+  | { type: 'PodLost' };
 
 export interface EventQueue {
   /** Events emitted since the last `clear()`, in emission order. */

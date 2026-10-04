@@ -11,6 +11,10 @@ export const TUNED_GROUPS = [
   'fighter',
   'squadron',
   'arena',
+  'run',
+  'pilots',
+  'rescue',
+  'chatter',
 ] as const;
 export type TunedGroup = (typeof TUNED_GROUPS)[number];
 

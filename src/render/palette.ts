@@ -11,6 +11,7 @@ export const palette = {
   wingman: 0x7dffb0,
   missile: 0xffffff,
   lockRing: 0xffd24a,
+  pod: 0x9ad8ff,
   star: 0x9fb4d9,
   dust: 0xcfe0ff,
 } as const;

@@ -19,6 +19,11 @@ export interface Actions {
   attackOrder: boolean;
   /** Order: cycle the formation tight <-> spread (edge-triggered). */
   cycleFormation: boolean;
+  /** Menu navigation (edge-triggered), used only outside a battle: up, down, confirm, back. */
+  menuUp: boolean;
+  menuDown: boolean;
+  menuSelect: boolean;
+  menuBack: boolean;
 }
 
 export function createActions(): Actions {
@@ -34,5 +39,9 @@ export function createActions(): Actions {
     launch: false,
     attackOrder: false,
     cycleFormation: false,
+    menuUp: false,
+    menuDown: false,
+    menuSelect: false,
+    menuBack: false,
   };
 }

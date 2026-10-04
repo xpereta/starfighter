@@ -6,24 +6,26 @@ Browser game (top-down 2D space dogfighting roguelite): Vite + TypeScript (stric
 
 Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 
-| Command             | What it does                                    |
-| ------------------- | ----------------------------------------------- |
-| `npm run dev`       | Vite dev server                                 |
-| `npm run build`     | typecheck + production build into `dist/`       |
-| `npm test`          | unit tests (Vitest, `src/**/*.test.ts`)         |
-| `npm run test:sim`  | headless simulation tests (`tests/sim`)         |
-| `npm run lint`      | ESLint (includes the core boundary rule)        |
-| `npm run format`    | Prettier write (`format:check` to verify)       |
-| `npm run typecheck` | `tsc --noEmit`                                  |
-| `npm run e2e`       | Playwright smoke test (builds + serves `dist/`) |
+| Command             | What it does                                                        |
+| ------------------- | ------------------------------------------------------------------- |
+| `npm run dev`       | Vite dev server                                                     |
+| `npm run build`     | typecheck + production build into `dist/`                           |
+| `npm test`          | unit tests (Vitest, `src/**/*.test.ts`)                             |
+| `npm run test:sim`  | headless simulation tests (`tests/sim`)                             |
+| `npm run lint`      | ESLint (includes the core boundary rule)                            |
+| `npm run format`    | Prettier write (`format:check` to verify)                           |
+| `npm run typecheck` | `tsc --noEmit`                                                      |
+| `npm run e2e`       | Playwright smoke test (builds + serves `dist/`)                     |
+| `npm run board`     | sync the GitHub Project board (needs `gh` with the `project` scope) |
 
 ## Module map
 
 ```
-src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ squadron/
+src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ squadron/ run/ pilots/ meta/
 src/render/    Three.js renderer (orthographic); reads core state
 src/input/     gamepad + keyboard -> actions
 src/dev/       tuning panel, debug overlays (dev builds only)
+src/ui/        menus, chatter, roster HUD (prototype 3)
 src/app/       bootstrap, fixed-timestep loop
 data/          content data, tuning defaults, quality presets
 tests/         simulation tests (sim/), e2e (e2e/)
@@ -58,7 +60,7 @@ docs/          source of truth for concept, architecture, specs, decisions
 
 ## Labels and review
 
-- Type: `feel` (changes how it plays), `feature` (new capability), `bug`, `tuning`, `tech`. Module: `flight` `camera` `weapons` `input` `render` `fx` `dev-tools` `world` `hud`.
+- Type: `feel` (changes how it plays), `feature` (new capability), `bug`, `tuning`, `tech`. Module: `flight` `camera` `weapons` `input` `render` `fx` `dev-tools` `world` `hud` `lockon` `ai` `squadron` `run` `pilots` `meta` `ui`.
 - PRs labeled `feel` or `feature` need Xavi's approval after playing the preview. Others merge on reviewer-session approval + green CI: the agent merges them itself (squash, delete branch) and does not wait for Xavi.
 
 ## Definition of done

@@ -48,6 +48,18 @@ function busyWorld(): World {
   for (let i = 0; i < 12; i++) stepWorld(w, dt);
   w.enemyShots.spawn();
   w.bullets.spawn();
+  w.pilots.roster.push({
+    id: 1,
+    name: 'Mara Ember',
+    trait: 'bold',
+    kills: 2,
+    battles: 1,
+    status: 'active',
+    veteran: false,
+  });
+  w.pods.push({ x: 100, y: 200, vx: 1, vy: 0, hp: 3, alive: true, progress: 0.2, pilotId: 2 });
+  w.run.battle = 2;
+  w.run.wave = 1;
   w.squadron.cue = 'no-target';
   w.squadron.cueTimer = 0.5;
   return w;
@@ -61,6 +73,22 @@ function perturb(obj: Record<string, unknown>, key: string): (() => void) | null
   else if (key === 'formation') obj[key] = old === 'tight' ? 'spread' : 'tight';
   else if (key === 'order') obj[key] = old === 'none' ? 'attack' : 'none';
   else if (key === 'cue') obj[key] = old === 'none' ? 'no-target' : 'none';
+  else if (key === 'mode') {
+    // The run's mode (practice/run) or a target's movement mode (static/straight/circle).
+    obj[key] =
+      old === 'practice'
+        ? 'run'
+        : old === 'run'
+          ? 'practice'
+          : old === 'static'
+            ? 'circle'
+            : 'static';
+  } else if (key === 'kind') obj[key] = old === 'drone' ? 'turret' : 'drone';
+  else if (key === 'phase') obj[key] = old === 'battle' ? 'debrief' : 'battle';
+  else if (key === 'result') obj[key] = old === 'none' ? 'victory' : 'none';
+  else if (key === 'trait') obj[key] = old === 'bold' ? 'steady' : 'bold';
+  else if (key === 'status') obj[key] = old === 'active' ? 'lost' : 'active';
+  else if (key === 'name') obj[key] = `${String(old)}x`;
   else return null;
   return () => {
     obj[key] = old;
@@ -99,6 +127,10 @@ describe('every gameplay field is in the replay hash', () => {
       ...missing(w, 'trial', w.trial as unknown as Record<string, unknown>),
       ...missing(w, 'stats', w.stats as unknown as Record<string, unknown>),
       ...missing(w, 'prev', w.prev as unknown as Record<string, unknown>),
+      ...missing(w, 'run', w.run as unknown as Record<string, unknown>),
+      ...missing(w, 'pilots', w.pilots as unknown as Record<string, unknown>),
+      ...missing(w, 'pilot', w.pilots.roster[0] as unknown as Record<string, unknown>),
+      ...missing(w, 'pod', w.pods[0] as unknown as Record<string, unknown>),
       ...missing(w, 'salvo', w.missiles.salvo as unknown as Record<string, unknown>),
       ...missing(w, 'target', w.targets[0] as unknown as Record<string, unknown>),
       ...missing(w, 'wingman', w.squadron.wingmen[0] as unknown as Record<string, unknown>),
