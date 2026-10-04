@@ -3,6 +3,7 @@ import type { EventQueue } from '../events/events';
 import type { Ship } from '../flight/flight';
 import { TAU } from '../math';
 import type { Rng } from '../rng/rng';
+import type { Pod } from './pods';
 import { createPool, type Pool } from './pool';
 import type { Target, TargetKind } from './target';
 
@@ -102,11 +103,16 @@ export function reviveTarget(t: Target): void {
   }
 }
 
-function spawnEnemyShot(shots: EnemyShotPool, cfg: ArenaConfig, t: Target, ship: Ship): void {
+function spawnEnemyShot(
+  shots: EnemyShotPool,
+  cfg: ArenaConfig,
+  t: Target,
+  at: { x: number; y: number },
+): void {
   const i = shots.spawn();
   if (i < 0) return;
-  const dx = ship.x - t.x;
-  const dy = ship.y - t.y;
+  const dx = at.x - t.x;
+  const dy = at.y - t.y;
   const d = Math.hypot(dx, dy) || 1;
   shots.data.x[i] = t.x;
   shots.data.y[i] = t.y;
@@ -115,9 +121,25 @@ function spawnEnemyShot(shots: EnemyShotPool, cfg: ArenaConfig, t: Target, ship:
   shots.data.life[i] = cfg.enemyShotLife;
 }
 
+/** The nearest living pod within `range` of (x, y), or null. */
+function nearestPodAt(pods: readonly Pod[], x: number, y: number, range: number): Pod | null {
+  let best: Pod | null = null;
+  let bestSq = range * range;
+  for (const p of pods) {
+    if (!p.alive) continue;
+    const sq = (p.x - x) ** 2 + (p.y - y) ** 2;
+    if (sq <= bestSq) {
+      best = p;
+      bestSq = sq;
+    }
+  }
+  return best;
+}
+
 /**
  * Moves targets, fires turrets, and brings destroyed targets back after `respawnDelay`.
- * While `holdDrones` is true (time trial), destroyed drones stay destroyed.
+ * While `holdDrones` is true (time trial), destroyed drones stay destroyed. Turrets also shoot at a rescue
+ * pod within `podRange` of them (the nearest one, preferred over the player); `pods` is empty in practice mode.
  */
 export function stepTargets(
   targets: readonly Target[],
@@ -128,6 +150,8 @@ export function stepTargets(
   rng: Rng,
   holdDrones: boolean,
   dt: number,
+  pods: readonly Pod[] = [],
+  podRange = 0,
 ): void {
   for (const t of targets) {
     if (!t.alive) {
@@ -154,9 +178,15 @@ export function stepTargets(
       t.y = ny;
     } else if (t.kind === 'turret') {
       t.cooldown -= dt;
-      if (t.cooldown <= 0 && Math.hypot(ship.x - t.x, ship.y - t.y) <= cfg.turretRange) {
-        spawnEnemyShot(shots, cfg, t, ship);
-        t.cooldown = cfg.turretFireInterval * rng.range(0.8, 1.2);
+      if (t.cooldown <= 0) {
+        const pod = podRange > 0 ? nearestPodAt(pods, t.x, t.y, podRange) : null;
+        if (pod) {
+          spawnEnemyShot(shots, cfg, t, pod);
+          t.cooldown = cfg.turretFireInterval * rng.range(0.8, 1.2);
+        } else if (Math.hypot(ship.x - t.x, ship.y - t.y) <= cfg.turretRange) {
+          spawnEnemyShot(shots, cfg, t, ship);
+          t.cooldown = cfg.turretFireInterval * rng.range(0.8, 1.2);
+        }
       }
     }
   }

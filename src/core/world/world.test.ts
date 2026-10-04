@@ -86,7 +86,18 @@ it('Prototype 3 slots exist: practice mode by default, an empty roster and no po
   });
   expect(world.pilots).toEqual({ roster: [], nextId: 1 });
   expect(world.pods).toEqual([]);
-  world.pods.push({ x: 1, y: 2, vx: 0, vy: 0, hp: 3, alive: true, progress: 0, pilotId: 1 });
+  world.pods.push({
+    x: 1,
+    y: 2,
+    vx: 0,
+    vy: 0,
+    hp: 3,
+    alive: true,
+    progress: 0,
+    pilotId: 1,
+    battle: 0,
+    rescued: false,
+  });
   world.actions.respawn = true;
   stepWorld(world, 1 / 60);
   expect(world.pods).toEqual([]); // a respawn clears pods

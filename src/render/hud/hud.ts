@@ -6,6 +6,8 @@ import { lockLimit } from '../../core/lockon/lockon';
 import { palette } from '../palette';
 import { drawLockPanel, drawLockRings } from './locks-hud';
 import { drawOrderMarker } from './order-marker';
+import { drawPodRings } from './pods-hud';
+import { podDistanceLabel } from './pods';
 import {
   blinkOn,
   createEdgeIndicator,
@@ -28,6 +30,7 @@ const EVADE_H = 6;
 const css = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`;
 const FIGHTER_COLOR = css(palette.fighter);
 const WINGMAN_COLOR = css(palette.wingman);
+const POD_COLOR = css(palette.pod);
 const KIND_COLOR: Record<TargetKind, string> = {
   static: css(palette.enemyStatic),
   drone: css(palette.enemy),
@@ -83,7 +86,8 @@ export function createHud(container: HTMLElement): Hud {
     const arrow = (
       t: { x: number; y: number; radius: number },
       color: string,
-      shape: 'plain' | 'notched' | 'outline',
+      shape: 'plain' | 'notched' | 'outline' | 'diamond',
+      label?: (distance: number) => string,
     ): void => {
       if (!edgeIndicator(indicator, t, center, view, screen, cfg.edgeMargin)) return;
       const { size, opacity } = distanceStyle(indicator.distance, cfg);
@@ -101,6 +105,13 @@ export function createHud(container: HTMLElement): Hud {
         g.moveTo(s, 0);
         g.lineTo(-s * 0.6, s * 0.65);
         g.lineTo(-s * 0.6, -s * 0.65);
+      } else if (shape === 'diamond') {
+        // Rescue pods: a diamond with its distance, unlike every enemy and wingman arrow.
+        const s = size * 0.9;
+        g.moveTo(s, 0);
+        g.lineTo(0, s * 0.7);
+        g.lineTo(-s * 0.7, 0);
+        g.lineTo(0, -s * 0.7);
       } else if (shape === 'notched') {
         // Enemy fighters: a larger arrow with a notched tail, so they read apart from drones and turrets.
         const s = size * 1.25;
@@ -117,9 +128,27 @@ export function createHud(container: HTMLElement): Hud {
       if (shape === 'outline') g.stroke();
       else g.fill();
       g.restore();
+      if (label) {
+        // The label sits just inside the arrow, toward the middle of the screen.
+        g.globalAlpha = 1;
+        g.font = '700 11px ui-monospace, Menlo, Consolas, monospace';
+        g.textAlign = 'center';
+        g.fillStyle = color;
+        g.fillText(
+          label(indicator.distance),
+          indicator.x - Math.cos(indicator.angle) * 52,
+          indicator.y - Math.sin(indicator.angle) * 24,
+        );
+      }
     };
     for (const t of world.targets) if (t.alive) arrow(t, KIND_COLOR[t.kind], 'plain');
     for (const f of world.fighters) if (f.alive) arrow(f, FIGHTER_COLOR, 'notched');
+    for (const pod of world.pods) {
+      if (pod.alive) {
+        const podBody = { x: pod.x, y: pod.y, radius: world.tuning.rescue.podRadius };
+        arrow(podBody, POD_COLOR, 'diamond', podDistanceLabel);
+      }
+    }
     const wingmanBody = { x: 0, y: 0, radius: world.tuning.squadron.radius };
     for (const w of world.squadron.wingmen) {
       if (!w.alive) continue;
@@ -137,6 +166,7 @@ export function createHud(container: HTMLElement): Hud {
     const view = viewSize(cam.view, cam.aspect);
     drawLockRings(g, world, lockCenter, view, screen);
     drawOrderMarker(g, world, lockCenter, view, screen);
+    drawPodRings(g, world, lockCenter, view, screen);
     drawLockPanel(g, world, lockLimit(world), screen.height);
   }
 
