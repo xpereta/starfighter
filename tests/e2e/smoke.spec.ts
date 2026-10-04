@@ -263,3 +263,31 @@ test.describe('debug keys and freeze', () => {
     await expect(freeze).toHaveAttribute('data-changed', 'false');
   });
 });
+
+test.describe('prototype 2 panel sections and overlay', () => {
+  test('the panel has sections for lock-on, missiles, enemy fighter, wingmen and arena, and one freeze row', async ({
+    page,
+  }) => {
+    await page.goto('/?dev');
+    await expect(page.locator('#tuning-panel')).toBeVisible();
+    for (const name of ['Lock-on', 'Missiles', 'Enemy fighter', 'Wingmen', 'Arena']) {
+      await expect(page.getByRole('button', { name: new RegExp(name) })).toBeVisible();
+    }
+    await page.getByRole('button', { name: /Arena/ }).click();
+    await expect(row(page, 'arena.droneCount')).toBeVisible();
+    await expect(row(page, 'arena.enemiesFrozen')).toHaveCount(1); // only in the Debug section
+  });
+
+  test('the debug overlay draws enemies, wingmen and missile lines without errors once a wave has arrived', async ({
+    page,
+  }) => {
+    const errors = errorsOf(page);
+    await page.goto('/?dev');
+    await expect(page.locator('#tuning-panel')).toBeVisible();
+    await page.keyboard.press('g');
+    await page.keyboard.down('w');
+    await page.waitForTimeout(9000); // the first wave spawns after its delay
+    await page.keyboard.up('w');
+    expect(errors).toEqual([]);
+  });
+});

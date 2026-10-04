@@ -7,7 +7,7 @@ export const arenaParams = {
     min: 0,
     max: 100,
     unit: 'targets',
-    note: 'Number of stationary target drones. Higher = a busier arena for gunnery; lower = emptier.',
+    note: 'Number of stationary target drones. Higher = a busier arena for gunnery; lower = emptier. The layout is built when the arena is created, so a change shows after a respawn (R).',
   },
   staticHp: {
     default: 3,
@@ -43,7 +43,7 @@ export const arenaParams = {
     min: 0,
     max: 50,
     unit: 'drones',
-    note: 'Number of moving drones (the time trial targets). Higher = longer trials; lower = shorter trials.',
+    note: 'Number of moving drones (the time trial targets). Higher = longer trials; lower = shorter trials. 0 = none. Applies after a respawn (R).',
   },
   /** Share of drones that orbit; the rest fly straight (and turn back at the arena edge). */
   droneCircleShare: {
@@ -51,7 +51,7 @@ export const arenaParams = {
     min: 0,
     max: 1,
     unit: '',
-    note: 'Share of moving drones that orbit instead of flying straight. 1 = all orbit and are more predictable; 0 = all fly straight.',
+    note: 'Share of moving drones that orbit instead of flying straight. 1 = all orbit and are more predictable; 0 = all fly straight. Applies after a respawn (R).',
   },
   droneHp: {
     default: 4,
@@ -115,7 +115,7 @@ export const arenaParams = {
     min: 0,
     max: 10,
     unit: 'turrets',
-    note: 'Number of turrets that shoot at you. Higher = more shots to dodge; 0 = a peaceful arena.',
+    note: 'Number of turrets that shoot at you. Higher = more shots to dodge; 0 = a peaceful arena. Applies after a respawn (R).',
   },
   turretHp: {
     default: 8,

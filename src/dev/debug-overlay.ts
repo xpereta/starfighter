@@ -5,6 +5,7 @@ import type { World } from '../core/world/world';
 import { worldToScreen } from '../render/hud/layout';
 import { drawLockDebug } from './lock-debug';
 import { arenaCircle, distanceToEdge, nearestEdgePoint, type ArenaCircle } from './arena-edge';
+import { drawIntents } from './intent-overlay';
 import { createTrail, createTrailSampler } from './trail';
 import { vectorEnd, velocityLength } from './vectors';
 
@@ -254,6 +255,8 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
         world.tuning.arena.playerRadius * scale,
         ship.invulnerable ? '#ffffff' : '#4ee1ff',
       );
+
+      drawIntents(g, world, center, view, screen);
 
       // Direction indicators: the nose in the faction colour (player cyan, wingmen green, enemy fighters
       // red) and the velocity in white. The velocity vector grows with speed, and the gap between the two

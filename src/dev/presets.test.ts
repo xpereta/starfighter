@@ -76,3 +76,24 @@ describe('presets', () => {
     expect(patch).toContain(`camera.lookMode: ${defaults.camera.lookMode} -> ${otherLook}`);
   });
 });
+
+describe('arena group and the freeze switch', () => {
+  it('presets include the arena scenario values, but never the debug freeze switch', () => {
+    const tuning = createTuning();
+    tuning.arena.droneCount = 3;
+    tuning.arena.enemiesFrozen = true;
+    const text = serializePreset(tuning, 'scenario');
+    expect(text).toContain('droneCount');
+    expect(text).not.toContain('enemiesFrozen');
+    const fresh = createTuning();
+    applyPreset(fresh, parsePreset(text));
+    expect(fresh.arena.droneCount).toBe(3);
+    expect(fresh.arena.enemiesFrozen).toBe(false); // loading a preset never freezes or unfreezes the enemies
+  });
+
+  it('diff-from-defaults ignores the freeze switch too', () => {
+    const tuning = createTuning();
+    tuning.arena.enemiesFrozen = true;
+    expect(diffFromDefaults(tuning, createTuning())).toEqual([]);
+  });
+});
