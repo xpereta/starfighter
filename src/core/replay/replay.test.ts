@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
 import { spawnFighter } from '../ai/waves';
+import { enterStartScreen, offerVeterans } from '../run/run';
 import { createRng } from '../rng/rng';
 import { createActions } from '../world/actions';
 import { createWorld, stepWorld, type World } from '../world/world';
@@ -139,6 +140,57 @@ describe('recorder and player', () => {
     restartWorld(world, 2);
     expect(world.tuning).toBe(tuning);
     expect(world.trial.best).toBe(12.5);
+  });
+});
+
+describe('a run replay', () => {
+  const veterans = [
+    { id: 1, name: 'Old Hand', trait: 'steady' as const, kills: 9 },
+    { id: 2, name: 'Ace Mover', trait: 'bold' as const, kills: 4 },
+  ];
+
+  /** Records a run from its Start screen: menu presses (veteran tick, Start, pick) then random flying. */
+  function recordRun(seed: number): { world: World; replay: Replay } {
+    const world = createWorld(seed, createTuning());
+    world.tuning.run.playerHull = 20;
+    world.tuning.fighter.waveDelay = 2;
+    world.tuning.fighter.health = 1;
+    enterStartScreen(world);
+    offerVeterans(world, veterans);
+    const recorder = startRecording(world);
+    const rng = createRng(seed + 5);
+    const a = world.actions;
+    for (let i = 0; i < 60 * 90; i++) {
+      if (world.run.phase === 'battle') {
+        if (i % 20 === 0) {
+          a.steerX = rng.range(-1, 1);
+          a.throttle = rng.range(0, 1);
+          a.fire = rng.next() < 0.8;
+        }
+        a.menuSelect = a.menuUp = a.menuDown = a.menuBack = false;
+      } else {
+        a.menuSelect = i % 12 === 0;
+        a.menuDown = i % 30 === 7;
+      }
+      recorder.record(world.tick, world.actions);
+      stepWorld(world, DT);
+    }
+    return { world, replay: recorder.finish(world) };
+  }
+
+  it('stores how the world started and replays menu choices to the same final hash', () => {
+    const { world, replay } = recordRun(4);
+    expect(replay.start.mode).toBe('run');
+    expect(replay.start.veterans).toHaveLength(2);
+    expect(world.run.battle).toBeGreaterThan(0); // the menus really advanced the run
+    expect(hashWorld(runReplay(parseReplay(serializeReplay(replay))))).toBe(replay.finalHash);
+  });
+
+  it('rejects a replay without a valid start', () => {
+    const { replay } = recordRun(4);
+    const bad = JSON.parse(serializeReplay(replay)) as Record<string, unknown>;
+    bad.start = { mode: 'nope', veterans: [] };
+    expect(() => parseReplay(JSON.stringify(bad))).toThrow(/start/);
   });
 });
 

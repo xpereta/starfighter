@@ -33,7 +33,11 @@ const practice = new URLSearchParams(window.location.search).has('practice');
 // A save written by a newer version of the game is read as empty and never overwritten.
 const canStore = !saveIsFromNewerVersion();
 let offered = false;
-if (!practice) enterStartScreen(world);
+if (!practice) {
+  enterStartScreen(world);
+  offerVeterans(world, veteranOffers(save.meta));
+  offered = true;
+}
 let devTools: {
   beforeStep(world: World): void;
   draw(world: World, frameSeconds: number): void;
@@ -59,7 +63,7 @@ const loop = createFixedLoop((dt) => {
     for (const e of world.events.events) {
       if (e.type !== 'RunEnded') continue;
       save.meta = applyFinishedRun(
-        save.meta,
+        loadSave().meta, // another tab may have saved since boot
         world.pilots.roster,
         world.run,
         world.tuning.pilots.veteranCap,

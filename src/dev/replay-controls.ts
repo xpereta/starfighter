@@ -108,7 +108,7 @@ export function createReplayControls(
       }
       backup = cloneTuning(world.tuning);
       applyTuning(world.tuning, replay.tuning);
-      restartWorld(world, replay.seed);
+      restartWorld(world, replay.seed, replay.start);
       player = createPlayer(replay);
       mode = 'playing';
       refresh();

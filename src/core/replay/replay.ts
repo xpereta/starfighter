@@ -1,11 +1,13 @@
 import { createTuning, tuningParams, tuningToggles, type Tuning } from '../../../data/tuning';
+import { TRAIT_IDS } from '../../../data/content/traits';
 import { validateParam, type ParamDef } from '../params/params';
+import { enterStartScreen, offerVeterans, type OfferedVeteran } from '../run/run';
 import { createActions, type Actions } from '../world/actions';
 import { createWorld, stepWorld, type World } from '../world/world';
 import { hashWorld } from './hash';
 
 const FORMAT = 'starfighter-replay';
-export const REPLAY_VERSION = 5; // v2: the prototype 2 actions (launch, orders); v3: arena.enemiesFrozen; v4: the hash covers more state (rng, prev, targets)
+export const REPLAY_VERSION = 6; // v2: the prototype 2 actions (launch, orders); v3: arena.enemiesFrozen; v4: the hash covers more state (rng, prev, targets); v5: pilots, run and pods in the hash; v6: how the world starts (practice, or a run on its Start screen with the offered veterans)
 
 /** The inputs in effect from `tick` on (applied before stepping that tick). Only changes are stored. */
 export interface InputChange {
@@ -14,6 +16,26 @@ export interface InputChange {
 }
 
 /** Everything needed to reproduce a run exactly: seed + tuning + inputs. */
+/** How the world was when the recording began: the practice field, or a run waiting on its Start screen. */
+export interface ReplayStart {
+  mode: 'practice' | 'run';
+  /** The veterans offered on the Start screen (run mode only). */
+  veterans: OfferedVeteran[];
+}
+
+/** The start of the world as it is now (call when the world has just been (re)started). */
+export function currentStart(world: World): ReplayStart {
+  return world.run.mode === 'run'
+    ? { mode: 'run', veterans: world.run.available.map((v) => ({ ...v })) }
+    : { mode: 'practice', veterans: [] };
+}
+
+function applyStart(world: World, start: ReplayStart): void {
+  if (start.mode !== 'run') return;
+  enterStartScreen(world);
+  offerVeterans(world, start.veterans);
+}
+
 export interface Replay {
   format: typeof FORMAT;
   version: number;
@@ -21,6 +43,7 @@ export interface Replay {
   /** Personal best at the start, which shows in the world state (not gameplay). */
   bestTrialTime: number | null;
   tuning: Tuning;
+  start: ReplayStart;
   /** Number of fixed steps recorded. */
   ticks: number;
   inputs: InputChange[];
@@ -59,6 +82,7 @@ export function startRecording(world: World): Recorder {
     seed: world.seed,
     bestTrialTime: world.trial.best,
     tuning: cloneTuning(world.tuning),
+    start: currentStart(world),
     ticks: 0,
     inputs: [],
     finalHash: '',
@@ -97,8 +121,13 @@ export function createPlayer(replay: Replay): Player {
 }
 
 /** Rebuilds `world` in place from a seed (fields are replaced; tuning and aspect are kept). */
-export function restartWorld(world: World, seed: number): void {
+export function restartWorld(
+  world: World,
+  seed: number,
+  start: ReplayStart = currentStart(world),
+): void {
   const fresh = createWorld(seed, world.tuning, world.trial.best);
+  applyStart(fresh, start);
   fresh.camera.aspect = world.camera.aspect;
   Object.assign(world as object, fresh);
 }
@@ -106,6 +135,7 @@ export function restartWorld(world: World, seed: number): void {
 /** Runs a replay headless on a fresh world and returns it. The reference for determinism checks. */
 export function runReplay(replay: Replay): World {
   const world = createWorld(replay.seed, cloneTuning(replay.tuning), replay.bestTrialTime);
+  applyStart(world, replay.start);
   const player = createPlayer(replay);
   const dt = 1 / 60;
   for (let i = 0; i < replay.ticks; i++) {
@@ -159,6 +189,26 @@ export function parseReplay(text: string): Replay {
         throw new Error(`${group}.${key} must be one of ${toggles[key]!.join(', ')}`);
       }
     }
+  }
+
+  const start = r.start as Partial<ReplayStart> | undefined;
+  if (
+    typeof start !== 'object' ||
+    start === null ||
+    (start.mode !== 'practice' && start.mode !== 'run')
+  )
+    throw new Error('Replay has no valid start');
+  if (!Array.isArray(start.veterans)) throw new Error('Replay start veterans must be a list');
+  for (const v of start.veterans) {
+    if (
+      typeof v !== 'object' ||
+      v === null ||
+      !Number.isInteger(v.id) ||
+      typeof v.name !== 'string' ||
+      !TRAIT_IDS.includes(v.trait) ||
+      (v.kills !== undefined && (!Number.isInteger(v.kills) || v.kills < 0))
+    )
+      throw new Error('Replay start has a bad veteran');
   }
 
   if (!Array.isArray(r.inputs)) throw new Error('Replay inputs must be a list');
