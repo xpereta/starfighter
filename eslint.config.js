@@ -33,7 +33,7 @@ const browserGlobals = [
 export default tseslint.config(
   {
     ignores: [
-      '.claude',
+      '.claude/worktrees',
       'dist',
       'node_modules',
       'playwright-report',
