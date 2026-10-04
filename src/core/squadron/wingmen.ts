@@ -7,7 +7,7 @@ import { createActions } from '../world/actions';
 import { stepSeconds } from '../world/clock';
 import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
-import { slotPosition } from './formation';
+import { slotFrame, slotPosition } from './formation';
 import type { Wingman } from './squadron';
 
 /** A wingman keeps closing in until it is this fraction of its fire range from its target. */
@@ -22,6 +22,7 @@ const ENEMY_SHOT_DAMAGE = 1;
 // Scratch values, overwritten before each use, so stepping allocates nothing.
 const flightScratch = createFlightConfig();
 const slot: Point = { x: 0, y: 0 };
+const frame = { x: 0, y: 0, heading: 0 };
 const lead: Point = { x: 0, y: 0 };
 let pushX = 0;
 let pushY = 0;
@@ -90,7 +91,15 @@ function pickEngaged(world: World, w: Wingman, cfg: SquadronConfig): number {
 /** Puts a wingman on its formation slot, flying the player's velocity. */
 function place(w: Wingman, world: World, index: number, count: number): void {
   const player = world.ship;
-  slotPosition(slot, world.squadron.formation, index, count, player, world.tuning.squadron);
+  const cfg = world.tuning.squadron;
+  slotPosition(
+    slot,
+    world.squadron.formation,
+    index,
+    count,
+    slotFrame(frame, player, cfg.slotAnchor),
+    cfg,
+  );
   const s = w.ship;
   s.x = slot.x;
   s.y = slot.y;
@@ -226,7 +235,14 @@ function think(
     dist = Math.hypot(enemy.x - ship.x, enemy.y - ship.y);
     throttle = dist > cfg.fireRange * CLOSE_IN_FRACTION ? 1 : 0;
   } else {
-    slotPosition(slot, world.squadron.formation, index, count, player, cfg);
+    slotPosition(
+      slot,
+      world.squadron.formation,
+      index,
+      count,
+      slotFrame(frame, player, cfg.slotAnchor),
+      cfg,
+    );
     const dx = slot.x + player.vx * cfg.slotLeadTime - ship.x;
     const dy = slot.y + player.vy * cfg.slotLeadTime - ship.y;
     // At the slot: just match the player's heading. Otherwise fly to it, matching speed.
