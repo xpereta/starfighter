@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { createTuning } from '../../data/tuning';
 import { createRng } from '../../src/core/rng/rng';
 import { hashWorld } from '../../src/core/replay/hash';
+import { applyFinishedRun, veteranOffers } from '../../src/core/meta/meta';
 import { enterStartScreen, offerVeterans, menuRows } from '../../src/core/run/run';
 import { createWorld, stepWorld, type World } from '../../src/core/world/world';
 
@@ -88,6 +89,34 @@ it('an assisted bot wins a whole run through every phase', () => {
   expect(world.run).toMatchObject({ phase: 'end', result: 'victory' });
   expect(world.run.battle).toBe(world.tuning.run.battleCount);
   expect([...phases].sort()).toEqual(['battle', 'debrief', 'start']);
+});
+
+it('a won run saves its survivors, and the next run can bring them back', () => {
+  const { world } = playRun(5, true);
+  const cap = world.tuning.pilots.veteranCap;
+  const meta = applyFinishedRun(
+    { veterans: [], bestRun: null },
+    world.pilots.roster,
+    world.run,
+    cap,
+  );
+  const survivors = world.pilots.roster.filter((p) => p.status === 'active');
+  expect(meta.bestRun).toBe(world.tuning.run.battleCount);
+  expect(meta.veterans.map((v) => v.name)).toEqual(survivors.map((p) => p.name));
+
+  // A new run on the same save: tick the first veteran on the Start screen and press Start.
+  const next = createWorld(77, createTuning());
+  enterStartScreen(next);
+  offerVeterans(next, veteranOffers(meta));
+  for (const button of ['menuSelect', 'menuUp', 'menuSelect'] as const) {
+    next.actions[button] = true;
+    stepWorld(next, DT);
+    next.actions[button] = false;
+    stepWorld(next, DT);
+  }
+  expect(meta.veterans.length).toBeGreaterThan(0);
+  expect(next.run.phase).toBe('battle');
+  expect(next.pilots.roster[0]).toMatchObject({ veteran: true, veteranId: meta.veterans[0]!.id });
 });
 
 it('a whole run, menu choices included, is deterministic', () => {

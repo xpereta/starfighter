@@ -184,12 +184,10 @@ function startRun(world: World): void {
   const run = world.run;
   for (const id of run.selectedVeterans) {
     const vet = run.available.find((v) => v.id === id);
-    if (vet)
-      addPilot(
-        world,
-        { name: vet.name, trait: vet.trait, kills: vet.kills, veteran: true },
-        'veteran',
-      );
+    if (vet) {
+      const { name, trait, kills } = vet;
+      addPilot(world, { name, trait, kills, veteran: true, veteranId: vet.id }, 'veteran');
+    }
   }
   const missing = world.tuning.run.startingSquad - activeCount(world.pilots);
   if (missing > 0) {
