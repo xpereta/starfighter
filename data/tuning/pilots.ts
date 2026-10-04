@@ -35,7 +35,7 @@ export const pilotsParams = {
     min: 1,
     max: 16,
     unit: 'veterans',
-    note: 'The most veterans the save keeps. When a run ends with more, the ones with the most kills are kept. Higher = a bigger bench to choose from; lower = veterans are rarer and more precious.',
+    note: 'The most veterans the save keeps. When a run ends with more, the fewest-kills veteran who did not fly in that run is dropped (veterans who flew are safe). Higher = a bigger bench to choose from; lower = veterans are rarer and more precious.',
   },
 } as const satisfies Record<string, ParamDef>;
 

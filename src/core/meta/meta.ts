@@ -74,10 +74,24 @@ function rank(a: Veteran, b: Veteran): number {
 }
 
 /**
+ * Which veterans to keep when there are more than `cap`. Veterans who flew this run (`flew`: promoted
+ * or brought in) are protected: the ones dropped are the fewest-kills veterans who stayed home (ties:
+ * fewer runs, then the newer id). Only when everyone left flew (or `cap` is below the squad) is the
+ * weakest of the pilots who flew dropped too, by the same order.
+ */
+function trimToCap(veterans: Veteran[], flew: ReadonlySet<number>, cap: number): Veteran[] {
+  const keep = Math.max(0, cap);
+  const staying = veterans.filter((v) => !flew.has(v.id)).sort(rank);
+  const flying = veterans.filter((v) => flew.has(v.id)).sort(rank);
+  const room = Math.max(0, keep - flying.length);
+  return [...flying.slice(0, keep), ...staying.slice(0, room)];
+}
+
+/**
  * The roster after a run (spec section 6): every pilot still active is a veteran (a saved veteran
  * stays one with `runs` + 1 and its kills updated; anyone else becomes a new veteran), a saved
- * veteran who was lost is deleted, and veterans who did not fly are untouched. Past `cap` the veterans
- * with the fewest kills are dropped. `bestRun` improves if this run cleared more battles. Pure: returns
+ * veteran who was lost is deleted, and veterans who did not fly are untouched. Past `cap` the
+ * fewest-kills veteran who did NOT fly this run is dropped (veterans who flew are protected). `bestRun` improves if this run cleared more battles. Pure: returns
  * a new object.
  */
 export function applyRunEnd(
@@ -88,6 +102,7 @@ export function applyRunEnd(
 ): MetaData {
   const veterans = new Map<number, Veteran>(meta.veterans.map((v) => [v.id, { ...v }]));
   let nextId = Math.max(0, ...veterans.keys()) + 1;
+  const flew = new Set<number>(); // veterans promoted or updated by this run (protected from the cap)
   for (const pilot of roster) {
     const saved = pilot.veteranId ? veterans.get(pilot.veteranId) : undefined;
     if (pilot.status === 'lost') {
@@ -97,12 +112,14 @@ export function applyRunEnd(
     if (saved) {
       saved.kills = pilot.kills;
       saved.runs += 1;
+      flew.add(saved.id);
     } else {
       const id = nextId++;
       veterans.set(id, { id, name: pilot.name, trait: pilot.trait, kills: pilot.kills, runs: 1 });
+      flew.add(id);
     }
   }
-  const kept = [...veterans.values()].sort(rank).slice(0, Math.max(0, cap));
+  const kept = trimToCap([...veterans.values()], flew, cap);
   kept.sort((a, b) => a.id - b.id); // the save lists veterans in the order they were found
   const bestRun = meta.bestRun === null ? cleared : Math.max(meta.bestRun, cleared);
   return { veterans: kept, bestRun };
