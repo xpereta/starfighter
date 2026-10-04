@@ -17,6 +17,7 @@ it('120 s of random flight with fighters and wingmen: locks are valid, unique, w
   // Waves of real enemy fighters spawn by themselves (prototype 2 track B).
 
   let acquired = 0;
+  let staleLast = new Set<number>();
   for (let i = 0; i < 120 * 60; i++) {
     if (i % 25 === 0) {
       a.steerX = rng.range(-1, 1);
@@ -38,11 +39,20 @@ it('120 s of random flight with fighters and wingmen: locks are valid, unique, w
     expect(lockon.locks.length).toBeLessThanOrEqual(lockLimit(world));
     expect(lockon.graces).toHaveLength(lockon.locks.length);
     expect(new Set(lockon.locks).size).toBe(lockon.locks.length);
+    // A lock whose target is killed later in the same step (bullets resolve after lock-on) is dropped
+    // by the next step's lock-on, so a lock may refer to a dead lockable for one step, never two.
+    const stale = new Set<number>();
     for (const id of lockon.locks) {
       const body = getLockable(world, id);
-      expect(body?.alive, `lock ${id} refers to a living lockable`).toBe(true);
+      if (!body?.alive) {
+        stale.add(id);
+        expect(staleLast.has(id), `lock ${id} outlived its target by more than one step`).toBe(
+          false,
+        );
+      }
       expect(id === lockon.acquiringId).toBe(false);
     }
+    staleLast = stale;
     if (lockon.acquiringId >= FIGHTER_ID_BASE) {
       expect(world.fighters[lockon.acquiringId - FIGHTER_ID_BASE]).toBeDefined();
     }

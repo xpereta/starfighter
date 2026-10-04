@@ -4,7 +4,7 @@ import { createFlightConfig } from '../../../data/tuning/flight';
 import { createSquadronConfig } from '../../../data/tuning/squadron';
 import { hashWorld } from '../replay/hash';
 import { createWorld, stepWorld, type World } from '../world/world';
-import { boostFlight, catchUpFactor, slotPosition } from './formation';
+import { boostFlight, catchUpFactor, slotFrame, slotPosition } from './formation';
 
 const DT = 1 / 60;
 const cfg = createSquadronConfig();
@@ -46,68 +46,125 @@ describe('boostFlight', () => {
     expect(full.maxSpeed).toBeCloseTo(base.maxSpeed * cfg.catchUpSpeed);
     expect(full.maxTurnRate).toBeCloseTo(base.maxTurnRate * cfg.catchUpTurn);
     expect(full.turnAccel).toBeCloseTo(base.turnAccel * cfg.catchUpTurn);
+    expect(full.grip).toBeCloseTo(base.grip * cfg.catchUpGrip);
+    expect(full.gripAtMaxSpeed).toBeCloseTo(base.gripAtMaxSpeed * cfg.catchUpGrip);
     const half = boostFlight({ ...base }, base, cfg, 0.5);
     expect(half.accel).toBeCloseTo(base.accel * (1 + (cfg.catchUpAccel - 1) / 2));
     // Everything else is copied as is.
-    expect(full.grip).toBe(base.grip);
     expect(full.cornerSpeed).toBe(base.cornerSpeed);
     expect(full.steering).toBe(base.steering);
   });
 
   it('with all three scales at 1 there is no boost at any distance', () => {
-    const none = { ...cfg, catchUpAccel: 1, catchUpSpeed: 1, catchUpTurn: 1 };
+    const none = { ...cfg, catchUpAccel: 1, catchUpSpeed: 1, catchUpTurn: 1, catchUpGrip: 1 };
     expect(boostFlight({ ...base }, base, none, 1)).toEqual(base);
   });
 });
 
 describe('wingmen keep up with a hard-flying player', () => {
-  function flyManeuver(boost: boolean): { peak: number; settled: number; world: World } {
+  interface Move {
+    seconds: number;
+    throttle: number;
+    rotate: number;
+  }
+
+  /** Flies a scripted maneuver and measures the wingmen's distance to their slots. */
+  function fly(
+    moves: Move[],
+    boost: boolean,
+  ): { mean: number; inside: number; recover: number; world: World } {
     const tuning = createTuning();
     tuning.fighter.waveSize = 0;
     tuning.arena.staticCount = 0;
     tuning.arena.droneCount = 0;
     tuning.arena.turretCount = 0;
     tuning.squadron.wingmanCount = 2;
-    if (!boost) {
-      tuning.squadron.catchUpAccel = 1;
-      tuning.squadron.catchUpSpeed = 1;
-      tuning.squadron.catchUpTurn = 1;
-    }
+    if (!boost)
+      Object.assign(tuning.squadron, {
+        catchUpAccel: 1,
+        catchUpSpeed: 1,
+        catchUpTurn: 1,
+        catchUpGrip: 1,
+      });
     const world = createWorld(7, tuning);
     stepWorld(world, DT); // creates the wingmen
     const slot = { x: 0, y: 0 };
-    const distances = (): number[] =>
-      world.squadron.wingmen.map((w, i) => {
-        slotPosition(slot, 'tight', i, 2, world.ship, tuning.squadron);
-        return Math.hypot(w.ship.x - slot.x, w.ship.y - slot.y);
-      });
-    let peak = 0;
-    for (let i = 0; i < 60 * 5; i++) {
-      world.actions.throttle = 1; // accelerate hard...
-      world.actions.rotate = 1; // ...while spinning
-      stepWorld(world, DT);
-      peak = Math.max(peak, ...distances());
+    const frame = { x: 0, y: 0, heading: 0 };
+    const worst = (): number =>
+      Math.max(
+        ...world.squadron.wingmen.map((w, i) => {
+          slotPosition(
+            slot,
+            'tight',
+            i,
+            2,
+            slotFrame(frame, world.ship, tuning.squadron.slotAnchor),
+            tuning.squadron,
+          );
+          return Math.hypot(w.ship.x - slot.x, w.ship.y - slot.y);
+        }),
+      );
+    let sum = 0;
+    let inside = 0;
+    let n = 0;
+    for (const m of moves) {
+      for (let i = 0; i < m.seconds * 60; i++) {
+        world.actions.throttle = m.throttle;
+        world.actions.rotate = m.rotate;
+        stepWorld(world, DT);
+        const d = worst();
+        sum += d;
+        n++;
+        if (d < 200) inside++;
+      }
     }
     world.actions.throttle = 0;
     world.actions.rotate = 0;
-    for (let i = 0; i < 60 * 8; i++) stepWorld(world, DT);
-    return { peak, settled: Math.max(...distances()), world };
+    let recover = Infinity;
+    for (let i = 0; i < 60 * 10; i++) {
+      stepWorld(world, DT);
+      if (worst() < 120) {
+        recover = (i + 1) / 60;
+        break;
+      }
+    }
+    return { mean: sum / n, inside: inside / n, recover, world };
   }
 
-  it('the boost keeps them much closer during the maneuver than no boost', () => {
-    const withBoost = flyManeuver(true);
-    const without = flyManeuver(false);
-    expect(withBoost.peak).toBeLessThan(without.peak * 0.8);
+  const surges: Move[] = [
+    { seconds: 4, throttle: 1, rotate: 0 },
+    { seconds: 3, throttle: -1, rotate: 0 },
+  ];
+  const weave: Move[] = [0.4, -0.4, 0.4, -0.4].map((rotate) => ({
+    seconds: 1.5,
+    throttle: 0.3,
+    rotate,
+  }));
+  const spin: Move[] = [{ seconds: 3, throttle: 0.5, rotate: 1 }];
+
+  it('when the player speeds up and brakes, the boost keeps them much closer to their slots', () => {
+    const withBoost = fly(surges, true);
+    const without = fly(surges, false);
+    expect(withBoost.mean).toBeLessThan(without.mean * 0.7);
+    expect(withBoost.inside).toBeGreaterThan(0.95);
   });
 
-  it('they settle back into their slots afterwards, and the boost has faded out', () => {
-    const { settled, world } = flyManeuver(true);
-    expect(settled).toBeLessThan(world.tuning.squadron.slotHoldRadius * 4);
+  it('when the player weaves, they are in place far more of the time with the boost', () => {
+    const withBoost = fly(weave, true);
+    const without = fly(weave, false);
+    expect(withBoost.inside).toBeGreaterThan(without.inside * 1.3);
+  });
+
+  it('after a hard spin they are back in their slots within a few seconds, and the boost has faded', () => {
+    const { recover, world } = fly(spin, true);
+    expect(recover).toBeLessThan(4);
+    // A few seconds later still, they hold the slot and need no help.
+    for (let i = 0; i < 60 * 4; i++) stepWorld(world, DT);
     for (const w of world.squadron.wingmen) expect(w.catchUp).toBeLessThan(0.3);
   });
 
   it('never exceeds the boosted top speed, and the boost state is part of the replay hash', () => {
-    const { world } = flyManeuver(true);
+    const { world } = fly(surges, true);
     const limit = world.tuning.flight.maxSpeed * world.tuning.squadron.catchUpSpeed + 1e-6;
     for (const w of world.squadron.wingmen) expect(w.ship.speed).toBeLessThanOrEqual(limit);
     const before = hashWorld(world);

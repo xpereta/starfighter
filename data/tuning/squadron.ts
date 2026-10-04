@@ -10,7 +10,7 @@ export const squadronParams = {
     note: 'How many wingmen fly with you. 0 = fly alone. They are created from this setting, so changing it live adds or removes wingmen straight away. More wingmen = more firepower and (later) bigger missile salvos.',
   },
   health: {
-    default: 3,
+    default: 5,
     min: 1,
     max: 10,
     unit: 'hp',
@@ -107,6 +107,13 @@ export const squadronParams = {
     unit: 'x',
     note: 'Extra turn rate for a wingman far from its slot, so it can cut corners back to you after a hard turn. 1 = no help. It fades out as it reaches the slot. Higher = they swing back quickly; lower = they take wide arcs and lose the formation.',
   },
+  catchUpGrip: {
+    default: 3,
+    min: 1,
+    max: 8,
+    unit: 'x',
+    note: 'Extra grip for a wingman far from its slot: how fast its path follows its nose, so it can cut back to you instead of drifting wide in a turn. 1 = no help. It fades out as it reaches the slot. Higher = tight, on-rails recovery; lower = they slide through turns like you do.',
+  },
   fireCone: {
     default: 8,
     min: 1,
@@ -179,8 +186,13 @@ export const squadronParams = {
   },
 } as const satisfies Record<string, ParamDef>;
 
-export type SquadronConfig = { -readonly [K in keyof typeof squadronParams]: number };
+export type SlotAnchor = 'velocity' | 'nose';
+
+export type SquadronConfig = { -readonly [K in keyof typeof squadronParams]: number } & {
+  /** What the tight formation is anchored to: where you are moving, or where your nose points. */
+  slotAnchor: SlotAnchor;
+};
 
 export function createSquadronConfig(): SquadronConfig {
-  return defaultsOf(squadronParams);
+  return { ...defaultsOf(squadronParams), slotAnchor: 'velocity' };
 }
