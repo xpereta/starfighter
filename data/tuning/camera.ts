@@ -3,14 +3,14 @@ import { defaultsOf, type ParamDef } from '../../src/core/params/params';
 /** Camera tuning. Units: world units (u), seconds (s). `view*` are visible widths on the 1280x800 reference. */
 export const cameraParams = {
   viewMin: {
-    default: 2050,
+    default: 1960,
     min: 800,
     max: 3000,
     unit: 'u',
     note: 'Visible width when flying slowest. Higher = zoomed out even when slow; lower = closer and more detailed. Keeps below View max.',
   },
   viewMax: {
-    default: 4500,
+    default: 7050,
     min: 1000,
     max: 7800,
     unit: 'u',
@@ -24,14 +24,14 @@ export const cameraParams = {
     note: 'How fast the zoom follows speed changes. Higher = zoom reacts instantly and can feel nervous; lower = slow, smooth breathing.',
   },
   lookAhead: {
-    default: 0.3,
+    default: 1.86,
     min: 0,
     max: 2,
     unit: '',
     note: 'How far the camera leans toward where you are heading as speed rises, in half screen widths. Higher = see farther ahead sooner, reaching the cap at lower speeds; lower = ship stays near the center. Never more than Look ahead max, and Safe frame still keeps the ship off the edge.',
   },
   lookAheadMax: {
-    default: 0.3,
+    default: 0.89,
     min: 0,
     max: 1,
     unit: '',
@@ -45,7 +45,7 @@ export const cameraParams = {
     note: 'How fast the lean follows direction changes. Higher = the view snaps with every turn and can jerk; lower = a smooth drifting view that lags behind hard turns.',
   },
   safeFrame: {
-    default: 0.15,
+    default: 0.24,
     min: 0.05,
     max: 0.3,
     unit: '',

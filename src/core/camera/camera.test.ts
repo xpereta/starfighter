@@ -119,7 +119,7 @@ describe('maximum look-ahead settings', () => {
     expect(cameraParams.lookAhead.max).toBeGreaterThanOrEqual(2);
   });
 
-  it('at the extremes the camera leans further than at the defaults, and the safe frame still holds', () => {
+  it('at the extremes the camera leans further than at moderate settings, and the safe frame still holds', () => {
     const lean = (over: Partial<CameraConfig>): number => {
       const { ship, cam, cfg } = setup({ lookMode: 'velocity', ...over });
       ship.speed = flight.maxSpeed;
@@ -131,7 +131,7 @@ describe('maximum look-ahead settings', () => {
       );
       return Math.hypot(cam.lookX, cam.lookY);
     };
-    const normal = lean({});
+    const normal = lean({ lookAhead: 0.3, lookAheadMax: 0.3, safeFrame: 0.15 }); // the original defaults
     const extreme = lean({ lookAhead: 2, lookAheadMax: 1, safeFrame: 0.05 });
     expect(extreme).toBeGreaterThan(normal * 2);
   });
