@@ -36,7 +36,7 @@ test('dev tools load only with ?dev, and work without console errors', async ({ 
 
   await page.goto('/?dev');
   await expect(page.locator('#tuning-panel')).toBeVisible();
-  await page.keyboard.press('Backquote'); // debug overlay on
+  await page.keyboard.press('g'); // debug overlay on
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
 });
@@ -221,5 +221,45 @@ test.describe('high-DPI screens', () => {
     await page.goto('/?dev');
     const box = await page.locator('#tuning-panel').boundingBox();
     expect(box!.width).toBeLessThanOrEqual(260);
+  });
+});
+
+test.describe('debug keys and freeze', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/?dev');
+    await expect(page.locator('#tuning-panel')).toBeVisible();
+  });
+
+  test('H hides the panel and a hint on the game screen names the keys; G toggles the overlay row', async ({
+    page,
+  }) => {
+    const hint = page.locator('.dev-hint');
+    await expect(hint).toBeHidden(); // the panel header already shows the keys
+    await expect(page.locator('#tuning-panel .header')).toContainText('G debug');
+    await page.keyboard.press('h');
+    await expect(page.locator('#tuning-panel')).toBeHidden();
+    await expect(hint).toBeVisible();
+    await expect(hint).toContainText('G debug overlay');
+    await page.keyboard.press('h');
+    await expect(hint).toBeHidden();
+
+    await page.getByRole('button', { name: /Debug/ }).click();
+    const overlay = row(page, 'debug.overlay');
+    await expect(overlay).toContainText('(G)');
+    await expect(overlay).toHaveAttribute('data-changed', 'false');
+    await page.keyboard.press('g');
+    await expect(overlay).toContainText(/true|on/i);
+  });
+
+  test('the Freeze enemies row in the Debug section toggles the setting', async ({ page }) => {
+    await page.getByRole('button', { name: /Debug/ }).click();
+    const freeze = row(page, 'arena.enemiesFrozen');
+    await expect(freeze).toBeVisible();
+    await expect(freeze).toContainText('Freeze enemies');
+    await expect(freeze).toHaveAttribute('data-changed', 'false');
+    await freeze.click();
+    await expect(freeze).toHaveAttribute('data-changed', 'true');
+    await freeze.click();
+    await expect(freeze).toHaveAttribute('data-changed', 'false');
   });
 });

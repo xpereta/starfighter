@@ -147,6 +147,14 @@ function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: 
 export function stepFighters(world: World): void {
   const dt = stepSeconds(world);
   if (dt <= 0) return;
+  if (world.tuning.arena.enemiesFrozen) {
+    // Debug freeze: fighters hold their place and do not think, fly or shoot.
+    for (const f of world.fighters) {
+      f.vx = 0;
+      f.vy = 0;
+    }
+    return;
+  }
   const cfg = world.tuning.fighter;
   deriveFlight(flightScratch, world.tuning.flight, cfg);
   for (let i = 0; i < world.fighters.length; i++) {

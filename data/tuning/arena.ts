@@ -205,8 +205,11 @@ export const arenaParams = {
   },
 } as const satisfies Record<string, ParamDef>;
 
-export type ArenaConfig = { -readonly [K in keyof typeof arenaParams]: number };
+export type ArenaConfig = { -readonly [K in keyof typeof arenaParams]: number } & {
+  /** Debug: every enemy stops (no movement, shooting, waves or respawns) so you can test in peace. */
+  enemiesFrozen: boolean;
+};
 
 export function createArenaConfig(): ArenaConfig {
-  return defaultsOf(arenaParams);
+  return { ...defaultsOf(arenaParams), enemiesFrozen: false };
 }

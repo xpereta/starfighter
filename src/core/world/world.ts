@@ -151,23 +151,32 @@ export function stepWorld(world: World, dt: number): void {
   stepMissiles(world); // prototype 2 (A2): salvo launch, motion and hits
   stepBullets(world.bullets, world.targets, tuning.weapons, world.events, dt, world.fighters);
   world.stats.kills += resolveKills(world.targets, tuning.arena, world.events);
-  stepTargets(
-    world.targets,
-    world.ship,
-    tuning.arena,
-    tuning.flight.arenaRadius,
-    world.enemyShots,
-    world.rng,
-    world.trial.active,
-    dt,
-  );
-  world.stats.hitsTaken += stepEnemyShots(
-    world.enemyShots,
-    world.ship,
-    tuning.arena,
-    world.events,
-    dt,
-  );
+  if (tuning.arena.enemiesFrozen) {
+    // Debug freeze: drones and turrets stay put and silent, shots in the air vanish.
+    for (const t of world.targets) {
+      t.vx = 0;
+      t.vy = 0;
+    }
+    world.enemyShots.clear();
+  } else {
+    stepTargets(
+      world.targets,
+      world.ship,
+      tuning.arena,
+      tuning.flight.arenaRadius,
+      world.enemyShots,
+      world.rng,
+      world.trial.active,
+      dt,
+    );
+    world.stats.hitsTaken += stepEnemyShots(
+      world.enemyShots,
+      world.ship,
+      tuning.arena,
+      world.events,
+      dt,
+    );
+  }
   stepWaves(world); // prototype 2 (B1): next wave of enemy fighters
   stepTrial(world.trial, world.targets, dt);
   // Camera runs last so it sees this step's events (shake) and final ship state.
