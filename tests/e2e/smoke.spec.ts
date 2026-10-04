@@ -282,7 +282,7 @@ test.describe('prototype 2 panel sections and overlay', () => {
     page,
   }) => {
     const errors = errorsOf(page);
-    await page.goto('/?dev');
+    await page.goto('/?dev&practice');
     await expect(page.locator('#tuning-panel')).toBeVisible();
     await page.keyboard.press('g');
     await page.keyboard.down('w');
@@ -295,7 +295,7 @@ test.describe('prototype 2 panel sections and overlay', () => {
 test.describe('run menus', () => {
   test('practice mode shows no menu, and the flight keys still work', async ({ page }) => {
     const errors = errorsOf(page);
-    await page.goto('/');
+    await page.goto('/?practice');
     await expect(page.locator('canvas#hud')).toBeVisible();
     await page.keyboard.press('Enter'); // a menu key does nothing in practice
     await page.keyboard.down('w');
@@ -306,11 +306,16 @@ test.describe('run menus', () => {
     expect(errors).toEqual([]);
   });
 
-  // Needs the run transitions (Track A, issue A2) and the boot into run mode (integration, issue I1).
-  test.fixme('start a run from the Start screen and reach battle 1', async ({ page }) => {
+  test('the game opens on the Start screen; Enter starts battle 1 with the roster and objective', async ({
+    page,
+  }) => {
+    const errors = errorsOf(page);
     await page.goto('/');
     await expect(page.locator('#run-menu')).toContainText('START RUN');
     await page.keyboard.press('Enter');
     await expect(page.locator('#run-menu')).toBeHidden();
+    await expect(page.locator('#run-hud')).toBeVisible();
+    await expect(page.locator('#run-hud')).toContainText('BATTLE 1/4');
+    expect(errors).toEqual([]);
   });
 });

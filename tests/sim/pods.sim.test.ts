@@ -1,50 +1,57 @@
 import { expect, it } from 'vitest';
 import { createTuning } from '../../data/tuning';
-import { createRng } from '../../src/core/rng/rng';
 import { hashWorld } from '../../src/core/replay/hash';
+import { createRng } from '../../src/core/rng/rng';
+import { enterStartScreen } from '../../src/core/run/run';
 import { createWorld, stepWorld, type World } from '../../src/core/world/world';
 
 const DT = 1 / 60;
+const MAX_STEPS = 20 * 60 * 60;
 
-/** 120 s of run-mode play: battles 1..4 cycle every 30 s, with waves, turrets and pods in play. */
-function play(seed: number): { world: World; spawned: number; rescued: number; lost: number } {
+/**
+ * A whole run through the real menus (Start, four battles, debriefs) with an assisted bot: big hull,
+ * and the fighters on the field are destroyed every eight seconds. In battle it flies at the pod when
+ * there is one, so rescues happen; in menus it presses select, so it takes every pick.
+ */
+function play(seed: number): {
+  world: World;
+  spawnedIn: number[];
+  rescued: number;
+  lost: number;
+} {
   const tuning = createTuning();
-  tuning.arena.turretCount = 3;
-  tuning.arena.staticCount = 0;
-  tuning.arena.droneCount = 0;
-  tuning.squadron.wingmanCount = 2;
+  tuning.run.playerHull = 500;
+  tuning.fighter.waveDelay = 2;
   const world = createWorld(seed, tuning);
-  world.run.mode = 'run';
-  world.run.phase = 'battle';
+  enterStartScreen(world);
   const rng = createRng(seed * 7 + 1);
   const a = world.actions;
   const arena = tuning.flight.arenaRadius;
-  let spawned = 0;
+  const spawnedIn: number[] = [];
   let rescued = 0;
   let lost = 0;
-  for (let i = 0; i < 120 * 60; i++) {
-    world.run.battle = 1 + Math.floor(i / (30 * 60));
-    world.run.wave = 2;
-    if (i % 20 === 0) {
-      const pod = world.pods.find((p) => p.alive);
-      if (pod && rng.next() < 0.7) {
-        // Fly at the pod most of the time, so rescues actually happen.
-        const dx = pod.x - world.ship.x;
-        const dy = pod.y - world.ship.y;
-        const d = Math.hypot(dx, dy) || 1;
-        a.steerX = dx / d;
-        a.steerY = dy / d;
-        a.throttle = d < 600 ? -0.5 : 0.5;
-      } else {
+  for (let step = 1; world.run.phase !== 'end' && step < MAX_STEPS; step++) {
+    if (world.run.phase === 'battle') {
+      if (step % 20 === 0) {
         a.steerX = rng.range(-1, 1);
         a.steerY = rng.range(-1, 1);
         a.throttle = rng.range(-1, 1);
+        a.fire = rng.next() < 0.6;
       }
-      a.fire = rng.next() < 0.6;
+      // The assist: from its second battle on the bot parks the ship beside the pod (steering to it is
+      // the pilot's job, not this test's).
+      const pod = world.pods.find((p) => p.alive);
+      if (pod) {
+        world.ship.x = pod.x + 20;
+        world.ship.y = pod.y;
+      }
+      if (step % 480 === 0) for (const f of world.fighters) f.hp = 0;
+    } else {
+      a.menuSelect = step % 12 === 0; // select, let go, select again
     }
     stepWorld(world, DT);
     for (const e of world.events.events) {
-      if (e.type === 'PodSpawned') spawned++;
+      if (e.type === 'PodSpawned') spawnedIn.push(world.run.battle);
       else if (e.type === 'PodRescued') rescued++;
       else if (e.type === 'PodLost') lost++;
     }
@@ -57,28 +64,33 @@ function play(seed: number): { world: World; spawned: number; rescued: number; l
     expect(world.pods.length).toBeLessThanOrEqual(1); // one pod per battle, old ones dropped
     expect(world.enemyShots.count).toBeLessThanOrEqual(world.enemyShots.capacity);
   }
-  return { world, spawned, rescued, lost };
+  return { world, spawnedIn, rescued, lost };
 }
 
-it('120 s with waves, turrets and pods across four battles: finite, bounded, one pod per pod battle', () => {
-  for (const seed of [3, 4, 5]) {
-    const { world, spawned, rescued, lost } = play(seed);
-    expect(spawned, `seed ${seed}: pods in battles 2 and 3`).toBe(2);
-    expect(
-      rescued + lost,
-      'every pod ended one way or the other, or is still out there',
-    ).toBeLessThanOrEqual(2);
-    // Rescued pilots are really in the roster, once each.
-    const ids = world.pilots.roster.map((p) => p.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(world.pilots.roster.length).toBeLessThanOrEqual(2);
+it.each([1, 2, 3])(
+  'a whole run (seed %i): pods only in battles 2 and 3, at most one per battle, all bounded',
+  (seed) => {
+    const { world, spawnedIn } = play(seed);
+    expect(world.run.phase).toBe('end');
+    for (const battle of spawnedIn) expect([2, 3]).toContain(battle);
+    expect(new Set(spawnedIn).size).toBe(spawnedIn.length); // never two in one battle
+    expect(spawnedIn).toContain(2); // the squad has room in battle 2 (2 pilots, at most 1 picked)
+  },
+);
+
+it('rescued pilots really join the squad, with distinct names', () => {
+  let total = 0;
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const { world, rescued } = play(seed);
+    total += rescued;
+    const names = world.pilots.roster.map((p) => p.name);
+    expect(new Set(names).size).toBe(names.length);
+    const joined = world.pilots.roster.length;
+    expect(joined).toBeLessThanOrEqual(world.tuning.run.startingSquad + 3 + rescued); // start, picks, rescues
   }
+  expect(total).toBeGreaterThan(0); // the bot rescues at least one pod across five runs
 });
 
-it('is deterministic: the same seed gives the same pods, roster and hash', () => {
-  const a = play(9);
-  const b = play(9);
-  expect(a.world.pods).toEqual(b.world.pods);
-  expect(a.world.pilots).toEqual(b.world.pilots);
-  expect(hashWorld(a.world)).toBe(hashWorld(b.world));
+it('is deterministic: the same seed gives the same final state', () => {
+  expect(hashWorld(play(2).world)).toBe(hashWorld(play(2).world));
 });

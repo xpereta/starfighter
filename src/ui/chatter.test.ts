@@ -30,7 +30,9 @@ function runWorld(pilots: Pilot[], hulls: number[] = []): World {
   w.run.mode = 'run';
   w.run.phase = 'battle';
   w.pilots.roster.push(...pilots);
-  for (const hp of hulls) w.squadron.wingmen.push({ hp, alive: hp > 0 } as Wingman);
+  hulls.forEach((hp, i) =>
+    w.squadron.wingmen.push({ pilotId: pilots[i]!.id, hp, alive: hp > 0 } as Wingman),
+  );
   return w;
 }
 

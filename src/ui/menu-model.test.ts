@@ -68,7 +68,7 @@ describe('Start screen', () => {
     expect(s.lines.join(' ')).toMatch(/4 battles/);
   });
 
-  it('lists veterans as tick boxes ahead of START RUN, with trait, kills and runs', () => {
+  it('lists veterans as tick boxes ahead of START RUN, with trait and kills', () => {
     const s = startScreen(
       base({ veterans: [veteran(5), veteran(6)], selectedVeterans: [6], bestRun: 3 }),
     );
@@ -76,7 +76,7 @@ describe('Start screen', () => {
     expect(s.items[0]!.checked).toBe(false);
     expect(s.items[1]!.checked).toBe(true);
     expect(s.items[0]!.label).toBe(`Vet 5 (${TRAITS.steady.label})`);
-    expect(s.items[0]!.detail).toBe('7 kills · 2 runs survived');
+    expect(s.items[0]!.detail).toBe('7 kills');
     expect(s.lines.join(' ')).toMatch(/Bring up to 2 veterans \(1 chosen\)/);
     expect(s.lines.join(' ')).toMatch(/Best run: 3 battles cleared/);
     expect(s.items[2]!.checked).toBeUndefined(); // START RUN is not a tick box
@@ -170,55 +170,37 @@ describe('buildScreen and the cursor', () => {
 });
 
 describe('menuDataFromWorld', () => {
-  const extras = {
-    veterans: [veteran(9)],
-    selectedVeterans: [9],
-    candidates: [{ name: 'Extra One', trait: 'bold' as const }],
-    bestRun: 2,
-  };
-
-  it('reads the contract fields and falls back to the extras and the spec defaults', () => {
+  it('reads the run state, the roster and the tuned limits', () => {
     const w = createWorld(1, createTuning());
     w.run.mode = 'run';
     w.run.phase = 'debrief';
     w.run.battle = 2;
     w.run.cursor = 1;
+    w.run.candidates = [{ name: 'Run Pick', trait: 'bold' }];
+    w.run.available = [{ id: 9, name: 'Old Hand', trait: 'steady', kills: 3 }];
+    w.run.selectedVeterans = [9];
     w.pilots.roster.push(pilot(1, 'Mara Ember'));
-    const d = menuDataFromWorld(w, extras);
+    const d = menuDataFromWorld(w, 2);
     expect(d).toMatchObject({
       phase: 'debrief',
       battle: 2,
-      battles: 4,
+      battles: w.tuning.run.battleCount,
       cursor: 1,
-      maxVeterans: 2,
+      maxVeterans: w.tuning.pilots.veteransPerRun,
       bestRun: 2,
+      selectedVeterans: [9],
+      squadFull: false,
     });
     expect(d.roster).toHaveLength(1);
-    expect(d.selectedVeterans).toEqual([9]);
-    expect(d.candidates).toEqual([{ name: 'Extra One', trait: 'bold' }]);
-    expect(d.squadFull).toBe(false);
-  });
-
-  it('prefers the run state when track A provides candidates and selected veterans, and the tuned limits', () => {
-    const w = createWorld(1, createTuning());
-    Object.assign(w.run, { candidates: [pilot(7, 'Run Pick')], selectedVeterans: [3] });
-    Object.assign(w.tuning, {
-      run: { battleCount: 5 },
-      pilots: { squadMax: 2, veteransPerRun: 3 },
-    });
-    w.pilots.roster.push(pilot(1, 'A B'), pilot(2, 'C D'));
-    const d = menuDataFromWorld(w, extras);
     expect(d.candidates).toEqual([{ name: 'Run Pick', trait: 'bold' }]);
-    expect(d.selectedVeterans).toEqual([3]);
-    expect(d.battles).toBe(5);
-    expect(d.maxVeterans).toBe(3);
-    expect(d.squadFull).toBe(true);
+    expect(d.veterans).toEqual([{ id: 9, name: 'Old Hand', trait: 'steady', kills: 3 }]);
   });
 
-  it('lost pilots do not fill the squad', () => {
+  it('a full squad is reported, lost pilots do not count', () => {
     const w = createWorld(1, createTuning());
-    for (let i = 1; i <= 4; i++)
-      w.pilots.roster.push(pilot(i, `P${i}`, i === 4 ? 'lost' : 'active'));
-    expect(menuDataFromWorld(w, extras).squadFull).toBe(false);
+    for (let i = 1; i <= w.tuning.pilots.squadMax; i++) w.pilots.roster.push(pilot(i, `P${i}`));
+    expect(menuDataFromWorld(w, null).squadFull).toBe(true);
+    w.pilots.roster[0]!.status = 'lost';
+    expect(menuDataFromWorld(w, null).squadFull).toBe(false);
   });
 });

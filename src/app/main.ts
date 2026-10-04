@@ -1,4 +1,6 @@
 import { createTuning } from '../../data/tuning';
+import { applyFinishedRun, veteranOffers } from '../core/meta/meta';
+import { enterStartScreen, offerVeterans } from '../core/run/run';
 import { createWorld, stepWorld, type World } from '../core/world/world';
 import { createInput } from '../input/input';
 import { createHud } from '../render/hud/hud';
@@ -8,7 +10,7 @@ import { maskFlightActions } from '../ui/menu-nav';
 import { createHudView } from '../ui/hud-view';
 import { createMenuView } from '../ui/menu-view';
 import { createFixedLoop } from './loop';
-import { loadSave, storeSave } from './save';
+import { loadSave, saveIsFromNewerVersion, storeSave } from './save';
 
 const save = loadSave();
 
@@ -24,15 +26,14 @@ const world = createWorld(Date.now() >>> 0, createTuning(), save.bestTrialTime);
 const renderer = createRenderer(document.body, world);
 const hud = createHud(document.body);
 const input = createInput();
-// Veterans, the best run and the pick state come from the meta and run modules (Track A); until
-// then the menus show the empty case.
-const menus = createMenuView(document.body, () => ({
-  veterans: [],
-  selectedVeterans: [],
-  candidates: [],
-  bestRun: null,
-}));
+const menus = createMenuView(document.body, () => save.meta.bestRun);
 const runHud = createHudView(document.body, world.seed);
+// The game starts on the Start screen (a run); `?practice` opens the practice field instead.
+const practice = new URLSearchParams(window.location.search).has('practice');
+// A save written by a newer version of the game is read as empty and never overwritten.
+const canStore = !saveIsFromNewerVersion();
+let offered = false;
+if (!practice) enterStartScreen(world);
 let devTools: {
   beforeStep(world: World): void;
   draw(world: World, frameSeconds: number): void;
@@ -49,9 +50,27 @@ const loop = createFixedLoop((dt) => {
   // Events live for one step; hand them to FX before the next step clears them.
   renderer.consumeEvents(world.events.events);
   runHud.step(world, dt);
+  if (world.run.mode === 'run') {
+    // Offer the saved veterans once per Start screen (a restart gets the updated roster).
+    if (world.run.phase === 'start' && !offered) {
+      offerVeterans(world, veteranOffers(save.meta));
+      offered = true;
+    }
+    for (const e of world.events.events) {
+      if (e.type !== 'RunEnded') continue;
+      save.meta = applyFinishedRun(
+        save.meta,
+        world.pilots.roster,
+        world.run,
+        world.tuning.pilots.veteranCap,
+      );
+      offered = false;
+      if (canStore) storeSave(save);
+    }
+  }
   if (world.trial.best !== save.bestTrialTime) {
     save.bestTrialTime = world.trial.best;
-    storeSave(save);
+    if (canStore) storeSave(save);
   }
 });
 

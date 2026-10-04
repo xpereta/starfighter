@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../data/tuning';
+import { maxHpOf } from '../core/pilots/effective';
 import type { Pilot } from '../core/pilots/pilots';
 import type { Wingman } from '../core/squadron/squadron';
 import { createWorld, type World } from '../core/world/world';
@@ -45,11 +46,20 @@ describe('rosterRows', () => {
       pilot(2, 'Joss Wren', true),
       pilot(3, 'Ilya Rook'),
     );
-    w.squadron.wingmen.push({ hp: 5, alive: true } as Wingman, { hp: 2, alive: true } as Wingman);
+    const max = maxHpOf(w, 1);
+    w.squadron.wingmen.push(
+      { pilotId: 1, hp: max, alive: true } as Wingman,
+      { pilotId: 3, hp: 1, alive: true } as Wingman,
+    );
     expect(rosterRows(w)).toEqual([
-      { name: 'Mara Ember', trait: 'Steady', pips: '●●●●●', fallen: false },
+      { name: 'Mara Ember', trait: 'Steady', pips: hullPips({ hp: max, max }), fallen: false },
       { name: 'Joss Wren', trait: 'Steady', pips: '', fallen: true },
-      { name: 'Ilya Rook', trait: 'Steady', pips: '●●○○○', fallen: false }, // the 2nd active pilot is the 2nd wingman
+      {
+        name: 'Ilya Rook',
+        trait: 'Steady',
+        pips: hullPips({ hp: 1, max: maxHpOf(w, 3) }),
+        fallen: false,
+      }, // matched by pilot id
     ]);
   });
 
@@ -58,8 +68,8 @@ describe('rosterRows', () => {
     const p = pilot(1, 'Mara Ember');
     w.pilots.roster.push(p);
     expect(pilotHull(w, p)).toBeNull();
-    w.squadron.wingmen.push({ hp: 0, alive: false } as Wingman);
-    expect(pilotHull(w, p)).toEqual({ hp: 0, max: 5 });
+    w.squadron.wingmen.push({ pilotId: 1, hp: 0, alive: false } as Wingman);
+    expect(pilotHull(w, p)).toEqual({ hp: 0, max: maxHpOf(w, 1) });
   });
 });
 
@@ -76,12 +86,14 @@ describe('objective line', () => {
     expect(hostileCount(w)).toBe(3);
   });
 
-  it('reads BATTLE n/N · WAVE w/W · HOSTILES h with the spec waves per battle', () => {
+  it('reads BATTLE n/N · WAVE w/W · HOSTILES h from the wave total', () => {
     const w = world();
     w.fighters.push({ alive: true } as never);
+    w.run.waveTotal = 3;
     expect(objectiveText(w)).toBe('BATTLE 2/4 · WAVE 2/3 · HOSTILES 1');
     w.run.battle = 4;
     w.run.wave = 0;
+    w.run.waveTotal = 4;
     expect(objectiveText(w)).toBe('BATTLE 4/4 · WAVE 1/4 · HOSTILES 1');
   });
 
