@@ -33,13 +33,12 @@ export function nearestToNose(world: World, range: number): number {
   return best;
 }
 
-/** What "attack my target" aims at: the player's first lock, else the enemy nearest the nose, else -1. */
+/**
+ * What "attack my target" aims at: the enemy nearest the nose within `attackSearchRange`, or -1.
+ * Deliberately independent of the missile lock-on (Xavi's call): locks are for missiles, orders have
+ * their own target, so spending or losing locks never changes what the wingmen are told to attack.
+ */
 export function attackTarget(world: World): number {
-  const first = world.lockon.locks[0];
-  if (first !== undefined) {
-    const body = bodyOf(world, first);
-    if (body && body.alive) return first;
-  }
   return nearestToNose(world, world.tuning.squadron.attackSearchRange);
 }
 
