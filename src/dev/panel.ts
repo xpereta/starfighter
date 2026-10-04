@@ -114,7 +114,7 @@ export function createPanel(world: World): Panel {
   // Header and global controls.
   const header = document.createElement('div');
   header.className = 'header';
-  header.innerHTML = '<span>Tuning</span><small>H hides · ` debug</small>';
+  header.innerHTML = '<span>Tuning</span><small>H hides · G debug</small>';
   root.append(header);
 
   const general = section('Panel', true);
@@ -375,7 +375,7 @@ export function createPanel(world: World): Panel {
   track(
     choiceRow<boolean>(ctx, {
       id: 'debug.overlay',
-      label: 'Debug overlay (`)',
+      label: 'Debug overlay (G)',
       note: 'Draws vectors, hit circles, the camera safe frame, the turn-rate curve and entity counts on top of the game.',
       options: () => [false, true],
       get: () => debug.overlay,
@@ -384,6 +384,25 @@ export function createPanel(world: World): Panel {
     }),
     debugSection,
   );
+  track(
+    choiceRow<boolean>(ctx, {
+      id: 'arena.enemiesFrozen',
+      label: 'Freeze enemies',
+      note: tuningToggleNotes['arena.enemiesFrozen'] ?? '',
+      options: () => [false, true],
+      get: () => tuning.arena.enemiesFrozen,
+      set: (v) => (tuning.arena.enemiesFrozen = v),
+      defaultValue: defaults.arena.enemiesFrozen,
+    }),
+    debugSection,
+  );
+
+  // A hint on the game screen that is still there when the panel is hidden.
+  const hint = document.createElement('div');
+  hint.className = 'dev-hint';
+  hint.textContent = 'H show panel · G debug overlay';
+  hint.hidden = !root.hidden;
+  document.body.append(hint);
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.code === 'Escape') {
@@ -392,11 +411,12 @@ export function createPanel(world: World): Panel {
       return;
     }
     if (isTyping(e.target)) return;
-    if (e.code === 'Backquote') {
+    if (e.code === 'KeyG') {
       debug.overlay = !debug.overlay;
       refresh();
     } else if (e.code === 'KeyH') {
       root.hidden = !root.hidden;
+      hint.hidden = !root.hidden;
       tip.hide();
     }
   };
@@ -410,6 +430,7 @@ export function createPanel(world: World): Panel {
       window.removeEventListener('keydown', onKey);
       tip.dispose();
       root.remove();
+      hint.remove();
     },
   };
 }

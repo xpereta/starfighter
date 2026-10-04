@@ -55,6 +55,8 @@ export const PANEL_CSS = `
 #tuning-panel * { box-sizing: border-box; }
 #tuning-panel .header { padding: 6px 10px; display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; border-bottom: 1px solid var(--line); }
 #tuning-panel .header small { font-weight: 400; opacity: 0.8; }
+.dev-hint { position: fixed; right: 12px; bottom: 12px; z-index: 2147483000; padding: 4px 8px; border-radius: 4px; font: 12px ui-monospace, Menlo, Consolas, monospace; color: #fff; background: rgba(5, 6, 13, 0.78); pointer-events: none; }
+.dev-hint[hidden] { display: none; }
 #tuning-panel .section-title {
   display: block; width: 100%; height: ${ROW_HEIGHT}px; text-align: left; padding: 0 10px;
   background: #1a2232; color: var(--text); border: 0; border-bottom: 1px solid var(--line);

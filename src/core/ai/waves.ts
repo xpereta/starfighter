@@ -77,6 +77,7 @@ export function spawnWave(world: World): void {
  */
 export function stepWaves(world: World): void {
   resolveFighterKills(world);
+  if (world.tuning.arena.enemiesFrozen) return; // debug freeze: no new waves
   const cfg = world.tuning.fighter;
   if (cfg.waveSize <= 0) return;
   let lastDeath = NO_HIT;
