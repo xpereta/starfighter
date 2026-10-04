@@ -5,6 +5,7 @@ import type { World } from '../../core/world/world';
 import { lockLimit } from '../../core/lockon/lockon';
 import { palette } from '../palette';
 import { drawLockPanel, drawLockRings } from './locks-hud';
+import { drawOrderMarker } from './order-marker';
 import {
   blinkOn,
   createEdgeIndicator,
@@ -133,7 +134,9 @@ export function createHud(container: HTMLElement): Hud {
     const cam = world.camera;
     lockCenter.x = cam.x + cam.shakeX;
     lockCenter.y = cam.y + cam.shakeY;
-    drawLockRings(g, world, lockCenter, viewSize(cam.view, cam.aspect), screen);
+    const view = viewSize(cam.view, cam.aspect);
+    drawLockRings(g, world, lockCenter, view, screen);
+    drawOrderMarker(g, world, lockCenter, view, screen);
     drawLockPanel(g, world, lockLimit(world), screen.height);
   }
 

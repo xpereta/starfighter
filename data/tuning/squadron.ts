@@ -189,7 +189,7 @@ export const squadronParams = {
     min: 500,
     max: 8000,
     unit: 'u',
-    note: 'With nothing locked, Attack my target picks the enemy closest to where your nose points, but only within this distance. Higher = it can send wingmen after faraway enemies; lower = only nearby ones.',
+    note: 'Attack my target picks the enemy closest to where your nose points, but only within this distance. It does not use your missile locks. Higher = it can send wingmen after faraway enemies; lower = only nearby ones.',
   },
 } as const satisfies Record<string, ParamDef>;
 

@@ -79,15 +79,17 @@ describe('cycle formation', () => {
 });
 
 describe('what attack my target aims at', () => {
-  it('the first locked target, ahead of anything nearer the nose', () => {
+  it('ignores the missile locks: it is the enemy nearest the nose even when another is locked', () => {
     const world = arena();
     const locked = enemyAt(world, 1500, 900);
-    enemyAt(world, 800, 0); // right on the nose, but not locked
-    world.lockon.locks.push(locked, FIGHTER_ID_BASE + 1);
-    expect(attackTarget(world)).toBe(locked);
+    const onNose = enemyAt(world, 800, 0);
+    world.lockon.locks.push(locked, FIGHTER_ID_BASE + 5);
+    expect(attackTarget(world)).toBe(onNose);
+    world.lockon.locks.length = 0; // a salvo spending the locks changes nothing
+    expect(attackTarget(world)).toBe(onNose);
   });
 
-  it('with no lock, the enemy nearest the nose within the search range', () => {
+  it('the enemy nearest the nose within the search range', () => {
     const world = arena();
     const onNose = enemyAt(world, 800, 50);
     enemyAt(world, 0, 900); // 90 degrees off the nose
@@ -125,7 +127,7 @@ describe('what attack my target aims at', () => {
     expect(attackTarget(world)).toBe(-1);
   });
 
-  it('falls back to the nose when the first lock is gone', () => {
+  it('a stale or dead lock does not matter either', () => {
     const world = arena();
     const onNose = enemyAt(world, 800, 50);
     world.lockon.locks.push(FIGHTER_ID_BASE + 7); // stale id
@@ -134,10 +136,9 @@ describe('what attack my target aims at', () => {
 });
 
 describe('attack my target', () => {
-  it('starts the order on the locked target with the full order time, and announces it', () => {
+  it('starts the order on the target with the full order time, and announces it', () => {
     const world = arena();
     const id = enemyAt(world, 1500, 0);
-    world.lockon.locks.push(id);
     world.actions.attackOrder = true;
     stepWorld(world, DT);
     const sq = world.squadron;
@@ -153,8 +154,7 @@ describe('attack my target', () => {
     expect(empty.squadron.order).toBe('none');
 
     const alone = arena(0);
-    const id = enemyAt(alone, 800, 0);
-    alone.lockon.locks.push(id);
+    enemyAt(alone, 800, 0);
     press(alone, 'attackOrder');
     expect(alone.squadron.order).toBe('none');
   });
@@ -162,7 +162,6 @@ describe('attack my target', () => {
   it('sends every wingman at the target, whatever the formation range', () => {
     const world = arena();
     const far = enemyAt(world, world.tuning.squadron.tightEngageRange + 1500, 0);
-    world.lockon.locks.push(far);
     // Without the order, the tight formation ignores an enemy this far from the player.
     steps(world, 0.2);
     expect(world.squadron.wingmen.every((w) => w.engagedId === -1)).toBe(true);
@@ -176,7 +175,6 @@ describe('attack my target', () => {
     world.tuning.squadron.attackOrderTime = 1;
     const far = enemyAt(world, world.tuning.squadron.tightEngageRange + 1500, 0);
     world.fighters[far - FIGHTER_ID_BASE]!.hp = 1000; // survives the wingmen
-    world.lockon.locks.push(far);
     press(world, 'attackOrder');
     expect(world.squadron.order).toBe('attack');
     steps(world, 1.2);
@@ -188,7 +186,6 @@ describe('attack my target', () => {
   it('ends early when the target dies', () => {
     const world = arena();
     const id = enemyAt(world, 1500, 0);
-    world.lockon.locks.push(id);
     press(world, 'attackOrder');
     expect(world.squadron.order).toBe('attack');
     world.fighters[id - FIGHTER_ID_BASE]!.hp = 0;
@@ -203,7 +200,6 @@ describe('attack my target', () => {
     const world = arena();
     const id = enemyAt(world, 1500, 0);
     world.fighters[id - FIGHTER_ID_BASE]!.hp = 1000;
-    world.lockon.locks.push(id);
     press(world, 'attackOrder');
     expect(world.squadron.order).toBe('attack');
     world.actions.attackOrder = true;
@@ -220,7 +216,6 @@ describe('attack my target', () => {
     const world = arena();
     const id = enemyAt(world, 1500, 0);
     world.fighters[id - FIGHTER_ID_BASE]!.hp = 1000;
-    world.lockon.locks.push(id);
     world.actions.attackOrder = true;
     let given = 0;
     for (let i = 0; i < 30; i++) {
@@ -233,8 +228,7 @@ describe('attack my target', () => {
 
   it('a respawn cancels the order', () => {
     const world = arena();
-    const id = enemyAt(world, 1500, 0);
-    world.lockon.locks.push(id);
+    enemyAt(world, 1500, 0);
     press(world, 'attackOrder');
     expect(world.squadron.order).toBe('attack');
     world.actions.respawn = true;
