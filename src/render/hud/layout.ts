@@ -124,3 +124,14 @@ export function worldToScreen(
   out.x = screen.width / 2 + ((wx - camera.x) * screen.width) / view.width;
   out.y = screen.height / 2 - ((wy - camera.y) * screen.height) / view.height;
 }
+
+/** The short message for an Attack my target press that could not act, or null when there is none. */
+export function orderCueText(squadron: {
+  cue: 'none' | 'no-target' | 'no-wingmen';
+  cueTimer: number;
+}): string | null {
+  if (squadron.cueTimer <= 0) return null;
+  if (squadron.cue === 'no-target') return 'ATTACK: NO TARGET';
+  if (squadron.cue === 'no-wingmen') return 'ATTACK: NO WINGMEN';
+  return null;
+}

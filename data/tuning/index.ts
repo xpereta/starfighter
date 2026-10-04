@@ -63,7 +63,7 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   lockon: {},
   missiles: {},
   fighter: {},
-  squadron: {},
+  squadron: { slotAnchor: ['velocity', 'nose'] },
 };
 
 /** Plain-language tooltip for each toggle, keyed `group.name` (what it does, and what each option means). */
@@ -76,6 +76,8 @@ export const tuningToggleNotes: Record<string, string> = {
     'What the camera leans toward. Velocity = where the ship is actually moving, so drifting shows the direction of travel; Nose = where the ship points, so you see what you are aiming at.',
   'arena.enemiesFrozen':
     'Debug: freezes every enemy (fighters, drones, turrets). They stop moving and shooting, no new waves come and nothing respawns, but you can still shoot, lock and kill them, and your wingmen still fight. Use it to test flying, locks and missiles in peace.',
+  'squadron.slotAnchor':
+    'What the tight formation holds its shape against. Velocity = the direction you are actually moving, so hard turns and spins do not swing the slots around and wingmen stay in place; Nose = where you point, so the formation follows your aim but whips around when you spin.',
   'camera.shakeEnabled':
     'Screen shake when you fire or get hit. On = more punch, but can tire the eyes; off = a steady view. Strength is set by Shake.',
 };

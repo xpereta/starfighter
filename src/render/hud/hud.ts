@@ -12,6 +12,7 @@ import {
   distanceStyle,
   edgeIndicator,
   evadeReadiness,
+  orderCueText,
   speedBar,
   squadronReadout,
   throttleState,
@@ -203,6 +204,11 @@ export function createHud(container: HTMLElement): Hud {
         'rgba(125,255,176,0.75)',
       );
       if (squad.order) text(`ORDER: ${squad.order}`, PAD, PAD + 50, WINGMAN_COLOR);
+    }
+    // A press that could not act says why, even with no wingmen (when the readout above is hidden).
+    const cue = orderCueText(world.squadron);
+    if (cue && blinkOn(world.time, tuning.hud.warningBlinkHz)) {
+      text(cue, PAD, PAD + 50, css(palette.enemyStatic));
     }
     if (trial.active) {
       let alive = 0;

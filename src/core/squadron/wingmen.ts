@@ -7,7 +7,7 @@ import { createActions } from '../world/actions';
 import { stepSeconds } from '../world/clock';
 import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
-import { slotPosition } from './formation';
+import { boostFlight, catchUpFactor, slotFrame, slotPosition } from './formation';
 import type { Wingman } from './squadron';
 
 /** A wingman keeps closing in until it is this fraction of its fire range from its target. */
@@ -15,13 +15,19 @@ const CLOSE_IN_FRACTION = 0.8;
 /** An engaged enemy is only dropped once it is this much beyond the engage range (no flicker at the edge). */
 const ENGAGE_HYSTERESIS = 1.25;
 /** Speed difference over the full speed range, doubled so a large gap saturates the throttle. */
-const SPEED_MATCH_GAIN = 2;
+/** Speed error (u/s) at which a wingman uses full throttle or full brake to follow its slot. */
+const SPEED_BAND = 100;
+/** Angle off the slot direction (radians) beyond which a wingman limits itself to corner speed to turn. */
+const TURN_FIRST_ANGLE = 60 * DEG;
+/** How quickly a speed difference (as a fraction of the speed range) turns on the catch-up boost. */
+const SPEED_MISMATCH_BOOST_GAIN = 4;
 /** Every enemy bullet that hits a wingman takes this many hit points. */
 const ENEMY_SHOT_DAMAGE = 1;
 
 // Scratch values, overwritten before each use, so stepping allocates nothing.
 const flightScratch = createFlightConfig();
 const slot: Point = { x: 0, y: 0 };
+const frame = { x: 0, y: 0, heading: 0 };
 const lead: Point = { x: 0, y: 0 };
 let pushX = 0;
 let pushY = 0;
@@ -90,7 +96,15 @@ function pickEngaged(world: World, w: Wingman, cfg: SquadronConfig): number {
 /** Puts a wingman on its formation slot, flying the player's velocity. */
 function place(w: Wingman, world: World, index: number, count: number): void {
   const player = world.ship;
-  slotPosition(slot, world.squadron.formation, index, count, player, world.tuning.squadron);
+  const cfg = world.tuning.squadron;
+  slotPosition(
+    slot,
+    world.squadron.formation,
+    index,
+    count,
+    slotFrame(frame, player, cfg.slotAnchor),
+    cfg,
+  );
   const s = w.ship;
   s.x = slot.x;
   s.y = slot.y;
@@ -110,6 +124,7 @@ export function createWingman(world: World, index: number, count: number): Wingm
     fireCooldown: 0,
     engagedId: -1,
     respawnTimer: 0,
+    catchUp: 0,
   };
   place(wingman, world, index, count);
   return wingman;
@@ -131,6 +146,7 @@ function revive(w: Wingman, world: World, index: number, count: number): void {
   w.fireCooldown = 0;
   w.engagedId = -1;
   w.respawnTimer = 0;
+  w.catchUp = 0;
   place(w, world, index, count);
 }
 
@@ -225,16 +241,47 @@ function think(
     desired = aim;
     dist = Math.hypot(enemy.x - ship.x, enemy.y - ship.y);
     throttle = dist > cfg.fireRange * CLOSE_IN_FRACTION ? 1 : 0;
+    w.catchUp = 0; // fighting: normal performance
   } else {
-    slotPosition(slot, world.squadron.formation, index, count, player, cfg);
-    const dx = slot.x + player.vx * cfg.slotLeadTime - ship.x;
-    const dy = slot.y + player.vy * cfg.slotLeadTime - ship.y;
+    slotPosition(
+      slot,
+      world.squadron.formation,
+      index,
+      count,
+      slotFrame(frame, player, cfg.slotAnchor),
+      cfg,
+    );
+    // `sx, sy` point at the true slot (used for distances); the heading aims a little ahead of it
+    // (`slotLeadTime`) so a wingman keeps up through the player's turns without parking ahead of the slot.
+    const sx = slot.x - ship.x;
+    const sy = slot.y - ship.y;
+    const slotDist = Math.hypot(sx, sy);
     // At the slot: just match the player's heading. Otherwise fly to it, matching speed.
-    desired = Math.hypot(dx, dy) < cfg.slotHoldRadius ? player.heading : Math.atan2(dy, dx);
-    const along = dx * Math.cos(ship.heading) + dy * Math.sin(ship.heading);
+    desired =
+      slotDist < cfg.slotHoldRadius
+        ? player.heading
+        : Math.atan2(sy + player.vy * cfg.slotLeadTime, sx + player.vx * cfg.slotLeadTime);
+    const along = sx * Math.cos(ship.heading) + sy * Math.sin(ship.heading);
     const flight = world.tuning.flight;
     const speedGap = (player.speed - ship.speed) / (flight.maxSpeed - flight.minSpeed);
-    throttle = clamp(along / cfg.catchUpRange + speedGap * SPEED_MATCH_GAIN, -1, 1);
+    // Help is needed when far from the slot AND when going a different speed from the player (to
+    // brake in time, not overshoot and swing back and forth).
+    w.catchUp = Math.max(
+      catchUpFactor(slotDist, cfg),
+      clamp(Math.abs(speedGap) * SPEED_MISMATCH_BOOST_GAIN, 0, 1),
+    );
+    // Position controller: aim for the player's speed plus a push proportional to how far the slot is
+    // ahead (or behind) along the wingman's heading, so it closes the gap fast and eases off in time.
+    let targetSpeed = player.speed + along * cfg.slotSpeedGain;
+    // Turning needs a low speed (turn rate falls as speed rises), so with the slot off to the side a
+    // wingman slows toward the corner speed first and only then runs for it.
+    const off = Math.abs(wrapAngle(desired - ship.heading));
+    const straight = clamp(1 - off / TURN_FIRST_ANGLE, 0, 1);
+    targetSpeed = Math.min(
+      targetSpeed,
+      flight.cornerSpeed + (targetSpeed - flight.cornerSpeed) * straight,
+    );
+    throttle = clamp((targetSpeed - ship.speed) / SPEED_BAND, -1, 1);
   }
 
   // Collision avoidance: steer away from the player and from the other living wingmen.
@@ -273,8 +320,6 @@ export function stepWingmen(world: World): void {
   if (dt <= 0) return;
   const cfg = world.tuning.squadron;
   const count = syncCount(world);
-  Object.assign(flightScratch, world.tuning.flight);
-  flightScratch.steering = 'point'; // the AI always steers point-to-steer
   world.squadron.wingmen.forEach((w, i) => {
     if (!w.alive) {
       w.respawnTimer -= dt;
@@ -284,6 +329,9 @@ export function stepWingmen(world: World): void {
     takeEnemyFire(world, w, i, cfg);
     if (!w.alive) return;
     think(world, w, i, count, cfg, dt);
+    // Out of formation a wingman gets extra acceleration, speed and turn rate, so it can catch up.
+    boostFlight(flightScratch, world.tuning.flight, cfg, w.catchUp);
+    flightScratch.steering = 'point'; // the AI always steers point-to-steer
     stepFlight(w.ship, w.actions, flightScratch, noEvents, dt);
   });
 }

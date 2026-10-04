@@ -176,12 +176,12 @@ export const flightParams = {
 export type SteeringScheme = 'point' | 'rotate';
 
 export type FlightConfig = { -readonly [K in keyof typeof flightParams]: number } & {
-  /** A: point-to-steer (default). B: rotate. */
+  /** point: point-to-steer. rotate (default): the stick's left/right turns the ship. */
   steering: SteeringScheme;
   /** Evade variant: true = sidestep + i-frames; false = only i-frames + a tight break turn. */
   evadeSidestep: boolean;
 };
 
 export function createFlightConfig(): FlightConfig {
-  return { ...defaultsOf(flightParams), steering: 'point', evadeSidestep: true };
+  return { ...defaultsOf(flightParams), steering: 'rotate', evadeSidestep: true };
 }

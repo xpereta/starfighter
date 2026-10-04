@@ -112,6 +112,31 @@ describe('look-ahead', () => {
   });
 });
 
+describe('maximum look-ahead settings', () => {
+  it('the ranges allow a lean of a full half-screen and a gain of 2', async () => {
+    const { cameraParams } = await import('../../../data/tuning/camera');
+    expect(cameraParams.lookAheadMax.max).toBeGreaterThanOrEqual(1);
+    expect(cameraParams.lookAhead.max).toBeGreaterThanOrEqual(2);
+  });
+
+  it('at the extremes the camera leans further than at the defaults, and the safe frame still holds', () => {
+    const lean = (over: Partial<CameraConfig>): number => {
+      const { ship, cam, cfg } = setup({ lookMode: 'velocity', ...over });
+      ship.speed = flight.maxSpeed;
+      ship.vx = flight.maxSpeed;
+      run(cam, ship, cfg, 10);
+      const size = viewSize(cam.view, cam.aspect);
+      expect(Math.abs(ship.x - cam.x)).toBeLessThanOrEqual(
+        (size.width / 2) * (1 - 2 * cfg.safeFrame) + 1e-6,
+      );
+      return Math.hypot(cam.lookX, cam.lookY);
+    };
+    const normal = lean({});
+    const extreme = lean({ lookAhead: 2, lookAheadMax: 1, safeFrame: 0.05 });
+    expect(extreme).toBeGreaterThan(normal * 2);
+  });
+});
+
 describe('safe frame', () => {
   it('keeps the ship inside the safe area even if the look offset would push it out', () => {
     for (const aspect of [16 / 10, 1, 21 / 9]) {

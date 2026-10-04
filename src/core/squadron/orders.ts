@@ -55,8 +55,14 @@ function endOrder(squadron: Squadron): void {
  * - attack my target (RB / F): every wingman goes for the target picked when the order is given
  *   (see `attackTarget`) for `attackOrderTime`. It ends early when the target dies; a second press
  *   cancels it (announced as `OrderGiven` with the formation they return to). With no living
- *   wingman, or nothing to aim at, the press does nothing.
+ *   wingman, or nothing to aim at, the press does nothing but show a short cue (`squadron.cue`).
  */
+/** Tells the player a press could not act: the HUD shows why for `orderCueTime`. */
+function giveCue(world: World, cue: 'no-target' | 'no-wingmen'): void {
+  world.squadron.cue = cue;
+  world.squadron.cueTimer = world.tuning.squadron.orderCueTime;
+}
+
 export function stepOrders(world: World): void {
   const sq = world.squadron;
   const { actions, prev } = world;
@@ -70,14 +76,26 @@ export function stepOrders(world: World): void {
     if (sq.order === 'attack') {
       endOrder(sq);
       world.events.emit({ type: 'OrderGiven', order: sq.formation });
-    } else if (livingWingmen(sq) > 0) {
+    } else if (livingWingmen(sq) === 0) {
+      giveCue(world, 'no-wingmen');
+    } else {
       const target = attackTarget(world);
       if (target >= 0) {
         sq.order = 'attack';
         sq.orderTargetId = target;
         sq.orderTimer = world.tuning.squadron.attackOrderTime;
         world.events.emit({ type: 'OrderGiven', order: 'attack' });
+      } else {
+        giveCue(world, 'no-target');
       }
+    }
+  }
+
+  if (sq.cueTimer > 0) {
+    sq.cueTimer -= stepSeconds(world);
+    if (sq.cueTimer <= 0) {
+      sq.cueTimer = 0;
+      sq.cue = 'none';
     }
   }
 
