@@ -24,6 +24,8 @@ export interface Wingman {
   respawnTimer: number;
   /** 0..1: how far it is from its slot (0 in the slot, 1 far away); scales its catch-up boost. */
   catchUp: number;
+  /** The pilot flying this wingman (see core/pilots), or 0 for an anonymous practice-mode wingman. */
+  pilotId: number;
 }
 
 /**
@@ -91,5 +93,6 @@ export function mixSquadron(mix: (n: number) => void, squadron: Squadron): void 
     mix(w.engagedId);
     mix(w.respawnTimer);
     mix(w.catchUp);
+    mix(w.pilotId);
   }
 }

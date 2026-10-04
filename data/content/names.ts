@@ -1,6 +1,7 @@
 /**
- * Name tables for generated pilots: a first name and a callsign (spec section 2). The contract lands
- * a short list; issue A1 grows both to about 24 entries. Entries must be unique within a table.
+ * Name tables for generated pilots: a first name and a callsign (spec section 2). A pilot's name is
+ * "First Callsign". Entries must be unique within a table; generation never reuses a first name or a
+ * callsign inside one run until the tables are exhausted.
  */
 export const FIRST_NAMES: readonly string[] = [
   'Mara',
@@ -11,6 +12,22 @@ export const FIRST_NAMES: readonly string[] = [
   'Kenji',
   'Rhea',
   'Dario',
+  'Nadia',
+  'Soren',
+  'Imani',
+  'Paulo',
+  'Yuki',
+  'Lena',
+  'Omar',
+  'Greta',
+  'Mateo',
+  'Aiko',
+  'Viktor',
+  'Zara',
+  'Hugo',
+  'Priya',
+  'Anders',
+  'Selma',
 ];
 
 export const CALLSIGNS: readonly string[] = [
@@ -22,4 +39,20 @@ export const CALLSIGNS: readonly string[] = [
   'Vesper',
   'Tracer',
   'Flint',
+  'Static',
+  'Comet',
+  'Raven',
+  'Drift',
+  'Sable',
+  'Talon',
+  'Nova',
+  'Echo',
+  'Quill',
+  'Bishop',
+  'Kestrel',
+  'Marlin',
+  'Onyx',
+  'Piston',
+  'Lark',
+  'Zephyr',
 ];

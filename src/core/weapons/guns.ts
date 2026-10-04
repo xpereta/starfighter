@@ -7,11 +7,14 @@ import type { Collider } from '../world/target';
 import { createPool, type Pool } from '../world/pool';
 import type { Actions } from '../world/actions';
 
-/** `damage` is per bullet: the player's bullets use `bulletDamage`, wingmen's use their own (lower) value. */
-export type BulletPool = Pool<'x' | 'y' | 'vx' | 'vy' | 'life' | 'damage'>;
+/**
+ * `damage` is per bullet: the player's bullets use `bulletDamage`, wingmen's use their own (lower)
+ * value. `owner` is who fired it: 0 for the player, a pilot id for a wingman (for kill credit).
+ */
+export type BulletPool = Pool<'x' | 'y' | 'vx' | 'vy' | 'life' | 'damage' | 'owner'>;
 
 export function createBulletPool(cfg: WeaponsConfig): BulletPool {
-  return createPool(cfg.bulletCap, ['x', 'y', 'vx', 'vy', 'life', 'damage']);
+  return createPool(cfg.bulletCap, ['x', 'y', 'vx', 'vy', 'life', 'damage', 'owner']);
 }
 
 export interface GunState {
@@ -105,6 +108,7 @@ function hitFirst(
     if (dx * dx + dy * dy > reach * reach) continue;
     const speed = Math.hypot(vx[i]!, vy[i]!) || 1;
     t.hp -= bullets.data.damage[i]!;
+    t.lastHitBy = bullets.data.owner[i]!; // 0 = the player; a pilot id for a wingman's bullet
     events.emit({
       type: 'Hit',
       x: x[i]!,

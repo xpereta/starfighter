@@ -84,7 +84,7 @@ it('Prototype 3 slots exist: practice mode by default, an empty roster and no po
     wave: 0,
     result: 'none',
   });
-  expect(world.pilots).toEqual({ roster: [], nextId: 1 });
+  expect(world.pilots).toEqual({ roster: [], nextId: 1, draws: 0 });
   expect(world.pods).toEqual([]);
   world.pods.push({ x: 1, y: 2, vx: 0, vy: 0, hp: 3, alive: true, progress: 0, pilotId: 1 });
   world.actions.respawn = true;

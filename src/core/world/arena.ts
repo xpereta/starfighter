@@ -41,6 +41,7 @@ function makeTarget(kind: TargetKind, x: number, y: number, hp: number, radius: 
     omega: 0,
     cooldown: 0,
     respawnTimer: 0,
+    lastHitBy: 0,
   };
 }
 
@@ -95,6 +96,7 @@ export function reviveTarget(t: Target): void {
   t.alive = true;
   t.hp = t.maxHp;
   t.respawnTimer = 0;
+  t.lastHitBy = 0;
   t.x = t.homeX;
   t.y = t.homeY;
   if (t.mode === 'circle') {

@@ -3,6 +3,13 @@ import { createFlightConfig } from '../../../data/tuning/flight';
 import { leadPoint, noEvents, type Point } from '../ai/steering';
 import { createShip, stepFlight } from '../flight/flight';
 import { clamp, DEG, wrapAngle } from '../math';
+import {
+  createEffectiveConfig,
+  effectiveSquadronConfig,
+  maxHpOf,
+  type EffectiveSquadronConfig,
+} from '../pilots/effective';
+import { losePilot } from '../pilots/pilots';
 import { createActions } from '../world/actions';
 import { stepSeconds } from '../world/clock';
 import { FIGHTER_ID_BASE } from '../world/lockable';
@@ -29,6 +36,8 @@ const flightScratch = createFlightConfig();
 const slot: Point = { x: 0, y: 0 };
 const frame = { x: 0, y: 0, heading: 0 };
 const lead: Point = { x: 0, y: 0 };
+const eff = createEffectiveConfig(); // the current wingman's settings with its pilot's trait applied
+const slotRank = { index: 0, count: 0 };
 let pushX = 0;
 let pushY = 0;
 
@@ -46,6 +55,33 @@ export function bodyOf(world: World, id: number): Body | null {
   if (id < 0) return null;
   const body = id >= FIGHTER_ID_BASE ? world.fighters[id - FIGHTER_ID_BASE] : world.targets[id];
   return body ?? null;
+}
+
+/**
+ * Which formation slot wingman `i` holds. In practice mode that is its list position out of
+ * `practiceCount` (as always). In run mode lost pilots stay in the list as dead entries (so salvo
+ * indices never shift mid-battle), so the slots are shared out among the LIVING wingmen only.
+ */
+export function slotOf(
+  world: World,
+  i: number,
+  practiceCount: number,
+): { index: number; count: number } {
+  if (world.run.mode !== 'run') {
+    slotRank.index = i;
+    slotRank.count = practiceCount;
+    return slotRank;
+  }
+  let rank = 0;
+  let living = 0;
+  world.squadron.wingmen.forEach((w, j) => {
+    if (!w.alive) return;
+    if (j < i) rank++;
+    living++;
+  });
+  slotRank.index = rank;
+  slotRank.count = Math.max(living, 1);
+  return slotRank;
 }
 
 /** Fighters, drones and turrets are worth chasing; static targets are only practice dummies. */
@@ -72,7 +108,7 @@ function engageable(
  * Keeps the current enemy while it stays valid, otherwise picks the nearest engageable one (-1 for
  * none). Under an attack order every wingman goes for the order's target, whatever the range.
  */
-function pickEngaged(world: World, w: Wingman, cfg: SquadronConfig): number {
+function pickEngaged(world: World, w: Wingman, cfg: EffectiveSquadronConfig): number {
   if (world.squadron.order === 'attack') return world.squadron.orderTargetId;
   const current = bodyOf(world, w.engagedId);
   if (current && engageable(world, w, w.engagedId, current, cfg, ENGAGE_HYSTERESIS)) {
@@ -80,15 +116,19 @@ function pickEngaged(world: World, w: Wingman, cfg: SquadronConfig): number {
   }
   let best = -1;
   let bestSq = Infinity;
-  const consider = (id: number, body: Body): void => {
+  // A Guardian counts an enemy that is chasing the player as closer (its distance shrinks by this factor).
+  const chaseScale = 1 - cfg.guardBias * world.tuning.pilots.guardPreference;
+  const consider = (id: number, body: Body, scale = 1): void => {
     if (!engageable(world, w, id, body, cfg, 1)) return;
-    const sq = (body.x - w.ship.x) ** 2 + (body.y - w.ship.y) ** 2;
+    const sq = ((body.x - w.ship.x) ** 2 + (body.y - w.ship.y) ** 2) * scale * scale;
     if (sq < bestSq) {
       best = id;
       bestSq = sq;
     }
   };
-  world.fighters.forEach((f, i) => consider(FIGHTER_ID_BASE + i, f));
+  world.fighters.forEach((f, i) =>
+    consider(FIGHTER_ID_BASE + i, f, f.targetIndex === -1 ? chaseScale : 1),
+  );
   world.targets.forEach((t, i) => consider(i, t));
   return best;
 }
@@ -115,24 +155,38 @@ function place(w: Wingman, world: World, index: number, count: number): void {
   s.vy = player.vy;
 }
 
-export function createWingman(world: World, index: number, count: number): Wingman {
+/** A fresh wingman in its slot. `pilotId` is 0 for an anonymous practice-mode wingman. */
+export function createWingman(world: World, index: number, count: number, pilotId = 0): Wingman {
   const wingman: Wingman = {
     ship: createShip(world.tuning.flight),
-    hp: world.tuning.squadron.health,
+    hp: maxHpOf(world, pilotId),
     alive: true,
     actions: createActions(),
     fireCooldown: 0,
     engagedId: -1,
     respawnTimer: 0,
     catchUp: 0,
+    pilotId,
   };
   place(wingman, world, index, count);
   return wingman;
 }
 
-/** Grows or shrinks the wingman list to `wingmanCount` (this also re-creates them after a respawn). */
+/**
+ * Practice mode: grows or shrinks the wingman list to `wingmanCount` (this also re-creates them after
+ * a respawn). Run mode: every active pilot is a wingman (the list is never shrunk, so lost pilots stay
+ * as dead entries), and a pilot who just joined appears in its slot. Returns the practice count.
+ */
 function syncCount(world: World): number {
   const wingmen = world.squadron.wingmen;
+  if (world.run.mode === 'run') {
+    for (const pilot of world.pilots.roster) {
+      if (pilot.status !== 'active' || wingmen.some((w) => w.pilotId === pilot.id)) continue;
+      const living = wingmen.filter((w) => w.alive).length;
+      wingmen.push(createWingman(world, living, living + 1, pilot.id));
+    }
+    return wingmen.length;
+  }
   const count = world.tuning.squadron.wingmanCount;
   while (wingmen.length < count) wingmen.push(createWingman(world, wingmen.length, count));
   if (wingmen.length > count) wingmen.length = count;
@@ -141,7 +195,7 @@ function syncCount(world: World): number {
 
 function revive(w: Wingman, world: World, index: number, count: number): void {
   Object.assign(w.ship, createShip(world.tuning.flight));
-  w.hp = world.tuning.squadron.health;
+  w.hp = maxHpOf(world, w.pilotId);
   w.alive = true;
   w.fireCooldown = 0;
   w.engagedId = -1;
@@ -182,6 +236,8 @@ function takeEnemyFire(world: World, w: Wingman, index: number, cfg: SquadronCon
         y: w.ship.y,
         radius: cfg.radius,
       });
+      // In a run a downed pilot is gone for good (no respawn timer: see stepWingmen).
+      if (world.run.mode === 'run') losePilot(world, w.pilotId);
       return;
     }
   }
@@ -212,6 +268,7 @@ function shoot(world: World, w: Wingman, cfg: SquadronConfig): void {
   bullets.data.vy[k] = s.vy + Math.sin(angle) * weapons.bulletSpeed;
   bullets.data.life[k] = weapons.bulletLife;
   bullets.data.damage[k] = cfg.gunDamage;
+  bullets.data.owner[k] = w.pilotId; // kill credit
 }
 
 /** One wingman's decisions for this step: pick an enemy or hold the slot, avoid collisions, maybe shoot. */
@@ -220,7 +277,7 @@ function think(
   w: Wingman,
   index: number,
   count: number,
-  cfg: SquadronConfig,
+  cfg: EffectiveSquadronConfig,
   dt: number,
 ): void {
   const ship = w.ship;
@@ -243,11 +300,12 @@ function think(
     throttle = dist > cfg.fireRange * CLOSE_IN_FRACTION ? 1 : 0;
     w.catchUp = 0; // fighting: normal performance
   } else {
+    const rank = slotOf(world, index, count);
     slotPosition(
       slot,
       world.squadron.formation,
-      index,
-      count,
+      rank.index,
+      rank.count,
       slotFrame(frame, player, cfg.slotAnchor),
       cfg,
     );
@@ -318,19 +376,22 @@ function think(
 export function stepWingmen(world: World): void {
   const dt = stepSeconds(world);
   if (dt <= 0) return;
-  const cfg = world.tuning.squadron;
   const count = syncCount(world);
   world.squadron.wingmen.forEach((w, i) => {
     if (!w.alive) {
+      if (world.run.mode === 'run') return; // a pilot shot down in a run is lost for good
       w.respawnTimer -= dt;
       if (w.respawnTimer <= 0) revive(w, world, i, count);
       return;
     }
+    // This wingman's settings with its pilot's trait applied (the one place traits take effect).
+    const cfg = effectiveSquadronConfig(eff, world, w.pilotId);
     takeEnemyFire(world, w, i, cfg);
     if (!w.alive) return;
     think(world, w, i, count, cfg, dt);
     // Out of formation a wingman gets extra acceleration, speed and turn rate, so it can catch up.
     boostFlight(flightScratch, world.tuning.flight, cfg, w.catchUp);
+    flightScratch.maxSpeed *= cfg.speedScale; // trait: a Bold pilot is faster
     flightScratch.steering = 'point'; // the AI always steers point-to-steer
     stepFlight(w.ship, w.actions, flightScratch, noEvents, dt);
   });

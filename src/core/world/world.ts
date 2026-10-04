@@ -4,7 +4,7 @@ import { createCamera, stepCamera, type Camera } from '../camera/camera';
 import { createEventQueue, type EventQueue } from '../events/events';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
 import { createLockOn, stepLockOn, type LockOn } from '../lockon/lockon';
-import { createPilots, type Pilots } from '../pilots/pilots';
+import { createPilots, stepPilots, type Pilots } from '../pilots/pilots';
 import { createRng, type Rng } from '../rng/rng';
 import { createRun, stepRun, type Run } from '../run/run';
 import { createSquadron, stepSquadron, type Squadron } from '../squadron/squadron';
@@ -200,6 +200,7 @@ export function stepWorld(world: World, dt: number): void {
   }
   stepPods(world); // prototype 3 (B1): rescue pods
   stepWaves(world); // prototype 2 (B1): next wave of enemy fighters
+  stepPilots(world); // prototype 3 (A1): credit this step's kills to the pilots who made them
   stepTrial(world.trial, world.targets, dt);
   // Camera runs last so it sees this step's events (shake) and final ship state.
   stepCamera(

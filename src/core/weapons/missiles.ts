@@ -1,12 +1,25 @@
 import type { MissilesConfig } from '../../../data/tuning/missiles';
 import { clamp, DEG, TAU, wrapAngle } from '../math';
+import { createEffectiveConfig, effectiveSquadronConfig } from '../pilots/effective';
 import { livingWingmen } from '../squadron/squadron';
 import { forEachLockable, getLockable } from '../world/lockable';
 import { createPool, type Pool } from '../world/pool';
 import type { World } from '../world/world';
 
+/** `owner` is who fired it (0 = the player, else a pilot id); `damageScale` multiplies `missileDamage` (a Hunter's bonus), fixed at launch. */
 type MissileFields =
-  'uid' | 'x' | 'y' | 'vx' | 'vy' | 'heading' | 'speed' | 'phase' | 'life' | 'targetId';
+  | 'uid'
+  | 'x'
+  | 'y'
+  | 'vx'
+  | 'vy'
+  | 'heading'
+  | 'speed'
+  | 'phase'
+  | 'life'
+  | 'targetId'
+  | 'owner'
+  | 'damageScale';
 
 /** The salvo being launched (spec section 2). Lives on the missile pool so the world contract stays unchanged. */
 export interface SalvoState {
@@ -54,6 +67,8 @@ export function createMissilePool(cfg: MissilesConfig): MissilePool {
     'phase',
     'life',
     'targetId',
+    'owner',
+    'damageScale',
   ]);
   const baseClear = base.clear;
   const salvo = createSalvo();
@@ -139,8 +154,16 @@ function launchOne(world: World, cfg: MissilesConfig, targetId: number, pilot: n
   m.data.vy[i] = Math.sin(o.heading) * speed;
   m.data.life[i] = cfg.missileLife;
   m.data.targetId[i] = targetId;
+  // Who fired it, and how hard it hits: a wingman's trait (Hunter) scales the damage.
+  const shooter = pilot === PLAYER ? undefined : world.squadron.wingmen[pilot];
+  m.data.owner[i] = shooter?.pilotId ?? 0;
+  m.data.damageScale[i] = shooter
+    ? effectiveSquadronConfig(effective, world, shooter.pilotId).missileDamage
+    : 1;
   world.events.emit({ type: 'MissileLaunched', x: o.x, y: o.y, angle: o.heading, targetId });
 }
+
+const effective = createEffectiveConfig(); // scratch for the shooter's trait lookup
 
 /** Closest enemy a missile touches this step (reusable state, so the scan allocates nothing). */
 const hit = { x: 0, y: 0, radius: 0, bestId: -1, bestDist: Infinity };
@@ -244,7 +267,8 @@ export function stepMissiles(world: World): void {
     forEachLockable(world, considerHit);
     if (hit.bestId >= 0) {
       const body = getLockable(world, hit.bestId)!;
-      body.hp -= cfg.missileDamage;
+      body.hp -= cfg.missileDamage * d.damageScale[i]!;
+      body.lastHitBy = d.owner[i]!; // kill credit
       const speed = Math.hypot(d.vx[i]!, d.vy[i]!) || 1;
       events.emit({
         type: 'Hit',

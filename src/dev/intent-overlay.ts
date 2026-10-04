@@ -1,7 +1,7 @@
 import { leadPoint, type Point } from '../core/ai/steering';
 import { targetOf } from '../core/ai/fighters';
 import { slotFrame, slotPosition } from '../core/squadron/formation';
-import { bodyOf } from '../core/squadron/wingmen';
+import { bodyOf, slotOf } from '../core/squadron/wingmen';
 import { getLockable } from '../core/world/lockable';
 import type { World } from '../core/world/world';
 import { worldToScreen } from '../render/hud/layout';
@@ -97,11 +97,12 @@ export function drawIntents(
       worldToScreen(b, lead.x, lead.y, center, view, screen);
       diamond(g, b, 6, WINGMAN_COLOR);
     } else {
+      const rank = slotOf(world, i, count); // in a run the slots go to the living wingmen only
       slotPosition(
         slot,
         world.squadron.formation,
-        i,
-        count,
+        rank.index,
+        rank.count,
         slotFrame(frame, world.ship, scfg.slotAnchor),
         scfg,
       );

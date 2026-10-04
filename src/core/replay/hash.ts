@@ -54,6 +54,7 @@ export function hashWorld(world: World): string {
   for (const t of world.targets) {
     for (const v of [t.x, t.y, t.hp, t.vx, t.vy, t.angle, t.cooldown, t.respawnTimer]) mix(v);
     mix(t.alive ? 1 : 0);
+    mix(t.lastHitBy ?? 0);
     mix(['static', 'drone', 'turret'].indexOf(t.kind));
     mix(['static', 'straight', 'circle'].indexOf(t.mode));
     // The fixed layout of a target (it is rebuilt on every respawn).

@@ -7,6 +7,8 @@ export interface Collider {
   alive: boolean;
   /** True while bullets pass through it (e.g. a fighter in its evade i-frames). */
   immune?: boolean;
+  /** Who last damaged it: a pilot id (a wingman's bullet or missile), or 0 for the player or nobody. Used for kill credit. */
+  lastHitBy?: number;
 }
 
 export type TargetKind = 'static' | 'drone' | 'turret';
