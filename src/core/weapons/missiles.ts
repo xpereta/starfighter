@@ -14,9 +14,14 @@ export interface SalvoState {
   cooldown: number;
   /** Target ids of the missiles still waiting to leave, in launch order. */
   pending: number[];
+  /**
+   * Who fires each pending missile, parallel to `pending`: `PLAYER` or the index of a wingman in
+   * `world.squadron.wingmen`. A missing entry means the player.
+   */
+  pilots: number[];
   /** Seconds until the next pending missile leaves. */
   nextIn: number;
-  /** How many missiles of the current salvo have left (the launcher index of the next one). */
+  /** How many slots of the current salvo have come up (missiles launched plus skipped ones). */
   launched: number;
   /** The `uid` the next missile gets: a stable identity (pool slots move when missiles are removed). */
   nextUid: number;
@@ -30,8 +35,11 @@ export interface MissilePool extends Pool<MissileFields> {
   readonly salvo: SalvoState;
 }
 
+/** Pilot marker for the player's own ship (wingmen are their index in `squadron.wingmen`). */
+export const PLAYER = -1;
+
 function createSalvo(): SalvoState {
-  return { cooldown: 0, pending: [], nextIn: 0, launched: 0, nextUid: 0 };
+  return { cooldown: 0, pending: [], pilots: [], nextIn: 0, launched: 0, nextUid: 0 };
 }
 
 export function createMissilePool(cfg: MissilesConfig): MissilePool {
@@ -64,6 +72,16 @@ export function salvoSize(world: World): number {
   return 1 + livingWingmen(world.squadron);
 }
 
+/** The pilots of a salvo in priority order: the player first, then each living wingman. */
+export function salvoPilots(world: World, out: number[]): number[] {
+  out.length = 0;
+  out.push(PLAYER);
+  world.squadron.wingmen.forEach((w, i) => {
+    if (w.alive) out.push(i);
+  });
+  return out;
+}
+
 /**
  * Assigns one target per pilot, round-robin in lock order: more pilots than locks double up from the
  * top, fewer pilots use only the first locks, no locks gives an empty list (no launch).
@@ -87,12 +105,11 @@ export interface LaunchOrigin {
 const origin: LaunchOrigin = { x: 0, y: 0, vx: 0, vy: 0, heading: 0 };
 
 /**
- * Launcher of pilot `index` (0 = the player). Wingmen's own launch positions arrive with the
- * integration issue (I1); until then every missile leaves from the player's nose.
+ * Where a pilot's missile leaves from: the nose of that pilot's own ship (`PLAYER`, or the index of
+ * a wingman in `world.squadron.wingmen`), with that ship's velocity and heading.
  */
-export function launchOrigin(world: World, index: number): LaunchOrigin {
-  void index;
-  const { ship } = world;
+export function launchOrigin(world: World, pilot: number): LaunchOrigin {
+  const ship = pilot === PLAYER ? world.ship : (world.squadron.wingmen[pilot]?.ship ?? world.ship);
   const offset = world.tuning.weapons.muzzleOffset;
   origin.x = ship.x + Math.cos(ship.heading) * offset;
   origin.y = ship.y + Math.sin(ship.heading) * offset;
@@ -103,6 +120,7 @@ export function launchOrigin(world: World, index: number): LaunchOrigin {
 }
 
 const assignment: number[] = [];
+const pilotOrder: number[] = [];
 
 function launchOne(world: World, cfg: MissilesConfig, targetId: number, pilot: number): void {
   const m = world.missiles;
@@ -160,8 +178,14 @@ export function stepMissiles(world: World): void {
     salvo.pending.length === 0 &&
     world.lockon.locks.length > 0
   ) {
-    assignSalvo(world.lockon.locks, salvoSize(world), assignment);
+    salvoPilots(world, pilotOrder);
+    assignSalvo(world.lockon.locks, pilotOrder.length, assignment);
     salvo.pending.push(...assignment);
+    salvo.pilots.push(...pilotOrder);
+    // Firing spends the locks (Xavi's call): the salvo keeps the targets it was assigned, but the
+    // lock set empties, so the next salvo needs fresh locks. A target mid-acquisition keeps filling.
+    world.lockon.locks.length = 0;
+    world.lockon.graces.length = 0;
     salvo.launched = 0;
     salvo.nextIn = 0;
     salvo.cooldown = cfg.salvoCooldown;
@@ -172,7 +196,12 @@ export function stepMissiles(world: World): void {
   if (salvo.pending.length > 0) {
     salvo.nextIn -= dt;
     while (salvo.pending.length > 0 && salvo.nextIn <= 0) {
-      launchOne(world, cfg, salvo.pending.shift()!, salvo.launched);
+      const targetId = salvo.pending.shift()!;
+      const pilot = salvo.pilots.shift() ?? PLAYER;
+      // A wingman shot down before their turn in the ripple does not fire.
+      if (pilot === PLAYER || world.squadron.wingmen[pilot]?.alive) {
+        launchOne(world, cfg, targetId, pilot);
+      }
       salvo.launched++;
       salvo.nextIn += cfg.salvoStagger;
     }
@@ -244,4 +273,6 @@ export function mixMissiles(mix: (n: number) => void, missiles: MissilePool): vo
   mix(salvo.nextUid);
   mix(salvo.pending.length);
   for (const id of salvo.pending) mix(id);
+  mix(salvo.pilots.length);
+  for (const p of salvo.pilots) mix(p);
 }

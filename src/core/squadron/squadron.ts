@@ -6,6 +6,8 @@ import { stepWingmen } from './wingmen';
 
 export type Formation = 'tight' | 'spread';
 export type Order = 'none' | 'attack';
+/** Why the last Attack my target press did nothing (shown briefly on the HUD). */
+export type OrderCue = 'none' | 'no-target' | 'no-wingmen';
 
 /** A wingman (spec section 4). It flies the same flight model as the player; the AI only writes `actions`. */
 export interface Wingman {
@@ -20,6 +22,8 @@ export interface Wingman {
   engagedId: number;
   /** Seconds until it returns after being shot down (test arena only). */
   respawnTimer: number;
+  /** 0..1: how far it is from its slot (0 in the slot, 1 far away); scales its catch-up boost. */
+  catchUp: number;
 }
 
 /**
@@ -34,10 +38,21 @@ export interface Squadron {
   orderTimer: number;
   /** Lockable id (see core/world/lockable.ts) the attack order is aimed at, or -1 when there is no order. */
   orderTargetId: number;
+  /** Feedback for a press that could not act, and the seconds it stays on screen. */
+  cue: OrderCue;
+  cueTimer: number;
 }
 
 export function createSquadron(): Squadron {
-  return { wingmen: [], formation: 'tight', order: 'none', orderTimer: 0, orderTargetId: -1 };
+  return {
+    wingmen: [],
+    formation: 'tight',
+    order: 'none',
+    orderTimer: 0,
+    orderTargetId: -1,
+    cue: 'none',
+    cueTimer: 0,
+  };
 }
 
 export function livingWingmen(squadron: Squadron): number {
@@ -61,6 +76,8 @@ export function mixSquadron(mix: (n: number) => void, squadron: Squadron): void 
   mix(squadron.order === 'none' ? 0 : 1);
   mix(squadron.orderTimer);
   mix(squadron.orderTargetId);
+  mix(squadron.cue === 'none' ? 0 : squadron.cue === 'no-target' ? 1 : 2);
+  mix(squadron.cueTimer);
   mix(squadron.wingmen.length);
   for (const w of squadron.wingmen) {
     const s = w.ship;
@@ -73,5 +90,6 @@ export function mixSquadron(mix: (n: number) => void, squadron: Squadron): void 
     mix(w.fireCooldown);
     mix(w.engagedId);
     mix(w.respawnTimer);
+    mix(w.catchUp);
   }
 }

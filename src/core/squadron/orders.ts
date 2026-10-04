@@ -33,13 +33,12 @@ export function nearestToNose(world: World, range: number): number {
   return best;
 }
 
-/** What "attack my target" aims at: the player's first lock, else the enemy nearest the nose, else -1. */
+/**
+ * What "attack my target" aims at: the enemy nearest the nose within `attackSearchRange`, or -1.
+ * Deliberately independent of the missile lock-on (Xavi's call): locks are for missiles, orders have
+ * their own target, so spending or losing locks never changes what the wingmen are told to attack.
+ */
 export function attackTarget(world: World): number {
-  const first = world.lockon.locks[0];
-  if (first !== undefined) {
-    const body = bodyOf(world, first);
-    if (body && body.alive) return first;
-  }
   return nearestToNose(world, world.tuning.squadron.attackSearchRange);
 }
 
@@ -56,8 +55,14 @@ function endOrder(squadron: Squadron): void {
  * - attack my target (RB / F): every wingman goes for the target picked when the order is given
  *   (see `attackTarget`) for `attackOrderTime`. It ends early when the target dies; a second press
  *   cancels it (announced as `OrderGiven` with the formation they return to). With no living
- *   wingman, or nothing to aim at, the press does nothing.
+ *   wingman, or nothing to aim at, the press does nothing but show a short cue (`squadron.cue`).
  */
+/** Tells the player a press could not act: the HUD shows why for `orderCueTime`. */
+function giveCue(world: World, cue: 'no-target' | 'no-wingmen'): void {
+  world.squadron.cue = cue;
+  world.squadron.cueTimer = world.tuning.squadron.orderCueTime;
+}
+
 export function stepOrders(world: World): void {
   const sq = world.squadron;
   const { actions, prev } = world;
@@ -71,14 +76,26 @@ export function stepOrders(world: World): void {
     if (sq.order === 'attack') {
       endOrder(sq);
       world.events.emit({ type: 'OrderGiven', order: sq.formation });
-    } else if (livingWingmen(sq) > 0) {
+    } else if (livingWingmen(sq) === 0) {
+      giveCue(world, 'no-wingmen');
+    } else {
       const target = attackTarget(world);
       if (target >= 0) {
         sq.order = 'attack';
         sq.orderTargetId = target;
         sq.orderTimer = world.tuning.squadron.attackOrderTime;
         world.events.emit({ type: 'OrderGiven', order: 'attack' });
+      } else {
+        giveCue(world, 'no-target');
       }
+    }
+  }
+
+  if (sq.cueTimer > 0) {
+    sq.cueTimer -= stepSeconds(world);
+    if (sq.cueTimer <= 0) {
+      sq.cueTimer = 0;
+      sq.cue = 'none';
     }
   }
 

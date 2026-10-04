@@ -1,6 +1,7 @@
-import type { SquadronConfig } from '../../../data/tuning/squadron';
+import type { FlightConfig } from '../../../data/tuning/flight';
+import type { SlotAnchor, SquadronConfig } from '../../../data/tuning/squadron';
 import type { Point } from '../ai/steering';
-import { TAU } from '../math';
+import { clamp, TAU } from '../math';
 import type { Formation } from './squadron';
 
 /**
@@ -13,9 +14,29 @@ const TIGHT_SIDE_BASE = 0.7; // first pair: this fraction of tightRadius to the 
 const TIGHT_SIDE_STEP = 0.6; // each further pair: this much further out
 // These steps keep neighbouring slots further apart than the default separation distance.
 
+/** Below this speed (u/s) the velocity has no usable direction, so the nose is used instead. */
+const MIN_ANCHOR_SPEED = 1;
+
+/**
+ * The frame the formation is built in: the player's position and a heading. With the `velocity`
+ * anchor the heading is the direction of travel (steady through hard turns), with `nose` it is the
+ * ship's heading. Fills `out`.
+ */
+export function slotFrame(
+  out: { x: number; y: number; heading: number },
+  player: { x: number; y: number; heading: number; vx: number; vy: number },
+  anchor: SlotAnchor,
+): { x: number; y: number; heading: number } {
+  out.x = player.x;
+  out.y = player.y;
+  const moving = Math.hypot(player.vx, player.vy) > MIN_ANCHOR_SPEED;
+  out.heading = anchor === 'velocity' && moving ? Math.atan2(player.vy, player.vx) : player.heading;
+  return out;
+}
+
 /**
  * Where wingman `index` (of `count`) should be, as a point fixed to the player.
- * - tight: behind the player's heading, alternating left and right (index 0 is left), stacking back;
+ * - tight: behind the frame's heading (see `slotFrame`), alternating left and right (index 0 is left), stacking back;
  * - spread: evenly around a ring of `spreadRadius` at fixed world angles (index 0 is due east).
  * The slot moves with the player, so a wingman that holds it flies the player's velocity.
  */
@@ -41,5 +62,43 @@ export function slotPosition(
   const fy = Math.sin(player.heading);
   out.x = player.x - fx * back - fy * lateral;
   out.y = player.y - fy * back + fx * lateral;
+  return out;
+}
+
+/**
+ * How much catch-up help a wingman gets: 0 inside the slot hold radius, rising linearly to 1 once it is
+ * `catchUpRange` beyond that. Distance from the (lead-adjusted) slot, in world units.
+ */
+export function catchUpFactor(
+  distance: number,
+  cfg: Pick<SquadronConfig, 'slotHoldRadius' | 'catchUpRange'>,
+): number {
+  return clamp((distance - cfg.slotHoldRadius) / cfg.catchUpRange, 0, 1);
+}
+
+/**
+ * A wingman's flight model while it is out of formation: the player's, with more acceleration, top
+ * speed, turn rate and grip in proportion to `t` (see `catchUpFactor`). At `t = 0` it equals `base`. Fills `out`.
+ */
+export function boostFlight(
+  out: FlightConfig,
+  base: FlightConfig,
+  cfg: Pick<SquadronConfig, 'catchUpAccel' | 'catchUpSpeed' | 'catchUpTurn' | 'catchUpGrip'>,
+  t: number,
+): FlightConfig {
+  Object.assign(out, base);
+  const accel = 1 + (cfg.catchUpAccel - 1) * t;
+  const speed = 1 + (cfg.catchUpSpeed - 1) * t;
+  const turn = 1 + (cfg.catchUpTurn - 1) * t;
+  const grip = 1 + (cfg.catchUpGrip - 1) * t;
+  out.accel = base.accel * accel;
+  out.brake = base.brake * accel;
+  out.maxSpeed = base.maxSpeed * speed;
+  out.maxTurnRate = base.maxTurnRate * turn;
+  out.turnRateAtMin = base.turnRateAtMin * turn;
+  out.turnRateAtMax = base.turnRateAtMax * turn;
+  out.turnAccel = base.turnAccel * turn;
+  out.grip = base.grip * grip;
+  out.gripAtMaxSpeed = base.gripAtMaxSpeed * grip;
   return out;
 }

@@ -10,7 +10,7 @@ export const squadronParams = {
     note: 'How many wingmen fly with you. 0 = fly alone. They are created from this setting, so changing it live adds or removes wingmen straight away. More wingmen = more firepower and (later) bigger missile salvos.',
   },
   health: {
-    default: 3,
+    default: 5,
     min: 1,
     max: 10,
     unit: 'hp',
@@ -72,12 +72,47 @@ export const squadronParams = {
     unit: 's',
     note: 'How far ahead of its slot a wingman aims, based on your movement, so it keeps up through your turns. Higher = anticipates you more but can overshoot; lower = lags behind turns.',
   },
+  slotSpeedGain: {
+    default: 1.2,
+    min: 0.2,
+    max: 4,
+    unit: '1/s',
+    note: 'How hard a wingman changes speed to fix its distance from the slot: it aims for your speed plus this times the gap. Higher = snaps back into place fast but can twitch; lower = drifts back lazily and overshoots less abruptly.',
+  },
   catchUpRange: {
     default: 500,
     min: 100,
     max: 2000,
     unit: 'u',
-    note: 'How far behind its slot a wingman must be to use full throttle to catch up. Higher = gentler catch-up that lets them trail further; lower = they surge forward quickly.',
+    note: 'How far beyond the slot hold radius a wingman must be for the catch-up boost (extra acceleration, speed and turn rate) to reach full strength. Higher = the boost builds up gently; lower = it switches on hard as soon as they fall behind.',
+  },
+  catchUpAccel: {
+    default: 3,
+    min: 1,
+    max: 8,
+    unit: 'x',
+    note: 'Extra acceleration and braking a wingman gets when it is far from its slot, so it can keep up when you accelerate. 1 = no help. It fades to nothing as the wingman reaches its slot. Higher = they close gaps quickly; lower = they trail you.',
+  },
+  catchUpSpeed: {
+    default: 1.3,
+    min: 1,
+    max: 2,
+    unit: 'x',
+    note: 'Top-speed boost for a wingman far from its slot, as a multiple of your max speed, so it can catch up even when you are flying flat out. 1 = no help. It fades out as it nears the slot. Higher = they can always catch you; lower = a fast player outruns them.',
+  },
+  catchUpTurn: {
+    default: 1.5,
+    min: 1,
+    max: 3,
+    unit: 'x',
+    note: 'Extra turn rate for a wingman far from its slot, so it can cut corners back to you after a hard turn. 1 = no help. It fades out as it reaches the slot. Higher = they swing back quickly; lower = they take wide arcs and lose the formation.',
+  },
+  catchUpGrip: {
+    default: 3,
+    min: 1,
+    max: 8,
+    unit: 'x',
+    note: 'Extra grip for a wingman far from its slot: how fast its path follows its nose, so it can cut back to you instead of drifting wide in a turn. 1 = no help. It fades out as it reaches the slot. Higher = tight, on-rails recovery; lower = they slide through turns like you do.',
   },
   fireCone: {
     default: 8,
@@ -142,17 +177,29 @@ export const squadronParams = {
     unit: 's',
     note: 'How long the Attack my target order lasts. Wingmen drop everything to chase and shoot your target, then fall back into formation. Higher = a longer commitment (and a more exposed squadron); lower = a quick strike.',
   },
+  orderCueTime: {
+    default: 1.2,
+    min: 0.3,
+    max: 4,
+    unit: 's',
+    note: 'How long the "NO TARGET" / "NO WINGMEN" message stays on screen when Attack my target cannot do anything. Higher = harder to miss; lower = less clutter.',
+  },
   attackSearchRange: {
     default: 2500,
     min: 500,
     max: 8000,
     unit: 'u',
-    note: 'With nothing locked, Attack my target picks the enemy closest to where your nose points, but only within this distance. Higher = it can send wingmen after faraway enemies; lower = only nearby ones.',
+    note: 'Attack my target picks the enemy closest to where your nose points, but only within this distance. It does not use your missile locks. Higher = it can send wingmen after faraway enemies; lower = only nearby ones.',
   },
 } as const satisfies Record<string, ParamDef>;
 
-export type SquadronConfig = { -readonly [K in keyof typeof squadronParams]: number };
+export type SlotAnchor = 'velocity' | 'nose';
+
+export type SquadronConfig = { -readonly [K in keyof typeof squadronParams]: number } & {
+  /** What the tight formation is anchored to: where you are moving, or where your nose points. */
+  slotAnchor: SlotAnchor;
+};
 
 export function createSquadronConfig(): SquadronConfig {
-  return defaultsOf(squadronParams);
+  return { ...defaultsOf(squadronParams), slotAnchor: 'velocity' };
 }

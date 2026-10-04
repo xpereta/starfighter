@@ -5,12 +5,14 @@ import type { World } from '../../core/world/world';
 import { lockLimit } from '../../core/lockon/lockon';
 import { palette } from '../palette';
 import { drawLockPanel, drawLockRings } from './locks-hud';
+import { drawOrderMarker } from './order-marker';
 import {
   blinkOn,
   createEdgeIndicator,
   distanceStyle,
   edgeIndicator,
   evadeReadiness,
+  orderCueText,
   speedBar,
   squadronReadout,
   throttleState,
@@ -132,7 +134,9 @@ export function createHud(container: HTMLElement): Hud {
     const cam = world.camera;
     lockCenter.x = cam.x + cam.shakeX;
     lockCenter.y = cam.y + cam.shakeY;
-    drawLockRings(g, world, lockCenter, viewSize(cam.view, cam.aspect), screen);
+    const view = viewSize(cam.view, cam.aspect);
+    drawLockRings(g, world, lockCenter, view, screen);
+    drawOrderMarker(g, world, lockCenter, view, screen);
     drawLockPanel(g, world, lockLimit(world), screen.height);
   }
 
@@ -200,6 +204,11 @@ export function createHud(container: HTMLElement): Hud {
         'rgba(125,255,176,0.75)',
       );
       if (squad.order) text(`ORDER: ${squad.order}`, PAD, PAD + 50, WINGMAN_COLOR);
+    }
+    // A press that could not act says why, even with no wingmen (when the readout above is hidden).
+    const cue = orderCueText(world.squadron);
+    if (cue && blinkOn(world.time, tuning.hud.warningBlinkHz)) {
+      text(cue, PAD, PAD + 50, css(palette.enemyStatic));
     }
     if (trial.active) {
       let alive = 0;
