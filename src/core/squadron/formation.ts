@@ -1,6 +1,7 @@
+import type { FlightConfig } from '../../../data/tuning/flight';
 import type { SquadronConfig } from '../../../data/tuning/squadron';
 import type { Point } from '../ai/steering';
-import { TAU } from '../math';
+import { clamp, TAU } from '../math';
 import type { Formation } from './squadron';
 
 /**
@@ -41,5 +42,40 @@ export function slotPosition(
   const fy = Math.sin(player.heading);
   out.x = player.x - fx * back - fy * lateral;
   out.y = player.y - fy * back + fx * lateral;
+  return out;
+}
+
+/**
+ * How much catch-up help a wingman gets: 0 inside the slot hold radius, rising linearly to 1 once it is
+ * `catchUpRange` beyond that. Distance from the (lead-adjusted) slot, in world units.
+ */
+export function catchUpFactor(
+  distance: number,
+  cfg: Pick<SquadronConfig, 'slotHoldRadius' | 'catchUpRange'>,
+): number {
+  return clamp((distance - cfg.slotHoldRadius) / cfg.catchUpRange, 0, 1);
+}
+
+/**
+ * A wingman's flight model while it is out of formation: the player's, with more acceleration, top
+ * speed and turn rate in proportion to `t` (see `catchUpFactor`). At `t = 0` it equals `base`. Fills `out`.
+ */
+export function boostFlight(
+  out: FlightConfig,
+  base: FlightConfig,
+  cfg: Pick<SquadronConfig, 'catchUpAccel' | 'catchUpSpeed' | 'catchUpTurn'>,
+  t: number,
+): FlightConfig {
+  Object.assign(out, base);
+  const accel = 1 + (cfg.catchUpAccel - 1) * t;
+  const speed = 1 + (cfg.catchUpSpeed - 1) * t;
+  const turn = 1 + (cfg.catchUpTurn - 1) * t;
+  out.accel = base.accel * accel;
+  out.brake = base.brake * accel;
+  out.maxSpeed = base.maxSpeed * speed;
+  out.maxTurnRate = base.maxTurnRate * turn;
+  out.turnRateAtMin = base.turnRateAtMin * turn;
+  out.turnRateAtMax = base.turnRateAtMax * turn;
+  out.turnAccel = base.turnAccel * turn;
   return out;
 }
