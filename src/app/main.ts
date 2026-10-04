@@ -5,6 +5,7 @@ import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
 import { menuVisible } from '../ui/menu-model';
 import { maskFlightActions } from '../ui/menu-nav';
+import { createHudView } from '../ui/hud-view';
 import { createMenuView } from '../ui/menu-view';
 import { createFixedLoop } from './loop';
 import { loadSave, SAVE_VERSION, storeSave } from './save';
@@ -31,6 +32,7 @@ const menus = createMenuView(document.body, () => ({
   candidates: [],
   bestRun: null,
 }));
+const runHud = createHudView(document.body, world.seed);
 let devTools: {
   beforeStep(world: World): void;
   draw(world: World, frameSeconds: number): void;
@@ -46,6 +48,7 @@ const loop = createFixedLoop((dt) => {
   stepWorld(world, dt);
   // Events live for one step; hand them to FX before the next step clears them.
   renderer.consumeEvents(world.events.events);
+  runHud.step(world, dt);
   if (world.trial.best !== save.bestTrialTime) {
     save.bestTrialTime = world.trial.best;
     storeSave({ version: SAVE_VERSION, bestTrialTime: save.bestTrialTime });
@@ -63,6 +66,7 @@ function frame(now: number): void {
   renderer.render(world);
   hud.draw(world);
   menus.draw(world);
+  runHud.draw(world);
   devTools?.draw(world, (now - previous) / 1000);
   requestAnimationFrame(frame);
 }
