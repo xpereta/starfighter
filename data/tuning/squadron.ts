@@ -10,7 +10,7 @@ export const squadronParams = {
     note: 'How many wingmen fly with you. 0 = fly alone. They are created from this setting, so changing it live adds or removes wingmen straight away. More wingmen = more firepower and (later) bigger missile salvos.',
   },
   health: {
-    default: 3,
+    default: 5,
     min: 1,
     max: 10,
     unit: 'hp',
@@ -151,8 +151,13 @@ export const squadronParams = {
   },
 } as const satisfies Record<string, ParamDef>;
 
-export type SquadronConfig = { -readonly [K in keyof typeof squadronParams]: number };
+export type SlotAnchor = 'velocity' | 'nose';
+
+export type SquadronConfig = { -readonly [K in keyof typeof squadronParams]: number } & {
+  /** What the tight formation is anchored to: where you are moving, or where your nose points. */
+  slotAnchor: SlotAnchor;
+};
 
 export function createSquadronConfig(): SquadronConfig {
-  return defaultsOf(squadronParams);
+  return { ...defaultsOf(squadronParams), slotAnchor: 'velocity' };
 }
