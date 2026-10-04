@@ -195,6 +195,8 @@ export function stepWorld(world: World, dt: number): void {
       world.rng,
       world.trial.active,
       dt,
+      world.pods,
+      tuning.rescue.podThreatRange,
     );
     world.stats.hitsTaken += stepEnemyShots(
       world.enemyShots,

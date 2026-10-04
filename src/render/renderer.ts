@@ -11,6 +11,7 @@ import { createMissileRenderer } from './missiles';
 import { viewSize } from '../core/camera/view';
 import { createShards } from './shards';
 import { createSparks } from './sparks';
+import { createPodRenderer } from './pods';
 import { createTargetRenderer } from './targets';
 import { palette } from './palette';
 
@@ -77,6 +78,8 @@ export function createRenderer(
   scene.add(fighters.object);
   const wingmen = createWingmanRenderer();
   scene.add(wingmen.object);
+  const pods = createPodRenderer();
+  scene.add(pods.object);
   const sparks = createSparks();
   scene.add(sparks.object);
   const shards = createShards(qualityPresets[quality]);
@@ -125,6 +128,7 @@ export function createRenderer(
       targets.update(world.targets);
       fighters.update(world.fighters);
       wingmen.update(world.squadron.wingmen, world.tuning.squadron.radius);
+      pods.update(world.pods, world.tuning.rescue.podRadius);
       const now = performance.now();
       const frameDt = Math.min((now - lastTime) / 1000, 0.1);
       missiles.update(world, frameDt);
@@ -142,6 +146,7 @@ export function createRenderer(
       targets.dispose();
       fighters.dispose();
       wingmen.dispose();
+      pods.dispose();
       enemyShots.dispose();
       missiles.dispose();
       shipGeometry.dispose();

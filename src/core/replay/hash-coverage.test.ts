@@ -58,7 +58,18 @@ function busyWorld(): World {
     veteran: false,
     veteranId: 3,
   });
-  w.pods.push({ x: 100, y: 200, vx: 1, vy: 0, hp: 3, alive: true, progress: 0.2, pilotId: 2 });
+  w.pods.push({
+    x: 100,
+    y: 200,
+    vx: 1,
+    vy: 0,
+    hp: 3,
+    alive: true,
+    progress: 0.2,
+    pilotId: 2,
+    battle: 0,
+    rescued: false,
+  });
   w.run.battle = 2;
   w.run.wave = 1;
   w.squadron.cue = 'no-target';
