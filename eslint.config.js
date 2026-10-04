@@ -31,7 +31,16 @@ const browserGlobals = [
 ];
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'playwright-report', 'test-results', 'docs/reference'] },
+  {
+    ignores: [
+      '.claude/worktrees',
+      'dist',
+      'node_modules',
+      'playwright-report',
+      'test-results',
+      'docs/reference',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
