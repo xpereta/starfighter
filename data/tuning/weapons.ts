@@ -3,7 +3,7 @@ import { defaultsOf, type ParamDef } from '../../src/core/params/params';
 /** Gun tuning. Units: world units (u), seconds (s), degrees here (radians inside core). */
 export const weaponsParams = {
   fireRate: {
-    default: 27.6,
+    default: 22,
     min: 3,
     max: 30,
     unit: 'shots/s',
@@ -17,7 +17,7 @@ export const weaponsParams = {
     note: 'Bullet speed on top of the ship speed. Higher = flatter shots that are easier to aim; lower = slow bullets that need leading.',
   },
   bulletLife: {
-    default: 0.9,
+    default: 1.89,
     min: 0.3,
     max: 2,
     unit: 's',
