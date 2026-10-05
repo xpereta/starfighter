@@ -210,6 +210,7 @@ export function endRun(world: World, result: 'victory' | 'defeat'): void {
   run.cursor = 0;
   run.candidates = [];
   run.wave = 0;
+  world.enemies.missiles.clear(); // no missiles frozen, drawn or hashed on the end screen
   world.events.emit({ type: 'RunEnded', result });
 }
 
@@ -225,6 +226,7 @@ export function clearBattle(world: World): void {
   run.phase = 'debrief';
   run.cursor = 0;
   run.wave = 0;
+  world.enemies.missiles.clear(); // none frozen on the debrief screen
   run.hull = world.tuning.run.playerHull;
   const free = activeCount(world.pilots) < world.tuning.pilots.squadMax;
   run.candidates = free ? generateCandidates(world) : [];

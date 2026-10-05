@@ -127,6 +127,12 @@ describe('cross-field relations', () => {
     expect(clampToRelations('camera', 'viewMax', 5000, cam)).toBe(5000);
   });
 
+  it('lancer rangeMax cannot go below rangeMin and back', () => {
+    const l = { rangeMin: 900, rangeMax: 1500 };
+    expect(clampToRelations('lancer', 'rangeMax', 500, l)).toBe(900);
+    expect(clampToRelations('lancer', 'rangeMin', 3000, l)).toBe(1500);
+  });
+
   it('leaves unrelated keys and other groups alone', () => {
     const f = flight();
     expect(clampToRelations('flight', 'grip', 99, f)).toBe(99);

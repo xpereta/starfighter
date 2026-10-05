@@ -7,6 +7,8 @@ import {
 } from '../../src/core/enemies/enemy-missiles-warning';
 import { hashWorld } from '../../src/core/replay/hash';
 import { createRng } from '../../src/core/rng/rng';
+import { launchEnemyMissile } from '../../src/core/enemies/enemy-missiles';
+import { clearBattle, endRun } from '../../src/core/run/run';
 import { devJumpTo } from '../../src/core/run/dev-actions';
 import { createWorld, stepWorld, type World } from '../../src/core/world/world';
 
@@ -120,31 +122,92 @@ describe('a player against a lancer (practice mode, a single missile at a time)'
 });
 
 describe('wingmen', () => {
-  it('are never hit and the missiles never leave the player line', () => {
+  it('are never hit: one parked between the lancer and the player takes nothing and the missiles fly at the player', () => {
     const tuning = quiet();
-    tuning.squadron.wingmanCount = 3;
+    tuning.squadron.wingmanCount = 1;
     const world = duel(7, tuning);
-    world.tuning.squadron.wingmanCount = 3;
-    stepWorld(world, DT); // creates the wingmen
+    stepWorld(world, DT); // creates the wingman
+    const wingman = world.squadron.wingmen[0]!;
     const lancer = world.fighters[0]!;
-    // Make the lancer unkillable and ignore anything the wingmen do to it.
-    let missilesSeen = 0;
+    const hp = wingman.hp;
+    let launched = 0;
+    let steady = 0;
     for (let i = 0; i < 20 * 60; i++) {
-      lancer.hp = lancer.maxHp;
-      // Park the wingmen on the missiles' path: right between lancer and player.
+      lancer.hp = lancer.maxHp; // the wingman may shoot it; it stays in the fight
+      // Park the wingman on the line from the lancer to the player, in the missiles' way.
+      wingman.ship.x = (lancer.x + world.ship.x) / 2;
+      wingman.ship.y = (lancer.y + world.ship.y) / 2;
+      wingman.hp = hp;
       stepWorld(world, DT);
-      for (const e of world.events.events) if (e.type === 'EnemyMissileFired') missilesSeen++;
-      for (const w of world.squadron.wingmen) {
-        expect(w.alive).toBe(true);
-        expect(w.hp).toBeGreaterThan(0);
-      }
       for (const e of world.events.events) {
+        if (e.type === 'EnemyMissileFired') launched++;
         expect(e.type).not.toBe('WingmanHit');
         expect(e.type).not.toBe('WingmanDown');
       }
+      expect(wingman.alive).toBe(true);
+      const m = world.enemies.missiles;
+      for (let j = 0; j < m.count; j++) {
+        if (m.data.phase[j]! < 1) continue; // after the launch cone has turned out
+        const want = Math.atan2(world.ship.y - m.data.y[j]!, world.ship.x - m.data.x[j]!);
+        const off = Math.abs(
+          Math.atan2(Math.sin(m.data.heading[j]! - want), Math.cos(m.data.heading[j]! - want)),
+        );
+        expect(off).toBeLessThan(0.6); // toward the player, never the wingman
+        steady++;
+      }
     }
-    expect(missilesSeen).toBeGreaterThan(0);
-    expect(world.squadron.wingmen.length).toBe(3);
+    expect(launched).toBeGreaterThan(0);
+    expect(steady).toBeGreaterThan(0);
+    expect(wingman.hp).toBe(hp);
+  });
+});
+
+describe('a player closing in head-on', () => {
+  it('still has a reaction window well above the roll i-frames', () => {
+    // The lancer is pinned just outside rangeMin and faces the player, who flies straight at it at
+    // full throttle: the worst closing speed. Measure launch -> impact of each missile.
+    const times: number[] = [];
+    for (let seed = 1; seed <= 12; seed++) {
+      const w = duel(seed);
+      const f = w.fighters[0]!;
+      const launched: number[] = [];
+      for (let i = 0; i < 14 * 60; i++) {
+        f.x = f.ship.x = w.tuning.lancer.rangeMin + 60 + w.ship.x * 0; // 960 u from the origin
+        f.y = f.ship.y = 0;
+        f.ship.heading = Math.PI;
+        w.ship.heading = 0;
+        w.actions.steerX = 1;
+        w.actions.steerY = 0;
+        w.actions.throttle = 1;
+        if (w.ship.x > 400) w.ship.x = 0; // fly through again from the start
+        stepWorld(w, DT);
+        for (const e of w.events.events) {
+          if (e.type === 'EnemyMissileFired') launched.push(w.time);
+          else if (e.type === 'EnemyMissileHit') {
+            const t = launched.shift();
+            if (e.hit === 'player' && t !== undefined) times.push(w.time - t);
+          }
+        }
+      }
+    }
+    expect(times.length).toBeGreaterThan(5);
+    const iFrames = createTuning().flight.evadeIFrames;
+    // At least the i-frames plus a human reaction (0.5 s) before impact.
+    expect(Math.min(...times)).toBeGreaterThan(iFrames + 0.5);
+  });
+});
+
+describe('end of a battle', () => {
+  it('clearing the battle (debrief) or ending the run empties the enemy missile pool', () => {
+    for (const how of ['debrief', 'defeat'] as const) {
+      const world = createWorld(3, createTuning());
+      devJumpTo(world, { kind: 'battle', n: 1 });
+      launchEnemyMissile(world, 500, 0, 0, 0);
+      expect(world.enemies.missiles.count).toBe(1);
+      if (how === 'debrief') clearBattle(world);
+      else endRun(world, 'defeat');
+      expect(world.enemies.missiles.count, how).toBe(0);
+    }
   });
 });
 
