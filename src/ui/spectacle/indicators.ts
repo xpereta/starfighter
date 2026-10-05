@@ -22,6 +22,8 @@ export interface Indicator {
   size: number;
   opacity: number;
   label: string;
+  /** A name to show with the distance: the first name of the pilot flying a wingman. */
+  tag: string;
 }
 
 /** Enemies this close and chasing the player count as a threat (world units). */
@@ -70,6 +72,7 @@ export function collectIndicators(
     kind: IndicatorKind,
     body: { x: number; y: number; radius: number },
     threat: boolean,
+    tag = '',
   ): void => {
     if (!edgeIndicator(scratch, body, center, view, screen, cfg.edgeMargin)) return;
     const style = distanceStyle(scratch.distance, cfg);
@@ -83,6 +86,7 @@ export function collectIndicators(
       size: style.size,
       opacity: threat ? 1 : style.opacity,
       label: distanceLabel(scratch.distance),
+      tag,
     });
   };
   for (const t of world.targets) if (t.alive) add(t.kind, t, false);
@@ -97,8 +101,10 @@ export function collectIndicators(
     if (pod.alive) add('pod', { x: pod.x, y: pod.y, radius: world.tuning.rescue.podRadius }, false);
   }
   for (const w of world.squadron.wingmen) {
-    if (w.alive)
-      add('wingman', { x: w.ship.x, y: w.ship.y, radius: world.tuning.squadron.radius }, false);
+    if (!w.alive) continue;
+    const pilot = world.pilots.roster.find((p) => p.id === w.pilotId);
+    const tag = pilot ? (pilot.name.split(' ')[0] ?? '') : '';
+    add('wingman', { x: w.ship.x, y: w.ship.y, radius: world.tuning.squadron.radius }, false, tag);
   }
   if (out.length > MAX_INDICATORS) {
     out.sort(compareIndicators);

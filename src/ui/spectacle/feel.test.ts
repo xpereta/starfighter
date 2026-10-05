@@ -76,6 +76,7 @@ describe('kill-cam', () => {
     const o = feelOutput(s, def, full, 0, 1.6);
     expect(o.frozen).toBe(true);
     expect(o.killCam).toBe(1);
+    expect(o.killCamKills).toBe(def.feel.killCam.kills);
     expect(o.speedFlash).toBe(1);
     expect(o.flash).toBeGreaterThan(0.5);
   });

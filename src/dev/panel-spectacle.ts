@@ -13,7 +13,9 @@ import {
   type LayerKey,
   type PresetName,
 } from '../ui/spectacle/settings';
+import { PREVIEWS, runPreview, type PreviewName } from '../ui/spectacle/preview';
 import {
+  buttonRow,
   choiceRow,
   sliderRow,
   statusLine,
@@ -135,6 +137,19 @@ export function buildSpectacleSection(ctx: UiContext, section: Section, track: T
         trackChange: false,
         onChange: changed,
       }),
+    );
+  }
+  for (const name of Object.keys(PREVIEWS) as PreviewName[]) {
+    section.add(
+      buttonRow(
+        ctx,
+        PREVIEWS[name].label,
+        () => {
+          if (!runPreview(name))
+            status.set('Previews need the anime-spectacle style (Look section).');
+        },
+        PREVIEWS[name].note,
+      ),
     );
   }
   return refresh;

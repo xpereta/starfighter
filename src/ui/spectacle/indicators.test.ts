@@ -100,6 +100,7 @@ describe('collectIndicators', () => {
       size: 1,
       opacity: 1,
       label: '',
+      tag: '',
     };
     const threat = { ...base, kind: 'fighter' as const, threat: true, distance: 900 };
     const pod = { ...base, kind: 'pod' as const, distance: 500 };

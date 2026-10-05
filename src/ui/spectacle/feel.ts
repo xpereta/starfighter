@@ -22,6 +22,8 @@ export interface FeelState {
   killCam: number;
   killCamTotal: number;
   killCamCooldown: number;
+  /** How many enemies the last kill-cam counted (for its call-out). */
+  killCamKills: number;
   /** Seconds left in which a kill counts as a missile kill, kills seen inside the open window, and its time left. */
   salvoLeft: number;
   windowKills: number;
@@ -49,6 +51,7 @@ export function createFeel(): FeelState {
     killCam: 0,
     killCamTotal: 0,
     killCamCooldown: 0,
+    killCamKills: 0,
     salvoLeft: 0,
     windowKills: 0,
     windowLeft: 0,
@@ -118,6 +121,7 @@ export function feedFeel(
             s.killCamTotal = f.killCam.freeze * Math.min(1, st.killCam);
             s.killCam = s.killCamTotal;
             s.killCamCooldown = f.killCam.cooldown;
+            s.killCamKills = s.windowKills;
             s.flash = 1;
             s.speedFlash = 1;
             s.punch = 1;
@@ -219,6 +223,8 @@ export interface FeelOutput {
   frozen: boolean;
   /** Kill-cam progress: 0 when idle, 1 -> 0 over its freeze, for the overlay. */
   killCam: number;
+  /** Enemies the kill-cam counted, for its call-out. */
+  killCamKills: number;
   /** White flash 0..1. */
   flash: number;
   /** Red damage flash 0..1. */
@@ -254,6 +260,7 @@ export function feelOutput(
     shakeY: amp > 0.01 ? Math.cos(time * 73) * amp : 0,
     frozen: s.freeze > 0 || s.killCam > 0,
     killCam: s.killCam > 0 && s.killCamTotal > 0 ? s.killCam / s.killCamTotal : 0,
+    killCamKills: s.killCamKills,
     flash: s.flash * Math.min(1, Math.max(st.killCam, st.speedFlash)),
     damage: s.damageFlash * Math.min(1, st.vignette),
     vignette: s.tension * beat * Math.min(1.5, st.vignette),
