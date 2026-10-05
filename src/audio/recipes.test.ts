@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sounds as anime } from '../../data/styles/anime-80s/sounds';
 import { sounds as plain } from '../../data/styles/plain/sounds';
 import {
+  PENDING_SOUND_EVENTS,
   SOUND_EVENT_KEYS,
   validateSounds,
   type SoundEntry,
@@ -26,7 +27,7 @@ describe.each(packs)('%s sounds', (_name, table) => {
       const e = table[k];
       if (e === undefined) continue;
       if (e === 'silent') {
-        expect(k).toBe('PilotKill');
+        expect(['PilotKill', ...PENDING_SOUND_EVENTS]).toContain(k);
         continue;
       }
       const synth = e.source;

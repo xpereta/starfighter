@@ -1,0 +1,10 @@
+# core/enemies
+
+- **Purpose:** the contract for Prototype 5 (`docs/specs/prototype-5-enemy-variety.md`): enemy kinds, weapon mounts, formation wings, enemy missiles, the capital ship's parts and the authored battle table, as **types, validators and empty inert state**. No behaviour lives here yet; tracks A, B and C build on it (`docs/p5-tracks.md`).
+- **Files:** `kinds.ts` (`EnemyKind`, ids, `validateEnemyKind(s)`), `mounts.ts` (`WeaponMount`, `validateMount`), `capital-parts.ts` (`CapitalPartDef`, `PartRole`, `validateCapitalParts`), `battles.ts` (`BattleTable`, `validateBattleTable`), `state.ts` (`EnemyState`: enemy missile pool, `WingState[]`, `CapitalState | null`; `createEnemyState`, `clearEnemyState`, `mixEnemies`), `validate.ts` (check helpers).
+- **Data:** `data/content/enemies.ts` lists the kinds (one file each in `data/content/kinds/`), `data/content/capital.ts` the parts (empty until track C), `data/content/battles.ts` the ramp (today's behaviour for now), `data/tuning/{gunship,lancer,capital,wings}.ts` parameter stubs (not yet in `Tuning`).
+- **State:** `world.enemies` (`missiles`, `wings`, `capital`), empty today. Cleared by `resetWorld` and the run's `clearField`.
+- **Hash:** `mixEnemies` writes nothing while the state is empty, so existing hashes are unchanged. Anything you add to the state types goes into `mixEnemies` and into the audit in `core/replay/hash-coverage.test.ts`.
+- **Events:** `EnemySpawned`, `EnemyMissileFired`, `EnemyMissileHit`, `PartDestroyed`, `CoreExposed`, `WingBroken`, `CapitalDestroyed` are declared (see `core/events`), not emitted yet.
+- **Units:** world units (u), seconds (s), radians. Mount and part positions are in ship space (x forward, y left).
+- **Test:** `enemies.test.ts` (good and bad kinds, mounts, parts, battle tables), `data/content/battles.test.ts` (the default table equals today's waves; the fighter kind equals the fighter tuning), `core/replay/hash-coverage.test.ts`.

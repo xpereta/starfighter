@@ -22,7 +22,7 @@ Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 ## Module map
 
 ```
-src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ squadron/ run/ pilots/ meta/
+src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ enemies/ squadron/ run/ pilots/ meta/
 src/render/    Three.js renderer (orthographic); reads core state and the active style pack (style.ts contract, style-active.ts accessor)
 src/audio/     Web Audio engine: plays the active style pack's sound table from the events (prototype 4); never imported by core
 src/input/     gamepad + keyboard -> actions

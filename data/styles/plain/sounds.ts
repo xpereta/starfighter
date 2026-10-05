@@ -227,6 +227,14 @@ export const sounds: SoundTable = {
       minGap: 0.1,
     },
   ),
+  // Prototype 5 events: silent until the tracks give each a sound (see docs/p5-tracks.md).
+  EnemySpawned: 'silent',
+  EnemyMissileFired: 'silent',
+  EnemyMissileHit: 'silent',
+  PartDestroyed: 'silent',
+  CoreExposed: 'silent',
+  WingBroken: 'silent',
+  CapitalDestroyed: 'silent',
   Paused: sfx([tone('sine', 500, 250, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
   Resumed: sfx([tone('sine', 250, 500, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
 };

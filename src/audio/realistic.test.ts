@@ -5,6 +5,7 @@ import { buildStyles, SOUND_DEFAULT_STYLE } from '../render/style-active';
 import {
   checkStyle,
   LOOP_KEYS,
+  PENDING_SOUND_EVENTS,
   SOUND_EVENT_KEYS,
   validateLoops,
   validateSounds,
@@ -30,7 +31,7 @@ describe('the realistic pack', () => {
     expect(validateSounds(sounds)).toEqual([]);
     expect(validateLoops(loops)).toEqual([]);
     for (const k of SOUND_EVENT_KEYS) {
-      if (sounds[k] === 'silent') expect(k).toBe('PilotKill');
+      if (sounds[k] === 'silent') expect(['PilotKill', ...PENDING_SOUND_EVENTS]).toContain(k);
       else expect(sounds[k]).toBeDefined();
     }
     for (const k of LOOP_KEYS) expect(loops[k], k).not.toBe('silent');

@@ -2,6 +2,7 @@ import type { RunConfig } from '../../../data/tuning/run';
 import { TRAIT_IDS } from '../../../data/content/traits';
 import { NO_HIT } from '../ai/fighter';
 import { resolveFighterKills, spawnWave } from '../ai/waves';
+import { clearEnemyState } from '../enemies/state';
 import { createCamera } from '../camera/camera';
 import { createShip } from '../flight/flight';
 import { createLockOn } from '../lockon/lockon';
@@ -156,6 +157,7 @@ function clearField(world: World): void {
   world.squadron.formation = formation;
   world.fighters.length = 0;
   world.pods.length = 0;
+  clearEnemyState(world.enemies);
   const aspect = world.camera.aspect;
   Object.assign(world.camera, createCamera(world.ship, tuning.flight, tuning.camera));
   world.camera.aspect = aspect;

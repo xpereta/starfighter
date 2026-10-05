@@ -9,3 +9,4 @@
 - **Step length:** subsystem hooks are not handed `dt`; `stepSeconds(world)` (`core/world/clock.ts`) recovers it from the clock.
 - **Parameters:** `data/tuning/fighter.ts` (Enemy fighter section of the panel).
 - **Test:** `fighters.test.ts`, `waves.test.ts`, `steering.test.ts`; `tests/sim/fighters.sim.test.ts` (120 s waves: finite, in the arena, pools within caps, replay matches).
+- **Prototype 5:** enemy kinds, mounts, wings and the battle table are specified as data and types in `core/enemies` (README there); the existing fighter is the `fighter` kind (`data/content/kinds/fighter.ts`) and still runs on `tuning.fighter`. Who builds what: `docs/p5-tracks.md`.

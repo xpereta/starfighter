@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { styles } from '../../data/styles';
 import { tuningParams } from '../../data/tuning';
+import { SOUND_EVENT_KEYS } from '../../src/render/style';
 
 const GRIP = tuningParams.flight.grip.default;
 const VIEW_MIN = tuningParams.camera.viewMin.default;
@@ -383,7 +384,7 @@ test('?style=realistic: every sound in the test list and every loop preview play
   await page.getByRole('button', { name: /Sound/ }).click();
   const buttons = page.locator('#tuning-panel [data-sound-test]');
   const count = await buttons.count();
-  expect(count).toBe(36);
+  expect(count).toBe(SOUND_EVENT_KEYS.length);
   for (let i = 0; i < count; i++) await buttons.nth(i).click();
   await row(page, 'sound.loopPreview').click();
   for (let i = 0; i < 8; i++) {
@@ -428,7 +429,9 @@ test('the Sound section has the mix, a mute row and a sound test that plays with
   await row(page, 'sound.loop').click(); // next loop while the preview is on
   await row(page, 'sound.loopPreview').click();
   await expect(row(page, 'sound.mute')).toBeVisible();
-  await expect(page.locator('#tuning-panel [data-sound-test]')).toHaveCount(36);
+  await expect(page.locator('#tuning-panel [data-sound-test]')).toHaveCount(
+    SOUND_EVENT_KEYS.length,
+  );
   await page.locator('#tuning-panel [data-sound-test="ShotFired"]').click();
   await page.locator('#tuning-panel [data-sound-test="Killed"]').click();
   await row(page, 'sound.edit').click(); // next sound

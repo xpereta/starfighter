@@ -1,6 +1,8 @@
 import type { Tuning } from '../../../data/tuning';
+import { lancerParams } from '../../../data/tuning/lancer';
 import { stepFighters, stepWaves, type Fighter } from '../ai/fighters';
 import { createCamera, stepCamera, type Camera } from '../camera/camera';
+import { clearEnemyState, createEnemyState, type EnemyState } from '../enemies/state';
 import { createEventQueue, type EventQueue } from '../events/events';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
 import { createLockOn, stepLockOn, type LockOn } from '../lockon/lockon';
@@ -55,6 +57,8 @@ export interface World {
   readonly run: Run;
   readonly pilots: Pilots;
   readonly pods: Pod[];
+  /** Prototype 5: enemy missiles, wings and the capital ship (empty and inert until the tracks fill them; see docs/p5-tracks.md). */
+  readonly enemies: EnemyState;
   readonly trial: Trial;
   readonly stats: { kills: number; hitsTaken: number };
   /** Previous-step button states, for edge-triggered actions. */
@@ -104,6 +108,7 @@ export function createWorld(
     run: createRun(),
     pilots: createPilots(),
     pods: [],
+    enemies: createEnemyState(lancerParams.missileCap.default),
     trial: createTrial(bestTrialTime),
     stats: { kills: 0, hitsTaken: 0 },
     prev: {
@@ -135,6 +140,7 @@ export function resetWorld(world: World): void {
   Object.assign(world.squadron, createSquadron());
   world.fighters.length = 0;
   world.pods.length = 0;
+  clearEnemyState(world.enemies);
   world.trial.active = false;
   world.trial.time = 0;
   const aspect = world.camera.aspect;
