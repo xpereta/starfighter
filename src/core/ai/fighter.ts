@@ -35,6 +35,14 @@ export interface Fighter extends Collider {
   /** Times (world.time) of the last two hits, oldest first; NO_HIT when none. */
   hitTimeA: number;
   hitTimeB: number;
+  /** Seconds until it may roll away from a missile again. */
+  missileCooldown: number;
+  /** `uid` of the homing missile it is currently tracking (-1 = none), so each missile is decided once. */
+  missileUid: number;
+  /** Decision on the tracked missile: 0 = ignore it, 1 = will react, 2 = has reacted (or tried). */
+  missilePlan: number;
+  /** Time to impact (s) at or below which it reacts to the tracked missile (reaction error included). */
+  missileTrigger: number;
   /** world.time when it died (NO_HIT while alive); the next wave waits `waveDelay` after the last one. */
   diedAt: number;
 }
@@ -75,6 +83,10 @@ export function createFighter(
     lastHp: health,
     hitTimeA: NO_HIT,
     hitTimeB: NO_HIT,
+    missileCooldown: 0,
+    missileUid: -1,
+    missilePlan: 0,
+    missileTrigger: 0,
     diedAt: NO_HIT,
     lastHitBy: 0,
   };
@@ -107,6 +119,10 @@ export function mixFighters(mix: (n: number) => void, fighters: readonly Fighter
     mix(f.lastHp);
     mix(f.hitTimeA);
     mix(f.hitTimeB);
+    mix(f.missileCooldown);
+    mix(f.missileUid);
+    mix(f.missilePlan);
+    mix(f.missileTrigger);
     mix(f.diedAt);
     mix(f.lastHitBy ?? 0);
   }

@@ -78,7 +78,7 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   hud: {},
   lockon: {},
   missiles: {},
-  fighter: {},
+  fighter: { enemiesEvadeMissiles: [true, false] },
   squadron: { slotAnchor: ['velocity', 'nose'] },
   run: {},
   pilots: {},
@@ -92,6 +92,8 @@ export const tuningToggleNotes: Record<string, string> = {
     'How the stick steers. Point = the ship turns toward the direction you push, and a centered stick keeps its heading; Rotate = left/right turns the ship like a plane, proportional to the push. Keyboard A/D always rotates.',
   'flight.evadeSidestep':
     'Evade variant. On = the roll slides the ship sideways and gives brief invulnerability; off = no sidestep, only invulnerability and a tighter break turn.',
+  'fighter.enemiesEvadeMissiles':
+    'Whether enemy fighters try to dodge missiles homing on them. On = a fighter that notices a missile may roll at the right moment (the roll makes it immune, so the missile passes through and loses its lock) or get the timing wrong and be hit anyway; off = fighters ignore missiles, as before.',
   'camera.lookMode':
     'What the camera leans toward. Velocity = where the ship is actually moving, so drifting shows the direction of travel; Nose = where the ship points, so you see what you are aiming at.',
   'arena.enemiesFrozen':

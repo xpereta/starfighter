@@ -156,10 +156,52 @@ export const fighterParams = {
     unit: '°',
     note: 'How far off the line to its target a fighter turns during a break-away. Higher = it flees almost straight away from you; lower = it jinks sideways and stays close.',
   },
+  missileEvadeChance: {
+    default: 0.6,
+    min: 0,
+    max: 1,
+    step: 0.01,
+    unit: 'fraction',
+    note: 'Chance that a fighter notices a missile homing on it and tries to dodge it. Higher = missiles are dodged more often; 0 = fighters never react, 1 = they always try (a mistimed roll still gets hit). Missiles noticed far away are less likely to be reacted to (see Missile far penalty).',
+  },
+  missileDetectRange: {
+    default: 1200,
+    min: 200,
+    max: 3000,
+    unit: 'u',
+    note: 'How close a missile homing on a fighter must be before the fighter can notice it. Higher = fighters see missiles coming from afar and have more time to time the roll; lower = they only notice them late.',
+  },
+  missileReactionError: {
+    default: 0.2,
+    min: 0,
+    max: 0.6,
+    step: 0.01,
+    unit: 's',
+    note: 'How badly a fighter misjudges when to roll, as a maximum error either way around the ideal moment (the middle of the roll invulnerability). Higher = more mistimed rolls that get hit anyway; 0 = perfect timing whenever it reacts.',
+  },
+  missileEvadeCooldown: {
+    default: 2,
+    min: 0,
+    max: 10,
+    step: 0.1,
+    unit: 's',
+    note: 'After a fighter rolls away from a missile, how long before it can do it again. It has its own cooldown, separate from the break-away roll. Higher = a salvo at one fighter lands more hits; lower = it can dodge missile after missile.',
+  },
+  missileFarPenalty: {
+    default: 0.15,
+    min: 0,
+    max: 1,
+    step: 0.01,
+    unit: 'fraction',
+    note: 'How much less likely a fighter is to react to a missile first noticed at the very edge of the detection range, compared with one right next to it. 0 = distance makes no difference; 1 = a missile at the edge is never reacted to.',
+  },
 } as const satisfies Record<string, ParamDef>;
 
-export type FighterConfig = { -readonly [K in keyof typeof fighterParams]: number };
+export type FighterConfig = { -readonly [K in keyof typeof fighterParams]: number } & {
+  /** Master switch: fighters try to dodge missiles homing on them (a roll timed to the impact). */
+  enemiesEvadeMissiles: boolean;
+};
 
 export function createFighterConfig(): FighterConfig {
-  return defaultsOf(fighterParams);
+  return { ...defaultsOf(fighterParams), enemiesEvadeMissiles: true };
 }
