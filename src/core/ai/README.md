@@ -9,4 +9,5 @@
 - **Step length:** subsystem hooks are not handed `dt`; `stepSeconds(world)` (`core/world/clock.ts`) recovers it from the clock.
 - **Parameters:** `data/tuning/fighter.ts` (Enemy fighter section of the panel).
 - **Test:** `fighters.test.ts`, `waves.test.ts`, `steering.test.ts`; `tests/sim/fighters.sim.test.ts` (120 s waves: finite, in the arena, pools within caps, replay matches).
+- **Battle waves (prototype 5):** `spawnBattleWave(world, wave)` spawns the groups of one battle-table wave in order; `spawnGroup` handles one group (fighters like a classic wave, so today's table is bit-identical; kinds without a spawner yet are skipped). `spawnFighter` emits `EnemySpawned`.
 - **Prototype 5:** enemy kinds, mounts, wings and the battle table are specified as data and types in `core/enemies` (README there); the existing fighter is the `fighter` kind (`data/content/kinds/fighter.ts`) and still runs on `tuning.fighter`. Who builds what: `docs/p5-tracks.md`.

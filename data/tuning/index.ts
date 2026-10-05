@@ -16,6 +16,8 @@ import { createRunConfig, runParams, type RunConfig } from './run';
 import { createPilotsConfig, pilotsParams, type PilotsConfig } from './pilots';
 import { createRescueConfig, rescueParams, type RescueConfig } from './rescue';
 import { createChatterConfig, chatterParams, type ChatterConfig } from './chatter';
+import { createGunshipConfig, gunshipParams, type GunshipConfig } from './gunship';
+import { createWingsConfig, wingsParams, type WingsConfig } from './wings';
 
 /** All live-tunable values. Core reads these through `world.tuning`; the dev panel edits them. */
 export interface Tuning {
@@ -32,6 +34,8 @@ export interface Tuning {
   pilots: PilotsConfig;
   rescue: RescueConfig;
   chatter: ChatterConfig;
+  gunship: GunshipConfig;
+  wings: WingsConfig;
 }
 
 export function createTuning(): Tuning {
@@ -49,6 +53,8 @@ export function createTuning(): Tuning {
     pilots: createPilotsConfig(),
     rescue: createRescueConfig(),
     chatter: createChatterConfig(),
+    gunship: createGunshipConfig(),
+    wings: createWingsConfig(),
   };
 }
 
@@ -67,6 +73,8 @@ export const tuningParams = {
   pilots: pilotsParams,
   rescue: rescueParams,
   chatter: chatterParams,
+  gunship: gunshipParams,
+  wings: wingsParams,
 } as const;
 
 /** Non-numeric tuning values and the options they accept. */
@@ -80,14 +88,18 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   missiles: {},
   fighter: { enemiesEvadeMissiles: [true, false] },
   squadron: { slotAnchor: ['velocity', 'nose'] },
-  run: {},
+  run: { ramp: ['authored', 'classic'] },
   pilots: {},
   rescue: {},
   chatter: {},
+  gunship: {},
+  wings: {},
 };
 
 /** Plain-language tooltip for each toggle, keyed `group.name` (what it does, and what each option means). */
 export const tuningToggleNotes: Record<string, string> = {
+  'run.ramp':
+    "Where each battle's enemies come from. Authored = the battle table (data/content/battles.ts: fighters, formation wings, gunships and so on); Classic = the old ramp of fighter-only waves from the wave and size numbers above (useful to compare, and for tests).",
   'flight.steering':
     'How the stick steers. Point = the ship turns toward the direction you push, and a centered stick keeps its heading; Rotate = left/right turns the ship like a plane, proportional to the push. Keyboard A/D always rotates.',
   'flight.evadeSidestep':

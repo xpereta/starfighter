@@ -9,8 +9,9 @@ import { BATTLES } from './battles';
 import { fighterKind } from './kinds/fighter';
 import { createFighterConfig } from '../tuning/fighter';
 
-describe('the default battle table is today’s behaviour', () => {
+describe('the default battle table is today’s behaviour (until the ramp rows change)', () => {
   const cfg = createTuning().run;
+  cfg.ramp = 'classic';
   it('has one entry per battle of the run', () => {
     expect(BATTLES).toHaveLength(cfg.battleCount);
   });
@@ -66,8 +67,9 @@ describe('prototype 5 tuning stubs', () => {
       }
     }
   });
-  it('are not wired into Tuning yet (so replays and the panel are unchanged)', () => {
-    expect(Object.keys(tuningParams)).not.toContain('gunship');
-    expect(Object.keys(createTuning())).not.toContain('lancer');
+  it('gunship and wings are wired into Tuning (the panel and replays carry them)', () => {
+    expect(Object.keys(tuningParams)).toEqual(expect.arrayContaining(['gunship', 'wings']));
+    expect(createTuning().gunship).toEqual(createGunshipConfig());
+    expect(createTuning().wings).toEqual(createWingsConfig());
   });
 });

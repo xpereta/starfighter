@@ -7,6 +7,7 @@ import {
   enterStartScreen,
   menuRows,
   offerVeterans,
+  battleDefOf,
   turretsIn,
   wavesIn,
   waveSizeIn,
@@ -157,6 +158,7 @@ describe('a battle', () => {
   it('has no statics or drones, and turrets only from battle 3', () => {
     const w = inBattle();
     expect(w.targets).toHaveLength(0);
+    w.tuning.run.ramp = 'classic';
     w.tuning.run.turretsFromBattle = 1;
     w.tuning.run.turretsBase = 2;
     clearBattle(w);
@@ -372,5 +374,58 @@ describe('replay hash', () => {
       () => w.run.selectedVeterans.push(5),
       () => w.run.selectedVeterans.pop(),
     );
+  });
+});
+
+describe('the battle table drives the run', () => {
+  const classic = (): ReturnType<typeof createTuning>['run'] => {
+    const cfg = createTuning().run;
+    cfg.ramp = 'classic';
+    return cfg;
+  };
+
+  it("the authored ramp and the classic ramp give the same plan for today's table", () => {
+    const authored = createTuning().run;
+    for (let n = 1; n <= authored.battleCount; n++) {
+      expect(battleDefOf(authored, n), `battle ${n}`).toEqual(battleDefOf(classic(), n));
+    }
+  });
+
+  it('a battle past the end of the table falls back to the classic formulas', () => {
+    const cfg = createTuning().run;
+    expect(battleDefOf(cfg, 9).waves).toHaveLength(wavesIn(cfg, 9));
+  });
+
+  it('the classic ramp follows the run tuning numbers, the authored one does not', () => {
+    const cfg = classic();
+    cfg.wavesBase = 5;
+    expect(battleDefOf(cfg, 1).waves).toHaveLength(5);
+    const authored = createTuning().run;
+    authored.wavesBase = 5;
+    expect(battleDefOf(authored, 1).waves).toHaveLength(2);
+  });
+
+  it('a battle spawns the groups of its table wave and counts its waves from the table', () => {
+    const w = startWorld();
+    const plan = battleDefOf(w.tuning.run, 1);
+    press(w, 'menuSelect'); // Start
+    expect(w.run.battle).toBe(1);
+    expect(w.run.waveTotal).toBe(plan.waves.length);
+    stepWorld(w, DT);
+    expect(w.run.wave).toBe(1);
+    expect(w.fighters.filter((f) => f.alive)).toHaveLength(plan.waves[0]!.groups[0]!.count);
+  });
+
+  it('emits EnemySpawned for each fighter of a wave', () => {
+    const w = startWorld();
+    const seen: string[] = [];
+    const emit = w.events.emit;
+    w.events.emit = (e) => {
+      if (e.type === 'EnemySpawned') seen.push(e.kind);
+      emit(e);
+    };
+    press(w, 'menuSelect');
+    stepWorld(w, DT);
+    expect(seen).toEqual(['fighter', 'fighter', 'fighter']);
   });
 });

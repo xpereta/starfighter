@@ -1,7 +1,9 @@
 import type { RunConfig } from '../../../data/tuning/run';
 import { TRAIT_IDS } from '../../../data/content/traits';
 import { NO_HIT } from '../ai/fighter';
-import { resolveFighterKills, spawnWave } from '../ai/waves';
+import { BATTLES } from '../../../data/content/battles';
+import { resolveFighterKills, spawnBattleWave } from '../ai/waves';
+import type { BattleDef } from '../enemies/battles';
 import { clearEnemyState } from '../enemies/state';
 import { createCamera } from '../camera/camera';
 import { createShip } from '../flight/flight';
@@ -101,6 +103,29 @@ export function turretsIn(cfg: RunConfig, n: number): number {
   return Math.max(0, Math.round(cfg.turretsBase + cfg.turretsGrowth * (n - cfg.turretsFromBattle)));
 }
 
+/**
+ * The plan of battle `n`: its row of the battle table (`data/content/battles.ts`) with the
+ * `authored` ramp, otherwise (the `classic` ramp, or a battle past the end of the table) the old
+ * fighter-only waves built from the run tuning (`wavesIn`, `waveSizeIn`, `turretsIn`).
+ */
+export function battleDefOf(cfg: RunConfig, n: number): BattleDef {
+  const authored = BATTLES[n - 1];
+  if (cfg.ramp === 'authored' && authored) return authored;
+  const size = waveSizeIn(cfg, n);
+  return {
+    waves: Array.from({ length: wavesIn(cfg, n) }, () => ({
+      groups: [{ kind: 'fighter', count: size }],
+    })),
+    turrets: turretsIn(cfg, n),
+  };
+}
+
+/** Brings in wave `run.wave` of the current battle from its plan (the last one if a tuning edit shortened the plan mid-battle). */
+export function spawnRunWave(world: World): void {
+  const { waves } = battleDefOf(world.tuning.run, world.run.battle);
+  spawnBattleWave(world, waves[Math.min(world.run.wave, waves.length) - 1]!);
+}
+
 /** Rows on the current menu screen: the highlighted `cursor` ranges over 0..rows-1. */
 export function menuRows(run: Run): number {
   if (run.phase === 'start') return run.available.length + 1; // veterans, then Start
@@ -169,13 +194,14 @@ export function startBattle(world: World, n: number): void {
   const cfg = world.tuning.run;
   clearField(world);
   const turrets = { ...world.tuning.arena, staticCount: 0, droneCount: 0, turretCount: 0 };
-  turrets.turretCount = turretsIn(cfg, n);
+  const plan = battleDefOf(cfg, n);
+  turrets.turretCount = plan.turrets;
   world.targets.splice(0, world.targets.length, ...createTargets(turrets, world.rng));
   run.phase = 'battle';
   run.cursor = 0;
   run.battle = n;
   run.wave = 0;
-  run.waveTotal = wavesIn(cfg, n);
+  run.waveTotal = plan.waves.length;
   run.battleKills = 0;
   run.battleLost = 0;
   run.hitsSeen = world.stats.hitsTaken;
@@ -293,8 +319,8 @@ export function stepRun(world: World): void {
 
 /**
  * The battle itself, in place of the practice waves: kills and losses for the debrief, the player's
- * hull, the next wave (`wavesIn` of them, `waveSizeIn` fighters each), and the objective. Runs late in
- * the step, after enemy shots, so this step's damage is already applied.
+ * hull, the next wave (the groups of the battle table's wave, see `battleDefOf` and `spawnBattleWave`),
+ * and the objective. Runs late in the step, after enemy shots, so this step's damage is already applied.
  */
 export function stepRunBattle(world: World): void {
   const run = world.run;
@@ -325,7 +351,7 @@ export function stepRunBattle(world: World): void {
   if (world.fighters.length > 0 && world.time - lastDeath < world.tuning.fighter.waveDelay) return;
   run.wave++;
   run.waveStartTick = world.tick;
-  spawnWave(world, waveSizeIn(world.tuning.run, run.battle));
+  spawnRunWave(world);
   world.events.emit({ type: 'WaveStarted', battle: run.battle, wave: run.wave });
 }
 

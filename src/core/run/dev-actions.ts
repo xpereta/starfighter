@@ -3,7 +3,7 @@ import { createLockOn } from '../lockon/lockon';
 import { activeCount, addPilot, generatePilots } from '../pilots/pilots';
 import { maxHpOf } from '../pilots/effective';
 import type { World } from '../world/world';
-import { clearBattle, endRun, enterStartScreen, startBattle, waveSizeIn } from './run';
+import { clearBattle, endRun, enterStartScreen, spawnRunWave, startBattle } from './run';
 
 /**
  * Dev-only world edits for the debug panel (jump between run phases, force waves, clear enemies).
@@ -141,7 +141,7 @@ export function devNextWave(world: World): void {
   if (run.wave >= run.waveTotal) throw new Error('the last wave of this battle is already out');
   run.wave++;
   run.waveStartTick = world.tick;
-  spawnWave(world, waveSizeIn(world.tuning.run, run.battle));
+  spawnRunWave(world);
   world.events.emit({ type: 'WaveStarted', battle: run.battle, wave: run.wave });
 }
 
