@@ -140,8 +140,9 @@ export function createShipArt(kind: ShapeKind, color: () => number): ShipArt {
         core.push(...discTriangles(x, y, GLOW_RADIUS, GLOW_SEGMENTS));
         halo.push(...discTriangles(x, y, GLOW_RADIUS * HALO_SCALE, GLOW_SEGMENTS));
       }
-      const bright = new THREE.Color(fill).lerp(new THREE.Color(0xffffff), GLOW_WHITE).getHex();
-      haloMaterial = flat(fill, glowParams);
+      const tint = def.glowColor ?? fill;
+      const bright = new THREE.Color(tint).lerp(new THREE.Color(0xffffff), GLOW_WHITE).getHex();
+      haloMaterial = flat(tint, glowParams);
       glowMaterial = flat(bright, glowParams);
       group.add(mesh(own(trianglesGeometry(halo)), haloMaterial, Z_GLOW));
       group.add(mesh(own(trianglesGeometry(core)), glowMaterial, Z_GLOW + 0.001));

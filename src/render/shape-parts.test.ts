@@ -119,6 +119,13 @@ describe('layered ship parts: validation', () => {
     expect(bad({ ...plate, points: many }).join()).toMatch(/more than/);
   });
 
+  it('validates the engine glow colour', () => {
+    expect(validateShips({ player: { ...base, glowColor: 0x66aaff } })).toEqual([]);
+    expect(validateShips({ player: { ...base, glowColor: 0x1000000 } }).join()).toMatch(
+      /glowColor/,
+    );
+  });
+
   it('caps the number of parts', () => {
     const parts = Array.from({ length: MAX_SHAPE_PARTS + 1 }, () => plate);
     expect(validateShips({ player: { polygon: hull, parts } }).join()).toMatch(/at most/);

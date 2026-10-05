@@ -4,7 +4,7 @@ import { palette } from './palette';
 import {
   checkStyle,
   EXPLOSION_KINDS,
-  SHIP_KINDS,
+  SHAPE_KINDS,
   SOUND_EVENT_KEYS,
   type StyleManifest,
   type StyleRegistry,
@@ -44,8 +44,8 @@ describe('registry: the style checks over every pack in data/styles', () => {
         for (const key of SOUND_EVENT_KEYS) expect(r.sounds[key]).toBeDefined();
       });
       it('every ship and explosion kind it defines is a known kind', () => {
-        for (const k of Object.keys(pack.ships ?? {})) expect(SHIP_KINDS).toContain(k);
-        for (const k of Object.keys(pack.deaths ?? {})) expect(SHIP_KINDS).toContain(k);
+        for (const k of Object.keys(pack.ships ?? {})) expect(SHAPE_KINDS).toContain(k);
+        for (const k of Object.keys(pack.deaths ?? {})) expect(SHAPE_KINDS).toContain(k);
         for (const k of Object.keys(pack.explosions ?? {})) expect(EXPLOSION_KINDS).toContain(k);
       });
       it('its parent exists', () => {
