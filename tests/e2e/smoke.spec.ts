@@ -358,3 +358,25 @@ test.describe('run menus', () => {
     expect(errors).toEqual([]);
   });
 });
+
+for (const style of ['plain', 'no-such-style']) {
+  test(`?style=${style} loads without console errors`, async ({ page }) => {
+    const errors = errorsOf(page);
+    await page.goto(`/?style=${style}`);
+    await expect(page.locator('canvas').first()).toBeVisible();
+    await page.waitForTimeout(500);
+    expect(errors).toEqual([]); // the unknown style only warns
+  });
+}
+
+test('the panel has Look and Sound sections with a Style picker showing plain', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?dev&style=plain');
+  await expect(page.getByRole('button', { name: /Look/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Sound/ })).toBeVisible();
+  await page.getByRole('button', { name: /Look/ }).click();
+  await expect(page.locator('#tuning-panel [data-param="style.id"]')).toContainText('plain');
+  expect(errors).toEqual([]);
+});

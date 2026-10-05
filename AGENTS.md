@@ -22,12 +22,12 @@ Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 
 ```
 src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ squadron/ run/ pilots/ meta/
-src/render/    Three.js renderer (orthographic); reads core state
+src/render/    Three.js renderer (orthographic); reads core state and the active style pack (style.ts contract, style-active.ts accessor)
 src/input/     gamepad + keyboard -> actions
 src/dev/       tuning panel, debug overlays (dev builds only)
 src/ui/        menus, chatter, roster HUD (prototype 3)
 src/app/       bootstrap, fixed-timestep loop
-data/          content data, tuning defaults, quality presets
+data/          content data, tuning defaults, quality presets, style packs (data/styles/<id>/)
 tests/         simulation tests (sim/), e2e (e2e/)
 docs/          source of truth for concept, architecture, specs, decisions
 ```

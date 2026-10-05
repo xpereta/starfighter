@@ -5,6 +5,7 @@ import { createWorld, stepWorld, type World } from '../core/world/world';
 import { createInput } from '../input/input';
 import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
+import { initStyle } from '../render/style-active';
 import { menuVisible } from '../ui/menu-model';
 import { maskFlightActions } from '../ui/menu-nav';
 import { createHudView } from '../ui/hud-view';
@@ -15,6 +16,8 @@ import { canPause, createPause } from './pause';
 import { loadSave, saveIsFromNewerVersion, storeSave } from './save';
 
 const save = loadSave();
+// The look: `?style=<id>` or the remembered choice, `plain` otherwise. Render and audio read it; core never does.
+initStyle(window.location.search);
 
 /**
  * Dev tools (tuning panel, debug overlay) are a separate lazy chunk: on with `?dev` (always in

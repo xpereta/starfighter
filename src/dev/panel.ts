@@ -28,6 +28,7 @@ import {
   type UiContext,
 } from './panel-ui';
 import { DEFAULT_PANEL_OPACITY, MIN_PANEL_OPACITY } from './panel-style';
+import { activeStyle, activeWarnings, rememberStyle, styleIds } from '../render/style-active';
 import { createReplayControls, type ReplayControls } from './replay-controls';
 
 const PRESETS_KEY = 'starfighter.presets';
@@ -224,6 +225,40 @@ export function createPanel(world: World): Panel {
       );
     }
   }
+
+  // Look and Sound: skeleton sections, the Look track and the Sound track fill them.
+  const look = section('Look', false);
+  const sound = section('Sound', false);
+  root.append(look.el, sound.el);
+  track(
+    choiceRow<string>(ctx, {
+      id: 'style.id',
+      label: 'Style',
+      note: 'The art direction (a style pack in data/styles). Click to cycle; the page reloads with ?style=<id> so the whole look and sound switch. Anything a pack misses falls back to plain.',
+      options: styleIds,
+      get: () => activeStyle().manifest.id,
+      set: (id) => {
+        rememberStyle(id);
+        const url = new URL(window.location.href);
+        url.searchParams.set('style', id);
+        window.location.assign(url);
+      },
+      format: (id) => id,
+      trackChange: false,
+    }),
+    look,
+  );
+  const styleStatus = statusLine();
+  const warnings = activeWarnings();
+  styleStatus.set(
+    warnings.length
+      ? warnings.join(' / ')
+      : `${activeStyle().manifest.name}: ${activeStyle().manifest.intent}`,
+  );
+  look.add(styleStatus);
+  const soundStatus = statusLine();
+  soundStatus.set('No sounds yet: every event is silent in this style.');
+  sound.add(soundStatus);
 
   // Presets.
   const presets = section('Presets', false);
