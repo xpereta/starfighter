@@ -64,8 +64,8 @@ describe('targeting', () => {
   it('re-picks its target only when the retarget interval is up', () => {
     const world = arena();
     const interval = world.tuning.fighter.retargetInterval;
-    const i = spawnFighter(world, 1000, 0, Math.PI, interval);
-    const w = addWingman(world, 900, 200); // nearer than the player at the origin
+    const i = spawnFighter(world, 3000, 0, Math.PI, interval);
+    const w = addWingman(world, 2900, 200); // nearer than the player at the origin, even after the fighter flies on
     aiSteps(world, Math.floor((interval - 0.3) / DT));
     expect(world.fighters[i]!.targetIndex).toBe(-1);
     aiSteps(world, Math.ceil(0.6 / DT));
