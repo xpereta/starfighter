@@ -16,16 +16,16 @@ Four named palettes. The game uses one flat colour per role (`theme.palette`), s
 | --- | --- | --- |
 | **Cel White** | Player and friendly accents | fighter body `#f2f6ff`, cockpit and sensor light `#fff4b0` |
 | **Squadron Cyan** | Wingmen, friendly UI, lock cues | wingman `#57d6ff`, pod `#7cf0c8`, lock ring `#ffd23f` |
-| **Hot Red** | Enemies, ordered by threat | fighter `#e8264f`, drone `#ff4d6d`, static `#ff9a3c`, turret `#b06cff`, enemy shot `#ff6fa0` |
-| **Indigo Night** | Space, ink, stars | background `#070a1c`, ink outline `#22367a`, stars `#aabbe6`, dust `#dfe8ff` |
+| **Hot Red** | Enemies, ordered by threat | fighter `#ff3a60`, drone `#ff4d6d`, static `#ff9a3c`, turret `#b06cff`, enemy shot `#ff6fa0` |
+| **Indigo Night** | Space, ink, stars | background `#070a1c`, ink outline `#4f6fd8`, stars `#aabbe6`, dust `#dfe8ff` |
 
 Explosions add their own short ramp (white-yellow core, orange, red, then a dark violet smoke); see the vocabulary below.
 
 ## Line weight and outline rules
 
-- Outline: **2 u** thick, ink navy `#22367a`, drawn outside the silhouette, with mitred corners, on every ship. Ships are 25 to 100 u across, so the line stays bold at the default zoom.
+- Outline: **2 u** thick, ink blue `#4f6fd8`, drawn outside the silhouette, with mitred corners, on every ship. Ships are 25 to 100 u across, so the line stays bold at the default zoom.
 - Never thinner than 1 u at any zoom (do not scale the line with the ship). Bullets, missiles and sparks have no outline.
-- The outline colour is dark but not black so it also reads on the dark background.
+- The outline colour is a mid ink blue, not navy: a dark ink vanished against the deep indigo sky (contrast audit, `scripts/contrast-audit.mjs`), so the line is light enough to give every ship a readable rim against the background.
 - Eyes, cockpits and engine flames have no outline: light has no ink line.
 
 ## Shading rules
