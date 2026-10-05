@@ -1,7 +1,7 @@
 import type { Tuning } from '../../../data/tuning';
-import { lancerParams } from '../../../data/tuning/lancer';
 import { stepFighters, stepWaves, type Fighter } from '../ai/fighters';
 import { createCamera, stepCamera, type Camera } from '../camera/camera';
+import { stepEnemyMissiles } from '../enemies/enemy-missiles';
 import { clearEnemyState, createEnemyState, type EnemyState } from '../enemies/state';
 import { createEventQueue, type EventQueue } from '../events/events';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
@@ -108,7 +108,7 @@ export function createWorld(
     run: createRun(),
     pilots: createPilots(),
     pods: [],
-    enemies: createEnemyState(lancerParams.missileCap.default),
+    enemies: createEnemyState(tuning.lancer.missileCap),
     trial: createTrial(bestTrialTime),
     stats: { kills: 0, hitsTaken: 0 },
     prev: {
@@ -194,6 +194,7 @@ export function stepWorld(world: World, dt: number): void {
       t.vy = 0;
     }
     world.enemyShots.clear();
+    world.enemies.missiles.clear();
   } else {
     stepTargets(
       world.targets,
@@ -216,6 +217,8 @@ export function stepWorld(world: World, dt: number): void {
       dt,
       world.run.mode === 'run' ? world.run.hull : 0,
     );
+    // Prototype 5 (B): enemy missiles home on the player; a hit's hull points count like bullet hits.
+    world.stats.hitsTaken += stepEnemyMissiles(world);
   }
   stepPods(world); // prototype 3 (B1): rescue pods
   // Prototype 2 (B1): next wave of enemy fighters; in a run (prototype 3, A2) the battle's objective.

@@ -1,6 +1,7 @@
 import type { RunConfig } from '../../../data/tuning/run';
 import { TRAIT_IDS } from '../../../data/content/traits';
 import { NO_HIT } from '../ai/fighter';
+import { convertWaveToLancers } from '../ai/lancer';
 import { resolveFighterKills, spawnWave } from '../ai/waves';
 import { clearEnemyState } from '../enemies/state';
 import { createCamera } from '../camera/camera';
@@ -326,6 +327,7 @@ export function stepRunBattle(world: World): void {
   run.wave++;
   run.waveStartTick = world.tick;
   spawnWave(world, waveSizeIn(world.tuning.run, run.battle));
+  if (world.tuning.lancer.inBattles) convertWaveToLancers(world); // prototype 5 (B): local hook until the battle table spawns kinds
   world.events.emit({ type: 'WaveStarted', battle: run.battle, wave: run.wave });
 }
 

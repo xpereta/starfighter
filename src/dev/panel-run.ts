@@ -190,7 +190,9 @@ export function buildRunSpawnSections(
             : run.phase;
     runReadout.set(`now: ${where}`);
     const c = enemyCounts(w);
-    spawnReadout.set(`enemies alive: ${c.fighters} fighters, ${c.targets} targets`);
+    spawnReadout.set(
+      `enemies alive: ${c.fighters} fighters, ${c.targets} targets, ${w.enemies.missiles.count} enemy missiles`,
+    );
   }
   update(world);
 

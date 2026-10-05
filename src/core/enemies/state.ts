@@ -8,7 +8,11 @@ import { createPool, type Pool } from '../world/pool';
 
 // Enemy missiles (track B) ---------------------------------------------------------------
 
-/** Same shape as the player's missile pool, minus the lock: enemy missiles only ever chase the player. */
+/**
+ * Same shape as the player's missile pool, minus the lock: enemy missiles only ever chase the
+ * player. `phase` is the missile's age (s), `owner` the index of the lancer in `world.fighters`
+ * that fired it (-1 = none), `damage` the hull it takes from the player, fixed at launch.
+ */
 export type EnemyMissileFields =
   'uid' | 'x' | 'y' | 'vx' | 'vy' | 'heading' | 'speed' | 'phase' | 'life' | 'damage' | 'owner';
 export type EnemyMissilePool = Pool<EnemyMissileFields>;
@@ -73,10 +77,17 @@ export interface EnemyState {
   readonly wings: WingState[];
   /** null = no capital ship on the field. */
   capital: CapitalState | null;
+  /** The `uid` the next enemy missile gets (track B): a stable identity, since pool slots move on removal. */
+  nextMissileUid: number;
 }
 
 export function createEnemyState(missileCap: number): EnemyState {
-  return { missiles: createEnemyMissilePool(missileCap), wings: [], capital: null };
+  return {
+    missiles: createEnemyMissilePool(missileCap),
+    wings: [],
+    capital: null,
+    nextMissileUid: 0,
+  };
 }
 
 /** Empties everything (a respawn or a new battle). */
@@ -84,6 +95,7 @@ export function clearEnemyState(state: EnemyState): void {
   state.missiles.clear();
   state.wings.length = 0;
   state.capital = null;
+  state.nextMissileUid = 0;
 }
 
 /** Feeds the enemy state into the replay hash. Add every field you add to the types above. Writes nothing when empty. */
@@ -96,6 +108,10 @@ export function mixEnemies(mix: (n: number) => void, state: EnemyState): void {
       const arr = m.data[field];
       for (let i = 0; i < m.count; i++) mix(arr[i]!);
     }
+  }
+  if (state.nextMissileUid > 0) {
+    mix(-4);
+    mix(state.nextMissileUid);
   }
   if (state.wings.length > 0) {
     mix(-2);

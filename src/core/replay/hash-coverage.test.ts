@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
 import { clearEnemyState } from '../enemies/state';
+import { spawnLancer } from '../ai/lancer';
 import { spawnFighter } from '../ai/waves';
 import { createWorld, stepWorld, type World } from '../world/world';
 import { hashWorld } from './hash';
@@ -30,6 +31,7 @@ function busyWorld(): World {
   stepWorld(w, dt); // creates the wingmen
   spawnFighter(w, 900, 200, Math.PI);
   spawnFighter(w, -700, -300, 0);
+  spawnLancer(w, -1500, 600, 0);
   for (let i = 0; i < 40; i++) {
     w.actions.fire = i % 2 === 0;
     stepWorld(w, dt);
@@ -73,6 +75,7 @@ function busyWorld(): World {
   });
   // Prototype 5 stubs: an enemy missile, a wing and a capital ship with two parts (all inert).
   w.enemies.missiles.spawn();
+  w.enemies.nextMissileUid = 3;
   w.enemies.wings.push({ shape: 'v', leader: 0, members: [1], broken: false });
   w.enemies.capital = {
     x: 10,
@@ -170,6 +173,12 @@ describe('every gameplay field is in the replay hash', () => {
       ),
       ...missing(w, 'fighter', w.fighters[0] as unknown as Record<string, unknown>),
       ...missing(w, 'fighter.ship', w.fighters[0]!.ship as unknown as Record<string, unknown>),
+      ...missing(
+        w,
+        'lancer',
+        w.fighters.find((f) => f.lancer)!.lancer as unknown as Record<string, unknown>,
+      ),
+      ...missing(w, 'enemies', w.enemies as unknown as Record<string, unknown>),
       ...missing(w, 'wing', w.enemies.wings[0] as unknown as Record<string, unknown>),
       ...missing(w, 'capital', w.enemies.capital as unknown as Record<string, unknown>),
       ...missing(w, 'part', w.enemies.capital!.parts[1] as unknown as Record<string, unknown>),

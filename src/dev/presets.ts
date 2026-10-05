@@ -9,6 +9,7 @@ export const TUNED_GROUPS = [
   'lockon',
   'missiles',
   'fighter',
+  'lancer',
   'squadron',
   'arena',
   'run',

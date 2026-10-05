@@ -176,6 +176,7 @@ export function devClearEnemies(world: World): void {
   world.targets.length = 0;
   world.enemyShots.clear();
   world.missiles.clear();
+  world.enemies.missiles.clear();
   Object.assign(world.lockon, createLockOn());
   world.trial.active = false;
   const sq = world.squadron;
