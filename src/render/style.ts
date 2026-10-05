@@ -179,6 +179,8 @@ export interface DebrisDef {
   fade: number;
   /** Smoke puffs per second each piece trails, 0 = none. */
   trail: number;
+  /** Optional 0..1: how far pieces stray from flying straight out of the wreck (0 = radial, 1 = any direction at all); default 0. */
+  scatter?: number;
 }
 
 /**
@@ -666,6 +668,8 @@ export function validateDeaths(deaths: DeathDefs): string[] {
       if (!isNum(d.spin, 0, 30)) errors.push(`${at}.debris.spin must be 0..30 rad/s`);
       if (!isNum(d.fade, 0, 1)) errors.push(`${at}.debris.fade must be 0..1`);
       if (!isNum(d.trail, 0, 30)) errors.push(`${at}.debris.trail must be 0..30 per second`);
+      if (d.scatter !== undefined && !isNum(d.scatter, 0, 1))
+        errors.push(`${at}.debris.scatter must be 0..1`);
     }
     if (!isNum(def.blow, 0, 1)) errors.push(`${at}.blow must be 0..1`);
     if (!isNum(def.momentum, 0, 1)) errors.push(`${at}.momentum must be 0..1`);

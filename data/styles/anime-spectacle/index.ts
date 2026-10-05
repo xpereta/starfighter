@@ -1,5 +1,5 @@
 import type { StyleInput } from '../../../src/render/style';
-import { deaths } from '../anime-80s/deaths';
+import { deaths } from './deaths';
 import { explosions } from '../anime-80s/explosions';
 import { ships } from '../anime-80s/ships';
 import { loops, music, sounds } from './sounds';

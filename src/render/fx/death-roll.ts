@@ -174,7 +174,10 @@ export function rollDeath(
     const [cx, cy] = polygonCentroid(cut);
     const [ox, oy] = rotate(cx * unit, cy * unit, ctx.heading);
     const dist = Math.hypot(ox, oy);
-    const away = dist > 1e-6 ? Math.atan2(oy, ox) : rng.range(0, Math.PI * 2);
+    const radial = dist > 1e-6 ? Math.atan2(oy, ox) : rng.range(0, Math.PI * 2);
+    // Scatter strays the piece from flying straight out (no extra random draw when it is 0, so old styles roll the same).
+    const scatter = def.debris.scatter ?? 0;
+    const away = scatter > 0 ? radial + (rng.next() * 2 - 1) * Math.PI * scatter : radial;
     const speed = pick(def.debris.drift, rng);
     const jitter = rng.next();
     const spin = (rng.next() * 2 - 1) * def.debris.spin;

@@ -27,6 +27,7 @@ export const spectacle: SpectacleDef = {
   // Multi-stage anime blasts over the pack's own explosions: flash frame, shock rings, banded fireball,
   // sparks, ink-blot smoke, glinting debris, chain reactions. A turret is capital-scale (Yamato).
   combat: {
+    tempo: 1.8, // blasts last about 80% longer than the original pace
     recipes: {
       fighter: {
         flash: 1.6,

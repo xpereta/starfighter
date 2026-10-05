@@ -276,6 +276,8 @@ export interface BlastRecipe {
 
 export interface CombatFxDef {
   recipes: Record<BlastKind, BlastRecipe>;
+  /** Optional time stretch of blasts (fireballs, rings, sparks, smoke, chain delays), 0.5..4; default 1 = the original pace. */
+  tempo?: number;
   tracers: {
     /** Player bullet streak length and width, world units. */
     length: number;
@@ -310,6 +312,7 @@ export function validateCombat(c: CombatFxDef): string[] {
     if (!c.recipes?.[k]) e.push(`combat.recipes.${k} is missing`);
     else e.push(...validateRecipe(`combat.recipes.${k}`, c.recipes[k]));
   }
+  if (c.tempo !== undefined && !isNum(c.tempo, 0.5, 4)) e.push('combat.tempo must be 0.5..4');
   if (!isNum(c.tracers?.length, 4, 200)) e.push('combat.tracers.length must be 4..200 u');
   if (!isNum(c.tracers?.width, 1, 40)) e.push('combat.tracers.width must be 1..40 u');
   if (!isNum(c.tracers?.orb, 0, 30)) e.push('combat.tracers.orb must be 0..30 u');

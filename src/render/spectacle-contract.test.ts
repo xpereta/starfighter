@@ -28,7 +28,12 @@ describe('the spectacle section of the style contract', () => {
     expect(built['anime-spectacle']!.pack.spectacle).not.toBeNull();
     // Parent parts are inherited untouched.
     expect(built['anime-spectacle']!.pack.ships).toEqual(built['anime-80s']!.pack.ships);
-    expect(built['anime-spectacle']!.pack.deaths).toEqual(built['anime-80s']!.pack.deaths);
+    // Deaths are the pack's own: the parent's made longer and scattered over every direction.
+    const own = built['anime-spectacle']!.pack.deaths.fighter!;
+    const parent = built['anime-80s']!.pack.deaths.fighter!;
+    expect(own.debris.scatter).toBe(1);
+    expect(own.debris.life[1]).toBeGreaterThan(parent.debris.life[1]);
+    expect(own.secondary[0]!.delay[1]).toBeGreaterThan(parent.secondary[0]!.delay[1]);
     expect(built['anime-spectacle']!.warnings.join(' ')).not.toContain('invalid');
   });
 

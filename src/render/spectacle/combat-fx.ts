@@ -137,6 +137,7 @@ export function createCombatFx(
   // Linear colour ramps per recipe: 3 colours x 3 channels.
   const ramps = new Float32Array(RECIPE_COUNT * 9);
   const writeRamps = (def: CombatFxDef): void => {
+    currentTempo = def.tempo ?? 1;
     BLAST_KINDS.forEach((k, i) => {
       def.recipes[k].ramp.forEach((hex, j) => toLinear(hex, ramps, i * 9 + j * 3));
     });
@@ -144,6 +145,10 @@ export function createCombatFx(
   const inkRgb = [0, 0, 0];
   const shotRgb = [0, 0, 0];
   const enemyRgb = [0, 0, 0];
+
+  /** Time stretch of blasts from the pack (1 = original pace). */
+  let currentTempo = 1;
+  const tempo = (): number => currentTempo;
 
   function addElement(
     kind: number,
@@ -197,7 +202,7 @@ export function createCombatFx(
     bl.vx[i] = Math.cos(angle) * speed;
     bl.vy[i] = Math.sin(angle) * speed;
     bl.age[i] = 0;
-    bl.life[i] = rng.range(1.3, 2.3);
+    bl.life[i] = rng.range(1.3, 2.3) * tempo();
     bl.size[i] = size;
     bl.seed[i] = rng.range(0, 6.28);
   }
@@ -227,7 +232,14 @@ export function createCombatFx(
       addElement(FLASH, ri, x, y, r.flash * radius, FLASH_LIFE + 0.03 * Math.min(r.flash, 4));
     }
     for (let i = 0; i < r.rings; i++)
-      addElement(RING, ri, x, y, r.ringSize * radius * (1 - 0.2 * i), RING_LIFE + 0.12 * i);
+      addElement(
+        RING,
+        ri,
+        x,
+        y,
+        r.ringSize * radius * (1 - 0.2 * i),
+        (RING_LIFE + 0.12 * i) * tempo(),
+      );
     if (r.fireball > 0)
       addElement(
         FIREBALL,
@@ -235,7 +247,7 @@ export function createCombatFx(
         x,
         y,
         r.fireball * radius,
-        FIREBALL_LIFE * (0.8 + 0.12 * Math.min(r.fireball, 4)),
+        FIREBALL_LIFE * (0.8 + 0.12 * Math.min(r.fireball, 4)) * tempo(),
       );
     const sparks = Math.round(r.sparks * Math.max(0.3, k));
     for (let i = 0; i < sparks; i++) {
@@ -247,7 +259,7 @@ export function createCombatFx(
         y,
         rng.range(0, Math.PI * 2),
         speed,
-        rng.range(0.35, 1.0),
+        rng.range(0.35, 1.0) * tempo(),
         rng.range(0.8, 1.4),
       );
     }
@@ -259,7 +271,7 @@ export function createCombatFx(
         y + rng.range(-0.5, 0.5) * radius,
         rng.range(0, Math.PI * 2),
         radius * rng.range(0.6, 3),
-        rng.range(0.9, 2.1),
+        rng.range(0.9, 2.1) * tempo(),
         rng.range(6, 13),
       );
     for (let i = 0; i < r.ink; i++) {
@@ -280,7 +292,7 @@ export function createCombatFx(
       addQueued(
         x + Math.cos(a) * d,
         y + Math.sin(a) * d,
-        last ? r.chainSpan + 0.25 : rng.range(CHAIN_DELAY_MIN, r.chainSpan),
+        (last ? r.chainSpan + 0.25 : rng.range(CHAIN_DELAY_MIN, r.chainSpan)) * tempo(),
         radius * (last ? rng.range(1.1, 1.5) : rng.range(0.3, 0.6)),
         ri,
         last,
@@ -291,10 +303,17 @@ export function createCombatFx(
 
   /** One little blast of a chain reaction (the last one is bigger, with a ring pair and a burst of sparks). */
   function miniBlast(ri: number, x: number, y: number, size: number, last: boolean): void {
-    addElement(FIREBALL, ri, x, y, size * (last ? 1.9 : 1.4), FIREBALL_LIFE * (last ? 0.9 : 0.55));
+    addElement(
+      FIREBALL,
+      ri,
+      x,
+      y,
+      size * (last ? 1.9 : 1.4),
+      FIREBALL_LIFE * (last ? 0.9 : 0.55) * tempo(),
+    );
     addElement(FLASH, ri, x, y, size * (last ? 2.2 : 1), FLASH_LIFE * (last ? 1.4 : 0.7));
-    addElement(RING, ri, x, y, size * (last ? 3.2 : 1.8), RING_LIFE * 0.8);
-    if (last) addElement(RING, ri, x, y, size * 2.2, RING_LIFE);
+    addElement(RING, ri, x, y, size * (last ? 3.2 : 1.8), RING_LIFE * 0.8 * tempo());
+    if (last) addElement(RING, ri, x, y, size * 2.2, RING_LIFE * tempo());
     const n = last ? 22 : 7;
     for (let i = 0; i < n; i++)
       addSpark(

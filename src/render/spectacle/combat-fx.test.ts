@@ -40,7 +40,7 @@ describe('combat effects', () => {
     expect(s.elements).toBeGreaterThan(10);
     expect(s.sparks).toBeGreaterThan(50);
     expect(s.queued).toBeGreaterThan(5);
-    for (let i = 0; i < 6 * 60; i++) fx.update(DT, def, true);
+    for (let i = 0; i < 10 * 60; i++) fx.update(DT, def, true); // blasts are stretched (tempo), so give them longer
     const end = fx.stats();
     expect(end.elements + end.sparks + end.blots + end.queued).toBe(0);
     fx.dispose();
