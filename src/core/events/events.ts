@@ -1,3 +1,4 @@
+import type { EnemyKindId } from '../enemies/kinds';
 import type { EntityKind } from '../world/target';
 
 /** Typed gameplay events. FX, audio, HUD and stats subscribe to these without touching gameplay code. */
@@ -46,6 +47,14 @@ export type GameEvent =
   | { type: 'ArenaEdgeEntered' }
   | { type: 'ArenaEdgeLeft' }
   | { type: 'PlayerRespawned' }
+  // Prototype 5 (enemy variety). Declared by the contract PR; each track emits its own. Sound and FX only, never state.
+  | { type: 'EnemySpawned'; kind: EnemyKindId; x: number; y: number }
+  | { type: 'EnemyMissileFired'; x: number; y: number; angle: number }
+  | { type: 'EnemyMissileHit'; x: number; y: number; hit: 'player' | 'immune' | 'expired' }
+  | { type: 'PartDestroyed'; part: string; x: number; y: number }
+  | { type: 'CoreExposed'; x: number; y: number }
+  | { type: 'WingBroken'; reason: 'leader' | 'fire' | 'proximity' }
+  | { type: 'CapitalDestroyed'; x: number; y: number }
   // Menus (run mode, outside a battle).
   | { type: 'MenuMove'; dir: -1 | 1 }
   | { type: 'MenuSelect' }

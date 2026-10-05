@@ -1,3 +1,4 @@
+import { mixEnemies } from '../enemies/state';
 import { mixFighters } from '../ai/fighters';
 import { mixLockOn } from '../lockon/lockon';
 import { mixPilots } from '../pilots/pilots';
@@ -51,6 +52,7 @@ export function hashWorld(world: World): string {
   mixRun(mix, world.run);
   mixPilots(mix, world.pilots);
   mixPods(mix, world.pods);
+  mixEnemies(mix, world.enemies); // prototype 5: writes nothing while empty
   for (const t of world.targets) {
     for (const v of [t.x, t.y, t.hp, t.vx, t.vy, t.angle, t.cooldown, t.respawnTimer]) mix(v);
     mix(t.alive ? 1 : 0);

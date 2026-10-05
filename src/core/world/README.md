@@ -12,3 +12,4 @@
 - **Events:** clears the queue at the start of each step; systems emit during it.
 - **Parameters:** the seed, `data/tuning/arena.ts` (pool caps are read at world creation). Shard counts are visual quality settings in `data/quality.ts`, never gameplay.
 - **Test:** `pool.test.ts`, `arena.test.ts`, `trial.test.ts`, `world.test.ts`, and `tests/sim`.
+- **Prototype 5 state:** `world.enemies` (enemy missile pool, wings, capital ship; empty and inert until the tracks fill it, see `core/enemies`).

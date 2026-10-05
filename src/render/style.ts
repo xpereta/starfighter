@@ -354,11 +354,33 @@ const SOUND_KEY_SET: Record<SoundEventKey, true> = {
   MenuSelect: true,
   MenuBack: true,
   MenuTick: true,
+  EnemySpawned: true,
+  EnemyMissileFired: true,
+  EnemyMissileHit: true,
+  PartDestroyed: true,
+  CoreExposed: true,
+  WingBroken: true,
+  CapitalDestroyed: true,
   MenuPick: true,
   Paused: true,
   Resumed: true,
 };
 export const SOUND_EVENT_KEYS = Object.keys(SOUND_KEY_SET) as SoundEventKey[];
+
+/**
+ * Prototype 5 events that are deliberately silent in the style packs until their track gives them a
+ * sound. The completeness tests allow 'silent' only for `PilotKill` and these; a track removes its
+ * events from this list when it adds their sounds (see docs/p5-tracks.md).
+ */
+export const PENDING_SOUND_EVENTS: readonly SoundEventKey[] = [
+  'EnemySpawned',
+  'EnemyMissileFired',
+  'EnemyMissileHit',
+  'PartDestroyed',
+  'CoreExposed',
+  'WingBroken',
+  'CapitalDestroyed',
+];
 
 /** A table with every event 'silent'. */
 export function silentSoundTable(): SoundTable {
