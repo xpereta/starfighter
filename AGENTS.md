@@ -26,7 +26,7 @@ src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ r
 src/render/    Three.js renderer (orthographic); reads core state and the active style pack (style.ts contract, style-active.ts accessor)
 src/audio/     Web Audio engine: plays the active style pack's sound table from the events (prototype 4); never imported by core
 src/input/     gamepad + keyboard -> actions
-src/dev/       tuning panel, debug overlays (dev builds only)
+src/dev/       tuning panel, debug overlays, run-phase jumps and enemy spawn registry (dev builds only; add new enemy kinds to spawn-registry.ts)
 src/ui/        menus, chatter, roster HUD (prototype 3)
 src/app/       bootstrap, fixed-timestep loop
 data/          content data, tuning defaults, quality presets, style packs (data/styles/<id>/)

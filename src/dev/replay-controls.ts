@@ -21,6 +21,8 @@ type Mode = 'idle' | 'recording' | 'playing';
 export interface ReplayControls {
   /** Call before every simulation step: records the live inputs, or injects the recorded ones. */
   beforeStep(world: World): void;
+  /** What the replay is doing ("recording" or "playing"), or null when idle. World edits from the dev panel are refused while it is not null. */
+  busy(): 'recording' | 'playing' | null;
 }
 
 /** Where the controls put their rows (the panel's Replay section). */
@@ -168,6 +170,7 @@ export function createReplayControls(
   host.status(line);
 
   return {
+    busy: () => (mode === 'idle' ? null : mode),
     beforeStep(w) {
       if (mode === 'recording' && recorder) {
         recorder.record(w.tick, w.actions);
