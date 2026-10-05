@@ -115,7 +115,7 @@ const PREVIEW_PARAM = {
   max: 1,
   unit: '',
   step: 0.01,
-  note: 'The game value the previewed loop follows (speed, throttle, hull, rescue progress... whatever its Gain curve uses). For on/off values (edge, always) anything from 0.5 up is on.',
+  note: 'The game value the previewed loop follows (speed, throttle, hull, rescue progress... whatever its Gain curve uses). For on/off values (edge, always) anything from 0.5 up is on; for the hull it is damage (1 = nearly destroyed, which sounds the alarm).',
 } as const satisfies ParamDef;
 /** Smallest time between two previews while a slider is dragged (ms). */
 const PREVIEW_GAP_MS = 200;
@@ -270,6 +270,7 @@ export function buildSoundSection(
       get: () => loopSelected,
       set: (k) => {
         loopSelected = k;
+        if (previewState.on) applyPreview(); // the preview follows the chosen loop
         refreshAll();
       },
       format: (k) => (activeStyle().loops[k] === 'silent' ? `${k} -` : k),

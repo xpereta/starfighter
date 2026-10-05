@@ -373,7 +373,8 @@ export function silentSoundTable(): SoundTable {
  * The game values a loop can follow (all computed by `src/audio/state.ts` from the world, never
  * written back): `speed` 0..1 of max speed, `throttle` -1..1, `hull` 0..1 of the player's hull,
  * `rescue` 0..1 progress of the pod being rescued, `missiles` 0..1 (missiles in the air, 3 = full),
- * `edge` 0 or 1 (outside the arena), `always` constant 1 (flying only; 0 in menus).
+ * `edge` 0 or 1 (outside the arena), `always` constant 1 while flying and 0 in menus (it also gates
+ * every loop: nothing continuous runs in a menu).
  */
 export const LOOP_STATES = [
   'speed',
