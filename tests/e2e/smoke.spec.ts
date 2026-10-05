@@ -381,10 +381,17 @@ test('the Sound section has the mix, a mute row and a sound test that plays with
   const errors = errorsOf(page);
   await page.goto('/?dev&practice');
   await page.getByRole('button', { name: /Sound/ }).click();
-  for (const p of ['master', 'effects', 'music'])
+  for (const p of ['master', 'effects', 'music', 'reverb', 'reverbTime'])
     await expect(row(page, `sound.${p}`)).toBeVisible();
+  // Loops: the chosen loop's rows and the preview (which plays a loop at a chosen value).
+  await expect(row(page, 'sound.loop')).toBeVisible();
+  for (const p of ['volume', 'fadeIn', 'fadeOut', 'reverb'])
+    await expect(row(page, `loopEdit.${p}`)).toBeVisible();
+  await row(page, 'sound.loopPreview').click();
+  await row(page, 'sound.loop').click(); // next loop while the preview is on
+  await row(page, 'sound.loopPreview').click();
   await expect(row(page, 'sound.mute')).toBeVisible();
-  await expect(page.locator('#tuning-panel [data-sound-test]')).toHaveCount(22);
+  await expect(page.locator('#tuning-panel [data-sound-test]')).toHaveCount(36);
   await page.locator('#tuning-panel [data-sound-test="ShotFired"]').click();
   await page.locator('#tuning-panel [data-sound-test="Killed"]').click();
   await row(page, 'sound.edit').click(); // next sound

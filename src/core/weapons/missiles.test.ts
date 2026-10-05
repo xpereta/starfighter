@@ -319,11 +319,16 @@ describe('hits', () => {
     w.lockon.locks.push(0);
     tick(w, true);
     let hitEvent: { impulse: number; dirX: number } | null = null;
+    let impact = false;
     for (let i = 0; i < 120 && !hitEvent; i++) {
       tick(w);
-      for (const e of w.events.events) if (e.type === 'Hit') hitEvent = e;
+      for (const e of w.events.events) {
+        if (e.type === 'Hit') hitEvent = e;
+        if (e.type === 'MissileImpact') impact = true;
+      }
     }
     expect(hitEvent).not.toBeNull();
+    expect(impact).toBe(true);
     expect(hitEvent!.impulse).toBe(w.tuning.missiles.missileHitImpulse);
     expect(hitEvent!.impulse).toBeGreaterThan(w.tuning.weapons.hitImpulse);
     expect(hitEvent!.dirX).toBeGreaterThan(0.9);

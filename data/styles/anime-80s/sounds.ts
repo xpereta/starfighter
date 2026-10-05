@@ -29,7 +29,8 @@ const stab = (freq: number, decay: number, delay = 0): SynthLayer[] => [
   }),
 ];
 
-export const sounds: SoundTable = {
+/** Events newer than this pack fall back to the default sound pack (see `SOUND_DEFAULT_STYLE`). */
+export const sounds: Partial<SoundTable> = {
   // A zappy laser: a falling saw "pew", a bright square layer a hair later and a tiny click.
   ShotFired: sfx(
     [

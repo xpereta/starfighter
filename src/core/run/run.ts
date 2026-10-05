@@ -238,8 +238,15 @@ export function stepRun(world: World): void {
   const run = world.run;
   if (run.mode !== 'run' || run.phase === 'battle') return;
   const { actions, prev } = world;
-  if (actions.menuUp && !prev.menuUp) move(run, -1);
-  if (actions.menuDown && !prev.menuDown) move(run, 1);
+  const { events } = world;
+  if (actions.menuUp && !prev.menuUp) {
+    move(run, -1);
+    events.emit({ type: 'MenuMove', dir: -1 });
+  }
+  if (actions.menuDown && !prev.menuDown) {
+    move(run, 1);
+    events.emit({ type: 'MenuMove', dir: 1 });
+  }
   const select = actions.menuSelect && !prev.menuSelect;
   const back = actions.menuBack && !prev.menuBack;
 
@@ -247,26 +254,37 @@ export function stepRun(world: World): void {
     if (!select) return;
     const vet = run.available[run.cursor];
     if (!vet) {
+      events.emit({ type: 'MenuSelect' });
       startRun(world);
       return;
     }
     const at = run.selectedVeterans.indexOf(vet.id);
-    if (at >= 0) run.selectedVeterans.splice(at, 1);
-    else if (run.selectedVeterans.length < world.tuning.pilots.veteransPerRun)
+    if (at >= 0) {
+      run.selectedVeterans.splice(at, 1);
+      events.emit({ type: 'MenuTick', checked: false });
+    } else if (run.selectedVeterans.length < world.tuning.pilots.veteransPerRun) {
       run.selectedVeterans.push(vet.id);
+      events.emit({ type: 'MenuTick', checked: true });
+    }
   } else if (run.phase === 'debrief') {
-    if (back) run.cursor = run.candidates.length; // B: skip the pick, rest on Continue
+    if (back) {
+      run.cursor = run.candidates.length; // B: skip the pick, rest on Continue
+      events.emit({ type: 'MenuBack' });
+    }
     if (!select) return;
     const candidate = run.candidates[run.cursor];
     if (!candidate) {
+      events.emit({ type: 'MenuSelect' });
       startBattle(world, run.battle + 1);
       return;
     }
     if (addPilot(world, candidate, 'pick')) {
+      events.emit({ type: 'MenuPick' });
       run.candidates = []; // one pick per debrief
       run.cursor = 0;
     }
   } else if (select) {
+    events.emit({ type: 'MenuSelect' });
     enterStartScreen(world); // the end screen: restart
   }
 }

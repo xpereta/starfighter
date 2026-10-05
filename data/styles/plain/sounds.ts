@@ -1,5 +1,5 @@
 import { AROUND, noise, sfx, tone } from '../../audio/recipes';
-import type { MusicDef, SoundTable } from '../../../src/render/style';
+import type { LoopTable, MusicDef, SoundTable } from '../../../src/render/style';
 
 /**
  * Plain sounds: simple, audible and distinct (beeps, sweeps and noise bursts), so the engine and
@@ -133,8 +133,180 @@ export const sounds: SoundTable = {
       maxVoices: 2,
     },
   ),
+  // Newer events: simple distinct blips, quiet; the `realistic` pack has the considered versions.
+  EnemyShotFired: sfx(
+    [tone('square', 500, 200, 0.08, 0.5, { filter: { type: 'lowpass', freq: 2000, q: 1 } })],
+    {
+      volume: 0.11,
+      pitchRandom: 0.1,
+      minGap: 0.2,
+      maxVoices: 2,
+      spatial: AROUND,
+    },
+  ),
+  WingmanShotFired: sfx(
+    [tone('square', 700, 300, 0.07, 0.5, { filter: { type: 'lowpass', freq: 3000, q: 1 } })],
+    {
+      volume: 0.11,
+      pitchRandom: 0.1,
+      minGap: 0.2,
+      maxVoices: 2,
+      spatial: AROUND,
+    },
+  ),
+  PlayerDamaged: sfx([noise('lowpass', 1500, 200, 0.3, 0.9), tone('sine', 90, 45, 0.3, 0.9)], {
+    volume: 0.5,
+    minGap: 0.15,
+    maxVoices: 2,
+  }),
+  WingmanHit: sfx([noise('bandpass', 1500, 500, 0.1, 0.6)], {
+    volume: 0.2,
+    minGap: 0.1,
+    spatial: AROUND,
+  }),
+  WingmanDown: sfx(
+    [tone('sawtooth', 400, 70, 0.6, 0.6, { filter: { type: 'lowpass', freq: 1000, q: 1 } })],
+    {
+      volume: 0.35,
+      maxVoices: 2,
+      spatial: AROUND,
+    },
+  ),
+  MissileImpact: sfx([noise('lowpass', 2000, 200, 0.35, 0.8), tone('sine', 110, 40, 0.3, 0.8)], {
+    volume: 0.4,
+    minGap: 0.05,
+    spatial: AROUND,
+  }),
+  ArenaEdgeEntered: sfx(
+    [tone('square', 440, 440, 0.12, 0.5), tone('square', 330, 330, 0.16, 0.5, { delay: 0.14 })],
+    {
+      volume: 0.2,
+      maxVoices: 1,
+      minGap: 0.5,
+    },
+  ),
+  ArenaEdgeLeft: sfx([tone('sine', 330, 440, 0.12, 0.5)], {
+    volume: 0.18,
+    maxVoices: 1,
+    minGap: 0.5,
+  }),
+  PlayerRespawned: sfx([tone('sine', 300, 900, 0.4, 0.5)], {
+    volume: 0.25,
+    maxVoices: 1,
+    minGap: 0.5,
+  }),
+  MenuMove: sfx([tone('sine', 900, 900, 0.03, 0.5)], {
+    volume: 0.12,
+    pitchRandom: 0.02,
+    minGap: 0.04,
+    maxVoices: 2,
+  }),
+  MenuSelect: sfx([tone('triangle', 600, 900, 0.09, 0.6)], {
+    volume: 0.2,
+    maxVoices: 1,
+    minGap: 0.1,
+  }),
+  MenuBack: sfx([tone('triangle', 700, 450, 0.09, 0.6)], {
+    volume: 0.18,
+    maxVoices: 1,
+    minGap: 0.1,
+  }),
+  MenuTick: sfx([tone('square', 1200, 1200, 0.025, 0.4)], {
+    volume: 0.12,
+    maxVoices: 1,
+    minGap: 0.05,
+  }),
+  MenuPick: sfx(
+    [
+      tone('triangle', 700, 700, 0.08, 0.6),
+      tone('triangle', 1050, 1050, 0.12, 0.6, { delay: 0.08 }),
+    ],
+    {
+      volume: 0.25,
+      maxVoices: 1,
+      minGap: 0.1,
+    },
+  ),
   Paused: sfx([tone('sine', 500, 250, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
   Resumed: sfx([tone('sine', 250, 500, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
+};
+
+/**
+ * Plain loops: a steady quiet hum that follows speed, a thin tone while a pod is being rescued and a
+ * beeping low-hull alarm. Simple on purpose; the `realistic` pack has the layered versions.
+ */
+export const loops: LoopTable = {
+  engine: {
+    layers: [
+      { waveform: 'sawtooth', freq: 70, gain: 0.5, filter: { type: 'lowpass', freq: 400, q: 1 } },
+    ],
+    volume: 0.12,
+    gain: {
+      state: 'speed',
+      points: [
+        [0, 0.3],
+        [1, 1],
+      ],
+    },
+    pitch: {
+      state: 'speed',
+      points: [
+        [0, 0.8],
+        [1, 1.6],
+      ],
+    },
+    fadeIn: 0.3,
+    fadeOut: 0.5,
+  },
+  afterburner: 'silent',
+  rumble: 'silent',
+  ambient: 'silent',
+  missiles: 'silent',
+  rescue: {
+    layers: [{ waveform: 'sine', freq: 600, gain: 0.5 }],
+    volume: 0.11,
+    gain: {
+      state: 'rescue',
+      points: [
+        [0, 0],
+        [0.02, 1],
+        [1, 1],
+      ],
+    },
+    pitch: {
+      state: 'rescue',
+      points: [
+        [0, 0.8],
+        [1, 1.6],
+      ],
+    },
+    fadeIn: 0.1,
+    fadeOut: 0.3,
+  },
+  hullAlarm: {
+    layers: [
+      {
+        waveform: 'square',
+        freq: 520,
+        gain: 0.5,
+        tremolo: { rate: 2, depth: 1, shape: 'square' },
+        filter: { type: 'lowpass', freq: 1500, q: 1 },
+      },
+    ],
+    volume: 0.11,
+    gain: {
+      state: 'hull',
+      points: [
+        [0, 1],
+        [0.34, 1],
+        [0.35, 0],
+        [1, 0],
+      ],
+    },
+    fadeIn: 0.1,
+    fadeOut: 0.3,
+  },
+  edgeAlarm: 'silent',
 };
 
 /** A sparse, quiet pulse so the music slot can be heard; set the Music volume to 0 to remove it. */

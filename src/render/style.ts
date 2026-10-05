@@ -207,13 +207,25 @@ export type DeathDefs = Partial<Record<ShipKind, DeathDef>>;
 /** Things sound can react to: every GameEvent type, plus app-level pause. */
 export type SoundEventKey = GameEvent['type'] | 'Paused' | 'Resumed';
 
-export const WAVEFORMS = ['sine', 'square', 'sawtooth', 'triangle', 'noise'] as const;
+/** `noise` is white; `pink` is softer (rain, wind, air) and `brown` deeper (rumble, thrust). */
+export const WAVEFORMS = [
+  'sine',
+  'square',
+  'sawtooth',
+  'triangle',
+  'noise',
+  'pink',
+  'brown',
+] as const;
+
+/** The waveforms that are noise (they ignore `freq`; colour them with the filter). */
+export const NOISE_WAVEFORMS: readonly (typeof WAVEFORMS)[number][] = ['noise', 'pink', 'brown'];
 
 export const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass'] as const;
 
 /** One oscillator or noise burst of a synthesised sound, shaped by an envelope, a sweep and a filter. */
 export interface SynthLayer {
-  /** 'noise' ignores `freq` (colour it with the filter). */
+  /** Noise kinds ignore `freq` (colour them with the filter). */
   waveform: (typeof WAVEFORMS)[number];
   /** Start frequency, Hz. */
   freq: number;
@@ -227,6 +239,14 @@ export interface SynthLayer {
   decay: number;
   /** Layer loudness inside the sound, 0..1. */
   gain: number;
+  /** Seconds the layer stays at full loudness after the attack, before it decays (s); default 0. Long tails and held tones. */
+  hold?: number;
+  /** Oscillators only: fine pitch offset in cents (100 = a semitone), -1200..1200. Two layers a few cents apart sound thick. */
+  detune?: number;
+  /** Waveshaper drive 0..1: 0 = clean, 1 = heavily clipped. Adds grit and body to thumps, engines and impacts. */
+  distortion?: number;
+  /** Wobbles the loudness: `rate` Hz, `depth` 0..1 (1 = down to silence). Rattles, flutter, beating. */
+  tremolo?: { rate: number; depth: number };
   filter?: {
     type: (typeof FILTER_TYPES)[number];
     /** Cutoff or centre, Hz. */
@@ -264,6 +284,12 @@ export interface SoundEntry {
     range: number;
     /** Volume multiplier at `range` and beyond, 0..1. */
     farVolume: number;
+    /** Low-pass cutoff (Hz) for a sound at the listener (`near`) and at `range` or beyond (`far`): distance muffles. Omit for no filtering. */
+    lowpass?: { near: number; far: number };
+    /** Extra reverb send at `range` (added to the entry's `reverb`), 0..1: far sounds are wetter. */
+    farReverb?: number;
+    /** Seconds the sound arrives late at `range` (the lag of sound over distance), 0..0.5. */
+    lag?: number;
   };
   /** Killed only: bigger things sound deeper and louder (pitch x (ref / radius)^exponent). */
   size?: {
@@ -279,6 +305,15 @@ export interface SoundEntry {
     /** How long the dip lasts, seconds (s). */
     time: number;
   };
+  /** Dips the continuous loops (engine, rumble, ambient) while this sound plays, so a big bang is not masked. Same fields as `duck`. */
+  duckLoops?: {
+    amount: number;
+    time: number;
+  };
+  /** Space reverb: how much of this sound is sent to the shared reverb (0 = dry, 1 = as loud as the dry sound). */
+  reverb?: number;
+  /** Seconds between the dry sound and the start of its reverb (s), 0..0.5. Longer = a bigger space. */
+  preDelay?: number;
 }
 
 /** Every event has a sound or an explicit 'silent'. The compiler enforces completeness. */
@@ -306,6 +341,20 @@ const SOUND_KEY_SET: Record<SoundEventKey, true> = {
   PodSpawned: true,
   PodRescued: true,
   PodLost: true,
+  EnemyShotFired: true,
+  WingmanShotFired: true,
+  PlayerDamaged: true,
+  WingmanHit: true,
+  WingmanDown: true,
+  MissileImpact: true,
+  ArenaEdgeEntered: true,
+  ArenaEdgeLeft: true,
+  PlayerRespawned: true,
+  MenuMove: true,
+  MenuSelect: true,
+  MenuBack: true,
+  MenuTick: true,
+  MenuPick: true,
   Paused: true,
   Resumed: true,
 };
@@ -315,6 +364,93 @@ export const SOUND_EVENT_KEYS = Object.keys(SOUND_KEY_SET) as SoundEventKey[];
 export function silentSoundTable(): SoundTable {
   const table = {} as SoundTable;
   for (const key of SOUND_EVENT_KEYS) table[key] = 'silent';
+  return table;
+}
+
+// Loops -----------------------------------------------------------------------------------
+
+/**
+ * The game values a loop can follow (all computed by `src/audio/state.ts` from the world, never
+ * written back): `speed` 0..1 of max speed, `throttle` -1..1, `hull` 0..1 of the player's hull,
+ * `rescue` 0..1 progress of the pod being rescued, `missiles` 0..1 (missiles in the air, 3 = full),
+ * `edge` 0 or 1 (outside the arena), `always` constant 1 (flying only; 0 in menus).
+ */
+export const LOOP_STATES = [
+  'speed',
+  'throttle',
+  'hull',
+  'rescue',
+  'missiles',
+  'edge',
+  'always',
+] as const;
+export type LoopStateKey = (typeof LOOP_STATES)[number];
+
+/** Continuous sounds the engine keeps running while the game is in the matching state. */
+export const LOOP_KEYS = [
+  'engine',
+  'afterburner',
+  'rumble',
+  'ambient',
+  'missiles',
+  'rescue',
+  'hullAlarm',
+  'edgeAlarm',
+] as const;
+export type LoopKey = (typeof LOOP_KEYS)[number];
+
+/** One steady oscillator or noise source inside a loop (no envelope: the loop's gain curve shapes it). */
+export interface LoopLayer {
+  waveform: (typeof WAVEFORMS)[number];
+  /** Frequency, Hz (ignored for noise); the loop's pitch curve multiplies it. */
+  freq: number;
+  /** Layer loudness inside the loop, 0..1. */
+  gain: number;
+  /** Fine pitch offset in cents, -1200..1200. */
+  detune?: number;
+  /** Waveshaper drive 0..1. */
+  distortion?: number;
+  /** Loudness wobble: rate Hz, depth 0..1, shape of the wobble (default sine; square makes an alarm beep). */
+  tremolo?: { rate: number; depth: number; shape?: 'sine' | 'square' | 'triangle' };
+  filter?: {
+    type: (typeof FILTER_TYPES)[number];
+    /** Cutoff or centre, Hz; the loop's cutoff curve multiplies it. */
+    freq: number;
+    /** Resonance, 0.1..30. */
+    q: number;
+  };
+}
+
+/** A piecewise-linear curve from a game value to a number: `points` are [value, output], sorted by value. */
+export interface LoopCurve {
+  state: LoopStateKey;
+  points: readonly (readonly [number, number])[];
+}
+
+export interface LoopEntry {
+  layers: readonly LoopLayer[];
+  /** Loudness of the whole loop at gain 1, 0..1. */
+  volume: number;
+  /** Game value -> loudness multiplier 0..1. At 0 the loop is silent (and switched off after its fade). */
+  gain: LoopCurve;
+  /** Game value -> pitch multiplier of every oscillator (0.1..8); omit for a steady pitch. */
+  pitch?: LoopCurve;
+  /** Game value -> multiplier of every layer filter's cutoff (0.1..8); omit for a fixed cutoff. */
+  cutoff?: LoopCurve;
+  /** Seconds to come up after the value rises (s). Smooth, no clicks. */
+  fadeIn: number;
+  /** Seconds to die away after the value falls (s). */
+  fadeOut: number;
+  /** Reverb send, like a sound's: 0..1. */
+  reverb?: number;
+}
+
+export type LoopTable = Record<LoopKey, LoopEntry | 'silent'>;
+
+/** A table with every loop 'silent'. */
+export function silentLoopTable(): LoopTable {
+  const table = {} as LoopTable;
+  for (const key of LOOP_KEYS) table[key] = 'silent';
   return table;
 }
 
@@ -330,7 +466,7 @@ export interface MusicDef {
         bpm: number;
         /** Frequency of step 0, Hz. */
         root: number;
-        waveform: Exclude<(typeof WAVEFORMS)[number], 'noise'>;
+        waveform: Exclude<(typeof WAVEFORMS)[number], 'noise' | 'pink' | 'brown'>;
         /** The melody, one entry per eighth note: semitones above `root`, or null for a rest. The loop repeats after the last step. */
         steps: readonly (number | null)[];
         /** An optional bass line (same length, played two octaves below with a soft sine). */
@@ -348,6 +484,8 @@ export interface StylePack {
   deaths: DeathDefs;
   explosions: ExplosionDefs;
   sounds: SoundTable;
+  /** Continuous sounds that follow the game state (engine, rumble, alarms). */
+  loops: LoopTable;
   /** The music track, or null for none. */
   music: MusicDef | null;
 }
@@ -360,6 +498,7 @@ export interface StyleInput {
   deaths?: DeathDefs;
   explosions?: ExplosionDefs;
   sounds?: Partial<SoundTable>;
+  loops?: Partial<LoopTable>;
   music?: MusicDef | null;
 }
 
@@ -561,6 +700,9 @@ export function validateExplosions(explosions: ExplosionDefs): string[] {
   return errors;
 }
 
+/** Most layers in one synthesised sound. */
+export const MAX_LAYERS = 12;
+
 function validateLayer(where: string, l: SynthLayer): string[] {
   const errors: string[] = [];
   if (!l || typeof l !== 'object') return [`${where} must be a layer`];
@@ -573,6 +715,15 @@ function validateLayer(where: string, l: SynthLayer): string[] {
   if (!isNum(l.attack, 0.001, 10)) errors.push(`${where}.attack must be 0.001..10 s`);
   if (!isNum(l.decay, 0.005, 10)) errors.push(`${where}.decay must be 0.005..10 s`);
   if (!isNum(l.gain, 0, 1)) errors.push(`${where}.gain must be 0..1`);
+  if (l.hold !== undefined && !isNum(l.hold, 0, 10)) errors.push(`${where}.hold must be 0..10 s`);
+  if (l.detune !== undefined && !isNum(l.detune, -1200, 1200))
+    errors.push(`${where}.detune must be -1200..1200 cents`);
+  if (l.distortion !== undefined && !isNum(l.distortion, 0, 1))
+    errors.push(`${where}.distortion must be 0..1`);
+  if (l.tremolo !== undefined) {
+    if (!isNum(l.tremolo.rate, 0.1, 60)) errors.push(`${where}.tremolo.rate must be 0.1..60 Hz`);
+    if (!isNum(l.tremolo.depth, 0, 1)) errors.push(`${where}.tremolo.depth must be 0..1`);
+  }
   if (l.filter !== undefined) {
     if (!isKind(FILTER_TYPES, l.filter.type)) errors.push(`${where}.filter.type is unknown`);
     if (!isNum(l.filter.freq, 10, 20000)) errors.push(`${where}.filter.freq must be 10..20000 Hz`);
@@ -602,8 +753,8 @@ export function validateSounds(sounds: Partial<SoundTable>): string[] {
         errors.push(`sounds.${key}.source.duration must be 0.01..30 s`);
     } else if (e.source?.kind === 'synth') {
       const layers = e.source.layers;
-      if (!Array.isArray(layers) || layers.length < 1 || layers.length > 8)
-        errors.push(`sounds.${key}.source.layers must be 1..8 layers`);
+      if (!Array.isArray(layers) || layers.length < 1 || layers.length > MAX_LAYERS)
+        errors.push(`sounds.${key}.source.layers must be 1..${MAX_LAYERS} layers`);
       else layers.forEach((l, i) => errors.push(...validateLayer(`sounds.${key}.layers[${i}]`, l)));
     } else errors.push(`sounds.${key}.source must be synth or sample`);
     if (!isNum(e.pitch, 0.1, 10)) errors.push(`sounds.${key}.pitch must be 0.1..10`);
@@ -618,6 +769,27 @@ export function validateSounds(sounds: Partial<SoundTable>): string[] {
         errors.push(`sounds.${key}.spatial.range must be 1..100000 u`);
       if (!isNum(e.spatial.farVolume, 0, 1))
         errors.push(`sounds.${key}.spatial.farVolume must be 0..1`);
+      const lp = e.spatial.lowpass;
+      if (lp !== undefined) {
+        if (!isNum(lp.near, 100, 20000))
+          errors.push(`sounds.${key}.spatial.lowpass.near must be 100..20000 Hz`);
+        if (!isNum(lp.far, 100, 20000))
+          errors.push(`sounds.${key}.spatial.lowpass.far must be 100..20000 Hz`);
+      }
+      if (e.spatial.farReverb !== undefined && !isNum(e.spatial.farReverb, 0, 1))
+        errors.push(`sounds.${key}.spatial.farReverb must be 0..1`);
+      if (e.spatial.lag !== undefined && !isNum(e.spatial.lag, 0, 0.5))
+        errors.push(`sounds.${key}.spatial.lag must be 0..0.5 s`);
+    }
+    if (e.reverb !== undefined && !isNum(e.reverb, 0, 1))
+      errors.push(`sounds.${key}.reverb must be 0..1`);
+    if (e.preDelay !== undefined && !isNum(e.preDelay, 0, 0.5))
+      errors.push(`sounds.${key}.preDelay must be 0..0.5 s`);
+    if (e.duckLoops !== undefined) {
+      if (!isNum(e.duckLoops.amount, 0, 1))
+        errors.push(`sounds.${key}.duckLoops.amount must be 0..1`);
+      if (!isNum(e.duckLoops.time, 0.01, 10))
+        errors.push(`sounds.${key}.duckLoops.time must be 0.01..10 s`);
     }
     if (e.size !== undefined) {
       if (!isNum(e.size.ref, 1, 10000)) errors.push(`sounds.${key}.size.ref must be 1..10000 u`);
@@ -627,6 +799,88 @@ export function validateSounds(sounds: Partial<SoundTable>): string[] {
       if (!isNum(e.duck.amount, 0, 1)) errors.push(`sounds.${key}.duck.amount must be 0..1`);
       if (!isNum(e.duck.time, 0.01, 10)) errors.push(`sounds.${key}.duck.time must be 0.01..10 s`);
     }
+  }
+  return errors;
+}
+
+function validateCurve(
+  where: string,
+  c: LoopCurve | undefined,
+  outMax: number,
+  outMin = 0,
+): string[] {
+  if (!c || typeof c !== 'object') return [`${where} must be a curve`];
+  const errors: string[] = [];
+  if (!isKind(LOOP_STATES, c.state)) errors.push(`${where}.state is unknown`);
+  const pts = c.points;
+  if (!Array.isArray(pts) || pts.length < 2 || pts.length > 12) {
+    errors.push(`${where}.points must be 2..12 points`);
+    return errors;
+  }
+  let last = -Infinity;
+  for (const pt of pts) {
+    if (
+      !Array.isArray(pt) ||
+      pt.length !== 2 ||
+      !isNum(pt[0], -1, 1) ||
+      !isNum(pt[1], outMin, outMax)
+    ) {
+      errors.push(`${where}.points must be [value -1..1, output ${outMin}..${outMax}]`);
+      break;
+    }
+    if (pt[0] <= last) {
+      errors.push(`${where}.points must rise in value`);
+      break;
+    }
+    last = pt[0];
+  }
+  return errors;
+}
+
+export function validateLoops(loops: Partial<LoopTable>): string[] {
+  const errors: string[] = [];
+  for (const [key, entry] of Object.entries(loops)) {
+    if (!isKind(LOOP_KEYS, key)) {
+      errors.push(`loops.${key} is not a loop`);
+      continue;
+    }
+    if (entry === 'silent') continue;
+    const e = entry as LoopEntry | undefined;
+    const at = `loops.${key}`;
+    if (!e || typeof e !== 'object') {
+      errors.push(`${at} must be a loop or 'silent'`);
+      continue;
+    }
+    if (!Array.isArray(e.layers) || e.layers.length < 1 || e.layers.length > 6)
+      errors.push(`${at}.layers must be 1..6 layers`);
+    else
+      e.layers.forEach((l, i) => {
+        const w = `${at}.layers[${i}]`;
+        if (!isKind(WAVEFORMS, l.waveform)) errors.push(`${w}.waveform is unknown`);
+        if (!isNum(l.freq, 10, 20000)) errors.push(`${w}.freq must be 10..20000 Hz`);
+        if (!isNum(l.gain, 0, 1)) errors.push(`${w}.gain must be 0..1`);
+        if (l.detune !== undefined && !isNum(l.detune, -1200, 1200))
+          errors.push(`${w}.detune must be -1200..1200 cents`);
+        if (l.distortion !== undefined && !isNum(l.distortion, 0, 1))
+          errors.push(`${w}.distortion must be 0..1`);
+        if (l.tremolo !== undefined) {
+          if (!isNum(l.tremolo.rate, 0.1, 60)) errors.push(`${w}.tremolo.rate must be 0.1..60 Hz`);
+          if (!isNum(l.tremolo.depth, 0, 1)) errors.push(`${w}.tremolo.depth must be 0..1`);
+        }
+        if (l.filter !== undefined) {
+          if (!isKind(FILTER_TYPES, l.filter.type)) errors.push(`${w}.filter.type is unknown`);
+          if (!isNum(l.filter.freq, 10, 20000))
+            errors.push(`${w}.filter.freq must be 10..20000 Hz`);
+          if (!isNum(l.filter.q, 0.1, 30)) errors.push(`${w}.filter.q must be 0.1..30`);
+        }
+      });
+    if (!isNum(e.volume, 0, 1)) errors.push(`${at}.volume must be 0..1`);
+    errors.push(...validateCurve(`${at}.gain`, e.gain, 1));
+    if (e.pitch !== undefined) errors.push(...validateCurve(`${at}.pitch`, e.pitch, 8, 0.1));
+    if (e.cutoff !== undefined) errors.push(...validateCurve(`${at}.cutoff`, e.cutoff, 8, 0.1));
+    if (!isNum(e.fadeIn, 0.01, 10)) errors.push(`${at}.fadeIn must be 0.01..10 s`);
+    if (!isNum(e.fadeOut, 0.01, 10)) errors.push(`${at}.fadeOut must be 0.01..10 s`);
+    if (e.reverb !== undefined && !isNum(e.reverb, 0, 1)) errors.push(`${at}.reverb must be 0..1`);
   }
   return errors;
 }
@@ -641,7 +895,7 @@ export function validateMusic(music: MusicDef | null | undefined): string[] {
   } else if (src?.kind === 'loop') {
     if (!isNum(src.bpm, 40, 240)) errors.push('music.source.bpm must be 40..240');
     if (!isNum(src.root, 20, 2000)) errors.push('music.source.root must be 20..2000 Hz');
-    if (!isKind(WAVEFORMS, src.waveform) || (src.waveform as string) === 'noise')
+    if (!isKind(WAVEFORMS, src.waveform) || isKind(NOISE_WAVEFORMS, src.waveform))
       errors.push('music.source.waveform must be sine, square, sawtooth or triangle');
     const line = (name: string, steps: readonly (number | null)[] | undefined): void => {
       if (!Array.isArray(steps) || steps.length < 1 || steps.length > 64)
@@ -671,6 +925,7 @@ export function checkStyle(input: StyleInput): string[] {
     ...validateDeaths(input.deaths ?? {}),
     ...validateExplosions(input.explosions ?? {}),
     ...validateSounds(input.sounds ?? {}),
+    ...validateLoops(input.loops ?? {}),
     ...validateMusic(input.music),
   ];
 }
@@ -690,6 +945,8 @@ export function missingParts(input: StyleInput): string[] {
   if (noExplosions.length) missing.push(`explosions: ${noExplosions.join(', ')}`);
   const noSounds = SOUND_EVENT_KEYS.filter((k) => input.sounds?.[k] === undefined);
   if (noSounds.length) missing.push(`sounds: ${noSounds.join(', ')}`);
+  const noLoops = LOOP_KEYS.filter((k) => input.loops?.[k] === undefined);
+  if (noLoops.length) missing.push(`loops: ${noLoops.join(', ')}`);
   return missing;
 }
 
@@ -734,6 +991,7 @@ export function resolveStyle(input: StyleInput, base: StylePack): ResolvedStyle 
       ...valid('explosions', input.explosions, validateExplosions),
     },
     sounds: { ...base.sounds, ...valid('sounds', input.sounds, validateSounds) },
+    loops: { ...base.loops, ...valid('loops', input.loops, validateLoops) },
     music: input.music === null ? null : (validMusic ?? base.music),
   };
   if (id !== base.manifest.id) {

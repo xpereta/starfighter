@@ -23,6 +23,20 @@ export const mixParams = {
     unit: '',
     note: 'Volume of the music track relative to the master, before ducking. 0 = no music even if the style has one.',
   },
+  reverb: {
+    default: 0.8,
+    min: 0,
+    max: 1.5,
+    unit: '',
+    note: "Level of the shared space reverb (the tail after explosions, guns and radio). Each sound sends its own share of it (the sound's Reverb send). 0 = a dry cockpit; higher = a bigger, emptier space.",
+  },
+  reverbTime: {
+    default: 2.6,
+    min: 0.5,
+    max: 6,
+    unit: 's',
+    note: 'How long the space reverb rings. Short = a small bay; long = open space. Changing it rebuilds the reverb, so it clicks once.',
+  },
 } as const satisfies Record<string, ParamDef>;
 
 export type MixConfig = { -readonly [K in keyof typeof mixParams]: number };

@@ -278,6 +278,7 @@ export function stepMissiles(world: World): void {
         dirY: d.vy[i]! / speed,
         impulse: cfg.missileHitImpulse,
       });
+      events.emit({ type: 'MissileImpact', x: d.x[i]!, y: d.y[i]! });
       m.remove(i);
     }
   }

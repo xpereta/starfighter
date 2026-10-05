@@ -1,7 +1,14 @@
 import { mixParams } from '../../data/audio/mix';
 import { activeAudio } from '../audio';
 import type { ParamDef } from '../core/params/params';
-import { SOUND_EVENT_KEYS, type SoundEntry, type SoundEventKey } from '../render/style';
+import {
+  LOOP_KEYS,
+  SOUND_EVENT_KEYS,
+  type LoopEntry,
+  type LoopKey,
+  type SoundEntry,
+  type SoundEventKey,
+} from '../render/style';
 import { activeStyle } from '../render/style-active';
 import {
   buttonRow,
@@ -47,10 +54,85 @@ const SOUND_PARAMS = {
     step: 0.01,
     note: 'Smallest time between two plays of this sound. Higher = a busy fight triggers it less often (calmer, less machine-gun); 0 = every event sounds.',
   },
+  reverb: {
+    default: 0,
+    min: 0,
+    max: 1,
+    unit: '',
+    step: 0.01,
+    note: 'How much of this sound goes to the shared space reverb (the tail). 0 = dry; 1 = the tail is as loud as the sound. Explosions and radio like more; clicks and tones less.',
+  },
+  preDelay: {
+    default: 0,
+    min: 0,
+    max: 0.5,
+    unit: 's',
+    step: 0.005,
+    note: 'Gap between the sound and the start of its reverb. Longer = a bigger space, and the sound stays clear before the tail arrives. Only matters when the reverb send is above 0.',
+  },
 } as const satisfies Record<string, ParamDef>;
+
+/** The values of one loop the panel edits live. */
+const LOOP_PARAMS = {
+  volume: {
+    default: 0.2,
+    min: 0,
+    max: 1,
+    unit: '',
+    step: 0.01,
+    note: 'Loudness of this continuous sound when its game value asks for full level. 0 = silent. Edits the active style live (Save style keeps it).',
+  },
+  fadeIn: {
+    default: 0.4,
+    min: 0.01,
+    max: 5,
+    unit: 's',
+    step: 0.01,
+    note: 'How long the loop takes to come up when its game value rises (smooth, no click). Short = reacts at once; long = swells in.',
+  },
+  fadeOut: {
+    default: 0.6,
+    min: 0.01,
+    max: 5,
+    unit: 's',
+    step: 0.01,
+    note: 'How long the loop takes to die away when its game value falls.',
+  },
+  reverb: {
+    default: 0,
+    min: 0,
+    max: 1,
+    unit: '',
+    step: 0.01,
+    note: 'How much of this loop goes to the shared space reverb. 0 = dry.',
+  },
+} as const satisfies Record<string, ParamDef>;
+type LoopEditKey = keyof typeof LOOP_PARAMS;
+
+const PREVIEW_PARAM = {
+  default: 0.6,
+  min: 0,
+  max: 1,
+  unit: '',
+  step: 0.01,
+  note: 'The game value the previewed loop follows (speed, throttle, hull, rescue progress... whatever its Gain curve uses). For on/off values (edge, always) anything from 0.5 up is on.',
+} as const satisfies ParamDef;
 /** Smallest time between two previews while a slider is dragged (ms). */
 const PREVIEW_GAP_MS = 200;
 type EditKey = keyof typeof SOUND_PARAMS;
+const EDIT_LABELS: Partial<Record<EditKey, string>> = {
+  pitchRandom: 'Pitch spread',
+  minGap: 'Min gap',
+  reverb: 'Reverb send',
+  preDelay: 'Reverb pre-delay',
+};
+const MIX_LABELS: Record<keyof typeof mixParams, string> = {
+  master: 'Master volume',
+  effects: 'Effects volume',
+  music: 'Music volume',
+  reverb: 'Reverb level',
+  reverbTime: 'Reverb length',
+};
 
 type Track = <T extends Row>(row: T, into: Section) => T;
 
@@ -87,12 +169,7 @@ export function buildSoundSection(
         group: 'sound',
         def: mixParams[key],
         target: mix,
-        label:
-          key === 'master'
-            ? 'Master volume'
-            : key === 'effects'
-              ? 'Effects volume'
-              : 'Music volume',
+        label: MIX_LABELS[key],
         onChange: () => engine.update(),
       }),
       sound,
@@ -132,7 +209,7 @@ export function buildSoundSection(
     choiceRow<SoundEventKey>(ctx, {
       id: 'sound.edit',
       label: 'Edit sound',
-      note: 'Which sound the four rows below change. Click to go to the next one. Silent sounds (marked "-") have nothing to edit.',
+      note: 'Which sound the rows below change. Click to go to the next one. Silent sounds (marked "-") have nothing to edit.',
       options: () => SOUND_EVENT_KEYS,
       get: () => selected,
       set: (k) => {
@@ -159,13 +236,93 @@ export function buildSoundSection(
         group: 'soundEdit',
         def: SOUND_PARAMS[key],
         target,
-        label: key === 'pitchRandom' ? 'Pitch spread' : key === 'minGap' ? 'Min gap' : undefined,
+        label: EDIT_LABELS[key],
         trackChange: false,
         onChange: () => previewSelected(),
       }),
       sound,
     );
   }
+
+  // Loops: the continuous sounds that follow the game state.
+  let loopSelected: LoopKey = LOOP_KEYS.find((k) => style.loops[k] !== 'silent') ?? 'engine';
+  const loopEntry = (): LoopEntry | null => {
+    const e = activeStyle().loops[loopSelected];
+    return e === 'silent' || e === undefined ? null : e;
+  };
+  const loopTarget: Record<string, unknown> = {};
+  for (const k of Object.keys(LOOP_PARAMS) as LoopEditKey[]) {
+    Object.defineProperty(loopTarget, k, {
+      enumerable: true,
+      get: () => loopEntry()?.[k] ?? LOOP_PARAMS[k].default,
+      set: (v: number) => {
+        const e = loopEntry();
+        if (e) e[k] = v;
+      },
+    });
+  }
+  track(
+    choiceRow<LoopKey>(ctx, {
+      id: 'sound.loop',
+      label: 'Edit loop',
+      note: 'Which continuous sound (engine hum, afterburner, rumble, ambient bed, missile hiss, rescue tone, hull alarm, arena-edge alarm) the rows below change. Click for the next one. Silent loops (marked "-") have nothing to edit.',
+      options: () => LOOP_KEYS,
+      get: () => loopSelected,
+      set: (k) => {
+        loopSelected = k;
+        refreshAll();
+      },
+      format: (k) => (activeStyle().loops[k] === 'silent' ? `${k} -` : k),
+      trackChange: false,
+    }),
+    sound,
+  );
+  for (const key of Object.keys(LOOP_PARAMS) as LoopEditKey[]) {
+    track(
+      sliderRow(ctx, {
+        key,
+        group: 'loopEdit',
+        def: LOOP_PARAMS[key],
+        target: loopTarget,
+        label:
+          key === 'fadeIn' ? 'Loop fade in' : key === 'fadeOut' ? 'Loop fade out' : `Loop ${key}`,
+        trackChange: false,
+      }),
+      sound,
+    );
+  }
+  const previewState = { on: false, value: PREVIEW_PARAM.default };
+  const applyPreview = (): void =>
+    engine.previewLoop(previewState.on ? loopSelected : null, previewState.value);
+  track(
+    choiceRow<boolean>(ctx, {
+      id: 'sound.loopPreview',
+      label: 'Preview the loop',
+      note: 'Plays the chosen loop as if the game were at the value below (instead of the real game state), so you can hear it without flying. Turn it off to hear the real game again. The first click also starts the audio.',
+      options: () => [false, true],
+      get: () => previewState.on,
+      set: (v) => {
+        previewState.on = v;
+        if (v) engine.unlock();
+        applyPreview();
+      },
+      defaultValue: false,
+      trackChange: false,
+    }),
+    sound,
+  );
+  track(
+    sliderRow(ctx, {
+      key: 'value',
+      group: 'loopPreview',
+      def: PREVIEW_PARAM,
+      target: previewState,
+      label: 'Preview value',
+      trackChange: false,
+      onChange: () => applyPreview(),
+    }),
+    sound,
+  );
 
   // Sound test: every sound, one click each.
   track(

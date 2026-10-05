@@ -319,6 +319,7 @@ describe('engagement', () => {
     const id = enemyAt(world, 300, 0);
     wingSteps(world, 1);
     expect(world.bullets.count).toBe(1);
+    expect(world.events.events.filter((e) => e.type === 'WingmanShotFired')).toHaveLength(1);
     expect(world.bullets.data.damage[0]).toBeCloseTo(cfg.gunDamage);
     expect(cfg.gunDamage).toBeLessThan(world.tuning.weapons.bulletDamage);
     expect(w.fireCooldown).toBeCloseTo(1 / cfg.fireRate, 3);
@@ -371,6 +372,8 @@ describe('losses', () => {
     expect(w.hp).toBe(world.tuning.squadron.health - 1);
     expect(world.enemyShots.count).toBe(0);
     expect(world.events.events.filter((e) => e.type === 'Hit')).toHaveLength(1);
+    expect(world.events.events.filter((e) => e.type === 'WingmanHit')).toHaveLength(1);
+    expect(world.events.events.some((e) => e.type === 'WingmanDown')).toBe(false);
     expect(w.alive).toBe(true);
   });
 
@@ -384,6 +387,7 @@ describe('losses', () => {
     const killed = world.events.events.filter((e) => e.type === 'Killed');
     expect(killed).toHaveLength(1);
     expect(killed[0]).toMatchObject({ kind: 'wingman', entityId: 0 });
+    expect(world.events.events.filter((e) => e.type === 'WingmanDown')).toHaveLength(1);
     expect(livingWingmen(world.squadron)).toBe(0);
     const x = w.ship.x;
     wingSteps(world, 5);

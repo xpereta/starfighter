@@ -20,6 +20,8 @@ export interface Planned {
   request: PlayRequest;
   /** Music ducking this sound asks for. */
   duck: SoundEntry['duck'];
+  /** Dip of the continuous loops this sound asks for. */
+  duckLoops: SoundEntry['duckLoops'];
 }
 
 export interface Planner {
@@ -38,7 +40,8 @@ export interface Planner {
 export function soundDuration(source: SoundEntry['source']): number {
   if (source.kind === 'sample') return source.duration;
   let end = 0;
-  for (const l of source.layers) end = Math.max(end, (l.delay ?? 0) + l.attack + l.decay);
+  for (const l of source.layers)
+    end = Math.max(end, (l.delay ?? 0) + l.attack + (l.hold ?? 0) + l.decay);
   return end;
 }
 
@@ -53,6 +56,12 @@ function position(event: GameEvent | null): { x: number; y: number } | null {
     case 'EvadeStarted':
     case 'MissileLaunched':
     case 'PodSpawned':
+    case 'EnemyShotFired':
+    case 'WingmanShotFired':
+    case 'PlayerDamaged':
+    case 'WingmanHit':
+    case 'WingmanDown':
+    case 'MissileImpact':
       return event;
     default:
       return null;
@@ -88,16 +97,24 @@ export function createPlanner(table: () => SoundTable, rng: () => number): Plann
         volume *= clamp((1 / ratio) ** (entry.size.exponent * 0.5), 0.5, 1.5);
       }
       let pan = 0;
+      let cutoff = 0;
+      let send = entry.reverb ?? 0;
+      let startDelay = 0;
       const at = position(event);
       if (entry.spatial && at) {
+        const sp = entry.spatial;
         const dx = at.x - listener.x;
         const dist = Math.hypot(dx, at.y - listener.y);
-        const far = clamp(dist / entry.spatial.range, 0, 1);
-        pan = clamp(dx / entry.spatial.range, -1, 1) * entry.spatial.pan;
-        volume *= 1 - far * (1 - entry.spatial.farVolume);
+        const far = clamp(dist / sp.range, 0, 1);
+        pan = clamp(dx / sp.range, -1, 1) * sp.pan;
+        volume *= 1 - far * (1 - sp.farVolume);
+        // Distance cues: muffled (log-spaced low-pass), wetter and a little late.
+        if (sp.lowpass) cutoff = sp.lowpass.near * (sp.lowpass.far / sp.lowpass.near) ** far;
+        send += far * (sp.farReverb ?? 0);
+        startDelay = far * (sp.lag ?? 0);
       }
 
-      const duration = soundDuration(entry.source);
+      const duration = soundDuration(entry.source) + startDelay;
       lastAt.set(key, now);
       ends.push(now + duration);
       return {
@@ -108,8 +125,13 @@ export function createPlanner(table: () => SoundTable, rng: () => number): Plann
           volume: clamp(volume, 0, 1),
           pan: clamp(pan, -1, 1),
           duration,
+          send: clamp(send, 0, 1),
+          preDelay: entry.preDelay ?? 0,
+          startDelay,
+          cutoff,
         },
         duck: entry.duck,
+        duckLoops: entry.duckLoops,
       };
     },
     reset() {

@@ -159,7 +159,7 @@ describe('audio engine', () => {
     const { backend, engine } = setup({ PilotLost: beep({ duck: { amount: 0.5, time: 1 } }) });
     engine.unlock();
     engine.consumeEvents([{ type: 'PilotLost', pilotId: 1 }], HERE);
-    expect(backend.ducks).toEqual([{ amount: 0.5, time: 1 }]);
+    expect(backend.ducks).toEqual([{ amount: 0.5, time: 1, bus: 'music' }]);
   });
 
   it('pause plays the pause sound, suspends, ignores events, and resume undoes it', () => {
@@ -189,7 +189,13 @@ describe('audio engine', () => {
     expect(backend.mix.master).toBe(mix.master);
     engine.toggleMute();
     expect(engine.muted).toBe(true);
-    expect(backend.mix).toEqual({ master: 0, effects: mix.effects, music: mix.music });
+    expect(backend.mix).toEqual({
+      master: 0,
+      effects: mix.effects,
+      music: mix.music,
+      reverb: mix.reverb,
+      reverbTime: mix.reverbTime,
+    });
     mix.effects = 0.3;
     engine.update();
     expect(backend.mix.effects).toBe(0.3);

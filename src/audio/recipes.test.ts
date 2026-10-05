@@ -9,20 +9,22 @@ import {
 } from '../render/style';
 import { soundDuration } from './planner';
 
-const packs: [string, SoundTable][] = [
+const packs: [string, Partial<SoundTable>][] = [
   ['plain', plain],
   ['anime-80s', anime],
 ];
 
 describe.each(packs)('%s sounds', (_name, table) => {
-  it('validates and has an entry or an explicit silent for every event', () => {
+  it('validates, and the fallback pack has an entry or an explicit silent for every event', () => {
     expect(validateSounds(table)).toEqual([]);
-    for (const k of SOUND_EVENT_KEYS) expect(table[k]).toBeDefined();
+    // `plain` is the fallback and must be complete; other packs may leave newer events to the default sound pack.
+    if (_name === 'plain') for (const k of SOUND_EVENT_KEYS) expect(table[k]).toBeDefined();
   });
 
   it('only the pilot-kill blip is silent; everything else is audible and short', () => {
     for (const k of SOUND_EVENT_KEYS) {
       const e = table[k];
+      if (e === undefined) continue;
       if (e === 'silent') {
         expect(k).toBe('PilotKill');
         continue;
@@ -38,7 +40,7 @@ describe.each(packs)('%s sounds', (_name, table) => {
     const seen = new Map<string, string>();
     for (const k of SOUND_EVENT_KEYS) {
       const e = table[k];
-      if (e === 'silent') continue;
+      if (e === undefined || e === 'silent') continue;
       const id = JSON.stringify((e as SoundEntry).source);
       expect(seen.get(id), `${k} duplicates ${seen.get(id)}`).toBeUndefined();
       seen.set(id, k);

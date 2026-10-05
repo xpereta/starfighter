@@ -47,6 +47,7 @@ export function startAudio(): Audio {
     backend: createWebAudioBackend((file) => sampleUrl(activeStyle().manifest.id, file)),
     table: () => activeStyle().sounds,
     music: () => activeStyle().music,
+    loops: () => activeStyle().loops,
     mix,
   });
   const setMuted = (muted: boolean): void => {

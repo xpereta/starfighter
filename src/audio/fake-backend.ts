@@ -1,5 +1,6 @@
 import type { MusicDef } from '../render/style';
-import type { AudioBackend, MixLevels, PlayRequest } from './backend';
+import type { AudioBackend, DuckBus, MixLevels, PlayRequest } from './backend';
+import type { LoopFrame } from './loops';
 
 /** Records everything the engine asks for. For tests. */
 export interface FakeBackend extends AudioBackend {
@@ -9,7 +10,11 @@ export interface FakeBackend extends AudioBackend {
   mix: MixLevels;
   music: MusicDef | null;
   readonly played: PlayRequest[];
-  readonly ducks: { amount: number; time: number }[];
+  readonly ducks: { amount: number; time: number; bus: DuckBus }[];
+  /** The latest loop frames the engine sent. */
+  loops: readonly LoopFrame[];
+  /** How many times `setLoops` was called. */
+  loopCalls: number;
 }
 
 export function createFakeBackend(): FakeBackend {
@@ -17,10 +22,12 @@ export function createFakeBackend(): FakeBackend {
     now: 0,
     started: false,
     suspended: false,
-    mix: { master: 1, effects: 1, music: 1 },
+    mix: { master: 1, effects: 1, music: 1, reverb: 1, reverbTime: 2 },
     music: null,
     played: [],
     ducks: [],
+    loops: [],
+    loopCalls: 0,
     start() {
       this.started = true;
     },
@@ -36,8 +43,12 @@ export function createFakeBackend(): FakeBackend {
     setMusic(music) {
       this.music = music;
     },
-    duck(amount, time) {
-      this.ducks.push({ amount, time });
+    duck(amount, time, bus = 'music') {
+      this.ducks.push({ amount, time, bus });
+    },
+    setLoops(frames) {
+      this.loops = frames;
+      this.loopCalls++;
     },
   };
 }

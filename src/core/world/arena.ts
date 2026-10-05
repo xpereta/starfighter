@@ -110,6 +110,7 @@ function spawnEnemyShot(
   cfg: ArenaConfig,
   t: Target,
   at: { x: number; y: number },
+  events?: EventQueue,
 ): void {
   const i = shots.spawn();
   if (i < 0) return;
@@ -121,6 +122,13 @@ function spawnEnemyShot(
   shots.data.vx[i] = (dx / d) * cfg.enemyShotSpeed;
   shots.data.vy[i] = (dy / d) * cfg.enemyShotSpeed;
   shots.data.life[i] = cfg.enemyShotLife;
+  events?.emit({
+    type: 'EnemyShotFired',
+    x: t.x,
+    y: t.y,
+    angle: Math.atan2(dy, dx),
+    from: 'turret',
+  });
 }
 
 /** The nearest living pod within `range` of (x, y), or null. */
@@ -154,6 +162,7 @@ export function stepTargets(
   dt: number,
   pods: readonly Pod[] = [],
   podRange = 0,
+  events?: EventQueue,
 ): void {
   for (const t of targets) {
     if (!t.alive) {
@@ -183,10 +192,10 @@ export function stepTargets(
       if (t.cooldown <= 0) {
         const pod = podRange > 0 ? nearestPodAt(pods, t.x, t.y, podRange) : null;
         if (pod) {
-          spawnEnemyShot(shots, cfg, t, pod);
+          spawnEnemyShot(shots, cfg, t, pod, events);
           t.cooldown = cfg.turretFireInterval * rng.range(0.8, 1.2);
         } else if (Math.hypot(ship.x - t.x, ship.y - t.y) <= cfg.turretRange) {
-          spawnEnemyShot(shots, cfg, t, ship);
+          spawnEnemyShot(shots, cfg, t, ship, events);
           t.cooldown = cfg.turretFireInterval * rng.range(0.8, 1.2);
         }
       }
@@ -221,6 +230,8 @@ export function stepEnemyShots(
   cfg: ArenaConfig,
   events: EventQueue,
   dt: number,
+  /** The hull before this step's hits, only used to say how much is left in `PlayerDamaged` (0 in practice mode). */
+  hullBefore = 0,
 ): number {
   const { x, y, vx, vy, life } = shots.data;
   const reach = cfg.playerRadius + cfg.enemyShotRadius;
@@ -245,6 +256,12 @@ export function stepEnemyShots(
       dirX: vx[i]! / speed,
       dirY: vy[i]! / speed,
       impulse: 1,
+    });
+    events.emit({
+      type: 'PlayerDamaged',
+      x: ship.x,
+      y: ship.y,
+      hull: Math.max(0, hullBefore - hits - 1),
     });
     shots.remove(i);
     hits++;

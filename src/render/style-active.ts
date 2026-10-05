@@ -1,6 +1,7 @@
 import { styles as registry } from '../../data/styles';
 import {
   checkStyle,
+  LOOP_KEYS,
   PALETTE_KEYS,
   resolveStyle,
   SOUND_EVENT_KEYS,
@@ -14,6 +15,11 @@ import {
 
 /** The fallback pack every other style builds on. */
 export const FALLBACK_STYLE = 'plain';
+/**
+ * The pack whose sounds and loops fill the gaps of a pack that has no parent (a pack without its
+ * own sound table, or without entries for newer events or loops): believable sound design, not beeps.
+ */
+export const SOUND_DEFAULT_STYLE = 'realistic';
 export const STYLE_STORAGE_KEY = 'starfighter.style';
 
 /** Turns `plain` into a complete pack. `plain` must give the whole theme and sound table. */
@@ -26,6 +32,8 @@ export function completeFallback(input: StyleInput): StylePack {
     errors.push('the fallback style must define every theme field');
   if (SOUND_EVENT_KEYS.some((k) => input.sounds?.[k] === undefined))
     errors.push('the fallback style must have an entry or "silent" for every event');
+  if (LOOP_KEYS.some((k) => input.loops?.[k] === undefined))
+    errors.push('the fallback style must have an entry or "silent" for every loop');
   if (errors.length) throw new Error(`style "${input.manifest.id}": ${errors.join('; ')}`);
   return {
     manifest: input.manifest,
@@ -34,6 +42,7 @@ export function completeFallback(input: StyleInput): StylePack {
     deaths: input.deaths ?? {},
     explosions: input.explosions ?? {},
     sounds: input.sounds as StylePack['sounds'],
+    loops: input.loops as StylePack['loops'],
     music: input.music ?? null,
   };
 }
@@ -64,6 +73,19 @@ export function buildStyles(reg: StyleRegistry): Record<string, ResolvedStyle> {
     }
     resolving.delete(id);
     const r = resolveStyle(input, base);
+    // A pack that builds directly on `plain` takes the default sound pack's sounds and loops where it has none of its own.
+    const soundBase =
+      id !== SOUND_DEFAULT_STYLE && base === fallback ? reg[SOUND_DEFAULT_STYLE] : undefined;
+    if (soundBase) {
+      const d = resolve(SOUND_DEFAULT_STYLE).pack;
+      const sounds = { ...r.pack.sounds };
+      for (const k of SOUND_EVENT_KEYS)
+        if (input.sounds?.[k] === undefined) sounds[k] = d.sounds[k];
+      const loops = { ...r.pack.loops };
+      for (const k of LOOP_KEYS) if (input.loops?.[k] === undefined) loops[k] = d.loops[k];
+      r.pack.sounds = sounds;
+      r.pack.loops = loops;
+    }
     return (out[id] = { pack: r.pack, warnings: [...extra, ...r.warnings] });
   };
   for (const id of Object.keys(reg)) resolve(id);

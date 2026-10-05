@@ -22,10 +22,10 @@ A folder `data/styles/<id>/` plus one line in `data/styles/index.ts`. The contra
 | `ships.ts`       | shape per ship kind                                                                                          |
 | `deaths.ts`      | death sequence per ship kind                                                                                 |
 | `explosions.ts`  | explosion kinds                                                                                              |
-| `sounds.ts`      | event to sound table (every event has a sound or `'silent'`)                                                 |
+| `sounds.ts`      | event to sound table (every event has a sound or `'silent'`), and optionally `loops` (continuous sounds)     |
 | `index.ts`       | exports the pack                                                                                             |
 
-Anything a pack leaves out falls back to its `parent`, else to `plain`, with a console warning and a note in the panel's Look section. Inheritance makes variations cheap (same ships, new palette and sounds).
+Anything a pack leaves out falls back to its `parent`, else to `plain`, with a console warning and a note in the panel's Look section. The exception is sound: a pack without a parent that has no sounds or loops of its own (or lacks entries for newer events) takes them from the `realistic` pack, so a new direction is never silent. Inheritance makes variations cheap (same ships, new palette and sounds).
 
 ## Steps
 

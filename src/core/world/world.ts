@@ -150,7 +150,10 @@ export function stepWorld(world: World, dt: number): void {
   world.time += dt;
 
   // Respawn is a practice-mode key: in a run it would wipe the squadron and the battle's waves.
-  if (actions.respawn && !prev.respawn && world.run.mode !== 'run') resetWorld(world);
+  if (actions.respawn && !prev.respawn && world.run.mode !== 'run') {
+    resetWorld(world);
+    world.events.emit({ type: 'PlayerRespawned' });
+  }
   if (actions.startTrial && !prev.startTrial) startTrial(world.trial, world.targets);
   prev.respawn = actions.respawn;
   prev.startTrial = actions.startTrial;
@@ -197,6 +200,7 @@ export function stepWorld(world: World, dt: number): void {
       dt,
       world.pods,
       tuning.rescue.podThreatRange,
+      world.events,
     );
     world.stats.hitsTaken += stepEnemyShots(
       world.enemyShots,
@@ -204,6 +208,7 @@ export function stepWorld(world: World, dt: number): void {
       tuning.arena,
       world.events,
       dt,
+      world.run.mode === 'run' ? world.run.hull : 0,
     );
   }
   stepPods(world); // prototype 3 (B1): rescue pods

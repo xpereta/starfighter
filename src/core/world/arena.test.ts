@@ -139,9 +139,13 @@ describe('turrets and enemy shots', () => {
     expect(shots.count).toBe(0);
     ship.x = t!.x + 500;
     ship.y = t!.y;
+    const events = createEventQueue();
     for (let i = 0; i < 600; i++)
-      stepTargets([t!], ship, cfg, 6000, shots, createRng(1), false, DT);
+      stepTargets([t!], ship, cfg, 6000, shots, createRng(1), false, DT, [], 0, events);
     expect(shots.count).toBeGreaterThan(0);
+    const fired = events.events.filter((e) => e.type === 'EnemyShotFired');
+    expect(fired.length).toBeGreaterThan(0);
+    expect(fired[0]).toMatchObject({ from: 'turret' });
     expect(Math.hypot(shots.data.vx[0]!, shots.data.vy[0]!)).toBeCloseTo(cfg.enemyShotSpeed, 3);
     expect(shots.data.vx[0]!).toBeGreaterThan(0); // aimed at the ship, which is to the right
   });

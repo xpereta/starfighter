@@ -90,6 +90,9 @@ describe('guns', () => {
     const i = spawnFighter(world, 600, 0, Math.PI);
     aiSteps(world, 1);
     expect(world.enemyShots.count).toBe(1);
+    expect(world.events.events).toContainEqual(
+      expect.objectContaining({ type: 'EnemyShotFired', from: 'fighter' }),
+    );
     const f = world.fighters[i]!;
     expect(f.fireCooldown).toBeCloseTo(1 / world.tuning.fighter.fireRate, 3);
     aiSteps(world, 5); // well inside one fire interval
