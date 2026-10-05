@@ -7,7 +7,7 @@ import { createWorld, stepWorld, type World } from '../world/world';
 import { hashWorld } from './hash';
 
 const FORMAT = 'starfighter-replay';
-export const REPLAY_VERSION = 6; // v2: the prototype 2 actions (launch, orders); v3: arena.enemiesFrozen; v4: the hash covers more state (rng, prev, targets); v5: pilots, run and pods in the hash; v6: how the world starts (practice, or a run on its Start screen with the offered veterans)
+export const REPLAY_VERSION = 7; // v2: the prototype 2 actions (launch, orders); v3: arena.enemiesFrozen; v4: the hash covers more state (rng, prev, targets); v5: pilots, run and pods in the hash; v6: how the world starts (practice, or a run on its Start screen with the offered veterans); v7: fighters dodge missiles (new fighter state, missiles skip immune targets)
 
 /** The inputs in effect from `tick` on (applied before stepping that tick). Only changes are stored. */
 export interface InputChange {

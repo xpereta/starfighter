@@ -6,6 +6,14 @@ import { stepSeconds } from '../world/clock';
 import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
 import { NO_HIT, type Fighter } from './fighter';
+import {
+  awarenessChance,
+  PLAN_DONE,
+  PLAN_IGNORE,
+  PLAN_REACT,
+  reactionTrigger,
+  timeToImpact,
+} from './missile-evasion';
 import { deriveFlight, leadPoint, noEvents, type Point } from './steering';
 
 export type { Fighter } from './fighter';
@@ -100,6 +108,66 @@ function shoot(world: World, f: Fighter, cfg: FighterConfig): void {
   });
 }
 
+/**
+ * Missile evasion. Tracks the nearest missile homing on this fighter inside `missileDetectRange`;
+ * the first time it sees a given missile it rolls awareness once (`awarenessChance`) and a
+ * reaction error once, then fires the evade roll (plus a hard turn) when the estimated time to
+ * impact drops to the trigger. The roll needs `missileEvadeCooldown` to have run out and no roll
+ * in progress (which is also what lets a salvo at one fighter land hits); a mistimed or blocked
+ * roll is simply hit. All randomness is the world rng, all state is on the fighter (and in the hash).
+ */
+function evadeMissiles(
+  world: World,
+  f: Fighter,
+  index: number,
+  cfg: FighterConfig,
+  flight: typeof flightScratch,
+): void {
+  f.missileCooldown = Math.max(0, f.missileCooldown - stepSeconds(world));
+  const m = world.missiles;
+  const d = m.data;
+  const id = FIGHTER_ID_BASE + index;
+  const rangeSq = cfg.missileDetectRange * cfg.missileDetectRange;
+  let best = -1;
+  let bestSq = rangeSq;
+  for (let i = 0; i < m.count; i++) {
+    if (d.targetId[i] !== id) continue;
+    const sq = (d.x[i]! - f.x) ** 2 + (d.y[i]! - f.y) ** 2;
+    if (sq <= bestSq) {
+      best = i;
+      bestSq = sq;
+    }
+  }
+  if (best < 0) {
+    f.missileUid = -1;
+    f.missilePlan = PLAN_IGNORE;
+    return;
+  }
+  const uid = d.uid[best]!;
+  if (uid !== f.missileUid) {
+    // A new missile: decide once whether to react and how well it will time it.
+    f.missileUid = uid;
+    const aware = world.rng.next() < awarenessChance(cfg, Math.sqrt(bestSq));
+    const error = world.rng.range(-cfg.missileReactionError, cfg.missileReactionError);
+    f.missilePlan = aware ? PLAN_REACT : PLAN_IGNORE;
+    f.missileTrigger = reactionTrigger(flight.evadeIFrames, error);
+  }
+  if (f.missilePlan !== PLAN_REACT) return;
+  const eta = timeToImpact(
+    d.x[best]! - f.x,
+    d.y[best]! - f.y,
+    d.vx[best]! - f.vx,
+    d.vy[best]! - f.vy,
+  );
+  if (eta > f.missileTrigger) return;
+  f.missilePlan = PLAN_DONE; // one attempt per missile, on time or not
+  const ship = f.ship;
+  if (f.missileCooldown > 0 || ship.evadeTimer > 0) return; // still recovering: this one lands
+  f.missileCooldown = cfg.missileEvadeCooldown;
+  ship.evadeCooldown = 0; // the missile roll has its own cooldown, not the break-away's
+  f.actions.evade = true;
+}
+
 /** One fighter's decisions for this step: writes `f.actions` and may fire. */
 function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: number): void {
   // Notice new hits (hp dropped since last step).
@@ -128,6 +196,8 @@ function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: 
     const hitTwice = f.hitTimeA > NO_HIT / 2 && f.hitTimeB - f.hitTimeA <= cfg.breakHitWindow;
     if (hitTwice || world.lockon.locks.includes(FIGHTER_ID_BASE + index)) startBreak(world, f, cfg);
   }
+
+  if (cfg.enemiesEvadeMissiles) evadeMissiles(world, f, index, cfg, flightScratch);
 
   const ship = f.ship;
   const toX = target.x - ship.x;
