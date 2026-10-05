@@ -13,7 +13,7 @@ const BTN_LAUNCH = 1; // B
 const BTN_RESPAWN = 3; // Y
 const BTN_FORMATION = 4; // LB
 const BTN_ORDER = 5; // RB
-const BTN_TRIAL = 9; // Start
+const BTN_TRIAL = 9; // Start (also pauses, see mapPause)
 const BTN_DPAD_UP = 12;
 const BTN_DPAD_DOWN = 13;
 /** Stick deflection that counts as a menu up/down press. */
@@ -77,6 +77,14 @@ export function mapKeyboard(codes: ReadonlySet<string>): Actions {
     menuSelect: codes.has('Enter') || codes.has('Space'),
     menuBack: codes.has('Escape') || codes.has('Backspace'),
   };
+}
+
+/**
+ * Whether a pause button is held right now: P or Escape on the keyboard, Start (Options) on the pad.
+ * A level, not an edge: the app toggles pause on the press. Never part of `Actions`, so never recorded.
+ */
+export function mapPause(codes: ReadonlySet<string>, pad: GamepadSnapshot | null): boolean {
+  return codes.has('KeyP') || codes.has('Escape') || (pad?.buttons[BTN_TRIAL]?.pressed ?? false);
 }
 
 const larger = (a: number, b: number): number => (Math.abs(a) >= Math.abs(b) ? a : b);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createActions } from '../core/world/actions';
-import { applyDeadzone, mapGamepad, mapKeyboard, mergeActions } from './mapping';
+import { applyDeadzone, mapGamepad, mapKeyboard, mapPause, mergeActions } from './mapping';
 
 const pad = (axes: number[], pressed: Record<number, number> = {}) => ({
   axes,
@@ -134,5 +134,18 @@ describe('mergeActions', () => {
       menuSelect: false,
       menuBack: false,
     });
+  });
+});
+
+describe('mapPause', () => {
+  it('P, Escape and pad Start pause; flight keys do not', () => {
+    expect(mapPause(new Set(['KeyP']), null)).toBe(true);
+    expect(mapPause(new Set(['Escape']), null)).toBe(true);
+    expect(mapPause(new Set(), pad([0, 0], { 9: 1 }))).toBe(true);
+    expect(mapPause(new Set(['KeyW', 'Space', 'KeyT']), pad([0, 0], { 0: 1 }))).toBe(false);
+  });
+
+  it('is not part of the recorded actions', () => {
+    expect('pause' in mapKeyboard(new Set(['KeyP']))).toBe(false);
   });
 });
