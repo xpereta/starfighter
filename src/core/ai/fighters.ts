@@ -23,14 +23,27 @@ interface Mover {
   vy: number;
 }
 
-/** What a fighter is chasing: the player (-1) or a living wingman; null if that wingman is gone. */
+/** Target index for rescue pod `i` (indexes -1 and up are the player and the wingmen). */
+export const podTargetIndex = (i: number): number => -2 - i;
+
+/**
+ * What a fighter is chasing: the player (-1), a living wingman (0 and up), or a rescue pod
+ * (`podTargetIndex`); null if that wingman or pod is gone.
+ */
 export function targetOf(world: World, index: number): Mover | null {
-  if (index < 0) return world.ship;
+  if (index === -1) return world.ship;
+  if (index <= -2) {
+    const pod = world.pods[-2 - index];
+    return pod && pod.alive ? pod : null;
+  }
   const wingman = world.squadron.wingmen[index];
   return wingman && wingman.alive ? wingman.ship : null;
 }
 
-/** The nearest of the player (-1) and the living wingmen to (x, y). */
+/**
+ * The nearest of the player (-1), the living wingmen and the rescue pods within `podThreatRange`
+ * to (x, y).
+ */
 export function chooseTarget(world: World, x: number, y: number): number {
   let best = -1;
   let bestSq = (world.ship.x - x) ** 2 + (world.ship.y - y) ** 2;
@@ -41,6 +54,16 @@ export function chooseTarget(world: World, x: number, y: number): number {
     const sq = (w.ship.x - x) ** 2 + (w.ship.y - y) ** 2;
     if (sq < bestSq) {
       best = i;
+      bestSq = sq;
+    }
+  }
+  const range = world.tuning.rescue.podThreatRange;
+  for (let i = 0; i < world.pods.length; i++) {
+    const p = world.pods[i]!;
+    if (!p.alive) continue;
+    const sq = (p.x - x) ** 2 + (p.y - y) ** 2;
+    if (sq < bestSq && sq <= range * range) {
+      best = podTargetIndex(i);
       bestSq = sq;
     }
   }

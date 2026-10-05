@@ -50,13 +50,13 @@ export function spawnFighter(
   return world.fighters.length - 1;
 }
 
-/** Brings in a wave: `waveSize` fighters spread around the arena edge, heading roughly inward. */
-export function spawnWave(world: World): void {
+/** Brings in a wave: `size` fighters (practice: `waveSize`) spread around the arena edge, heading roughly inward. */
+export function spawnWave(world: World, size = world.tuning.fighter.waveSize): void {
   const cfg = world.tuning.fighter;
   const radius = world.tuning.flight.arenaRadius * cfg.spawnFraction;
   const base = world.rng.range(0, TAU);
-  for (let k = 0; k < cfg.waveSize; k++) {
-    const angle = base + (k * TAU) / cfg.waveSize + world.rng.range(-0.2, 0.2);
+  for (let k = 0; k < size; k++) {
+    const angle = base + (k * TAU) / size + world.rng.range(-0.2, 0.2);
     const heading = angle + Math.PI + world.rng.range(-0.3, 0.3);
     // The retarget timer is staggered so the whole wave does not re-pick targets in the same step.
     spawnFighter(

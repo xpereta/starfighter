@@ -1,8 +1,7 @@
 /**
  * Pilot traits (spec: docs/specs/prototype-3-pilots.md section 2). Each trait is a set of multipliers
- * on one wingman's existing squadron parameters, so a trait changes how they fly and fight. The
- * contract (this file's shape and `validateTraits`) lands first; issue A1 fills in the real numbers.
- * Neutral values: multipliers 1, additive hp 0.
+ * on one wingman's existing squadron parameters, so a trait changes how they fly and fight.
+ * Neutral values: multipliers 1, additive hp 0, guard bias 0. Validated at load (`validateTraits`).
  */
 
 export const TRAIT_IDS = ['sharpshooter', 'steady', 'bold', 'guardian', 'hunter'] as const;
@@ -46,17 +45,33 @@ const neutral = (): TraitMultipliers => ({
   guardBias: 0,
 });
 
-/** Placeholder numbers until issue A1; every trait is neutral so nothing changes yet. */
+/** The five traits (spec section 2). Each changes how that wingman flies and fights; all values are tunable. */
 export const TRAITS: Record<TraitId, TraitDef> = {
   sharpshooter: {
     label: 'Sharpshooter',
-    blurb: 'Hits what it aims at, harder.',
-    multipliers: neutral(),
+    blurb: 'Wider aim and harder-hitting guns.',
+    multipliers: { ...neutral(), fireCone: 1.6, gunDamage: 1.3 },
   },
-  steady: { label: 'Steady', blurb: 'Tough, and stays in formation.', multipliers: neutral() },
-  bold: { label: 'Bold', blurb: 'Fast and aggressive, but fragile.', multipliers: neutral() },
-  guardian: { label: 'Guardian', blurb: 'Goes after whatever chases you.', multipliers: neutral() },
-  hunter: { label: 'Hunter', blurb: 'Its missiles hit much harder.', multipliers: neutral() },
+  steady: {
+    label: 'Steady',
+    blurb: 'Tough, and stays tight in formation.',
+    multipliers: { ...neutral(), healthBonus: 2, slotHold: 0.6 },
+  },
+  bold: {
+    label: 'Bold',
+    blurb: 'Fast and aggressive, but fragile.',
+    multipliers: { ...neutral(), engageRange: 1.5, speed: 1.1, healthBonus: -1 },
+  },
+  guardian: {
+    label: 'Guardian',
+    blurb: 'Goes after whatever is chasing you.',
+    multipliers: { ...neutral(), engageRange: 1.4, guardBias: 1 },
+  },
+  hunter: {
+    label: 'Hunter',
+    blurb: 'Its missiles hit much harder.',
+    multipliers: { ...neutral(), missileDamage: 1.5 },
+  },
 };
 
 /** Throws on a trait that would break the game (non-finite or non-positive multipliers). Run at load. */

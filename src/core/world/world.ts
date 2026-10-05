@@ -4,9 +4,9 @@ import { createCamera, stepCamera, type Camera } from '../camera/camera';
 import { createEventQueue, type EventQueue } from '../events/events';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
 import { createLockOn, stepLockOn, type LockOn } from '../lockon/lockon';
-import { createPilots, type Pilots } from '../pilots/pilots';
+import { createPilots, stepPilots, type Pilots } from '../pilots/pilots';
 import { createRng, type Rng } from '../rng/rng';
-import { createRun, stepRun, type Run } from '../run/run';
+import { createRun, stepRun, stepRunBattle, type Run } from '../run/run';
 import { createSquadron, stepSquadron, type Squadron } from '../squadron/squadron';
 import {
   createBulletPool,
@@ -149,12 +149,18 @@ export function stepWorld(world: World, dt: number): void {
   world.tick += 1;
   world.time += dt;
 
-  if (actions.respawn && !prev.respawn) resetWorld(world);
+  // Respawn is a practice-mode key: in a run it would wipe the squadron and the battle's waves.
+  if (actions.respawn && !prev.respawn && world.run.mode !== 'run') resetWorld(world);
   if (actions.startTrial && !prev.startTrial) startTrial(world.trial, world.targets);
   prev.respawn = actions.respawn;
   prev.startTrial = actions.startTrial;
 
   stepRun(world); // prototype 3 (A2): run phases, battles and menus
+  if (world.run.phase !== 'battle') {
+    // A menu is up (start, debrief, end): the world holds still; only the button edges move on.
+    trackEdges(world);
+    return;
+  }
   stepFlight(world.ship, actions, tuning.flight, world.events, dt);
   stepFighters(world); // prototype 2 (B1): enemy fighters
   stepSquadron(world); // prototype 2 (B2/B3): wingmen and orders
@@ -189,6 +195,8 @@ export function stepWorld(world: World, dt: number): void {
       world.rng,
       world.trial.active,
       dt,
+      world.pods,
+      tuning.rescue.podThreatRange,
     );
     world.stats.hitsTaken += stepEnemyShots(
       world.enemyShots,
@@ -199,7 +207,10 @@ export function stepWorld(world: World, dt: number): void {
     );
   }
   stepPods(world); // prototype 3 (B1): rescue pods
-  stepWaves(world); // prototype 2 (B1): next wave of enemy fighters
+  // Prototype 2 (B1): next wave of enemy fighters; in a run (prototype 3, A2) the battle's objective.
+  if (world.run.mode === 'run' && world.run.battle > 0) stepRunBattle(world);
+  else stepWaves(world);
+  stepPilots(world); // prototype 3 (A1): credit this step's kills to the pilots who made them
   stepTrial(world.trial, world.targets, dt);
   // Camera runs last so it sees this step's events (shake) and final ship state.
   stepCamera(
@@ -211,6 +222,12 @@ export function stepWorld(world: World, dt: number): void {
     world.time,
     dt,
   );
+  trackEdges(world);
+}
+
+/** Remembers this step's buttons so the next step can tell a fresh press from a held one. */
+function trackEdges(world: World): void {
+  const { actions, prev } = world;
   prev.launch = actions.launch;
   prev.attackOrder = actions.attackOrder;
   prev.cycleFormation = actions.cycleFormation;

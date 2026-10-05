@@ -1,0 +1,120 @@
+import { describe, expect, it } from 'vitest';
+import { createTuning } from '../../data/tuning';
+import { maxHpOf } from '../core/pilots/effective';
+import type { Pilot } from '../core/pilots/pilots';
+import type { Wingman } from '../core/squadron/squadron';
+import { createWorld, type World } from '../core/world/world';
+import { PAD } from '../render/hud/hud';
+import { HUD_CSS, OBJECTIVE_TOP, ROSTER_TOP } from './hud-view';
+import { hostileCount, hullPips, objectiveText, pilotHull, rosterRows } from './roster';
+
+const pilot = (id: number, name: string, lost = false): Pilot => ({
+  id,
+  name,
+  trait: 'steady',
+  kills: 0,
+  battles: 0,
+  status: lost ? 'lost' : 'active',
+  veteran: false,
+});
+
+function world(): World {
+  const w = createWorld(1, createTuning());
+  w.run.mode = 'run';
+  w.run.phase = 'battle';
+  w.run.battle = 2;
+  w.run.wave = 2;
+  w.targets.length = 0; // the practice arena's dummies and drones
+  w.fighters.length = 0;
+  return w;
+}
+
+describe('hull pips', () => {
+  it('draws full and empty pips, clamped, and nothing without a hull', () => {
+    expect(hullPips({ hp: 3, max: 5 })).toBe('●●●○○');
+    expect(hullPips({ hp: 9, max: 5 })).toBe('●●●●●');
+    expect(hullPips({ hp: -1, max: 2 })).toBe('○○');
+    expect(hullPips(null)).toBe('');
+  });
+});
+
+describe('rosterRows', () => {
+  it('lists every pilot with the trait label and hull; fallen pilots stay, with no pips', () => {
+    const w = world();
+    w.pilots.roster.push(
+      pilot(1, 'Mara Ember'),
+      pilot(2, 'Joss Wren', true),
+      pilot(3, 'Ilya Rook'),
+    );
+    const max = maxHpOf(w, 1);
+    w.squadron.wingmen.push(
+      { pilotId: 1, hp: max, alive: true } as Wingman,
+      { pilotId: 3, hp: 1, alive: true } as Wingman,
+    );
+    expect(rosterRows(w)).toEqual([
+      { name: 'Mara Ember', trait: 'Steady', pips: hullPips({ hp: max, max }), fallen: false },
+      { name: 'Joss Wren', trait: 'Steady', pips: '', fallen: true },
+      {
+        name: 'Ilya Rook',
+        trait: 'Steady',
+        pips: hullPips({ hp: 1, max: maxHpOf(w, 3) }),
+        fallen: false,
+      }, // matched by pilot id
+    ]);
+  });
+
+  it('a pilot without a wingman yet has no hull; a downed wingman shows empty pips', () => {
+    const w = world();
+    const p = pilot(1, 'Mara Ember');
+    w.pilots.roster.push(p);
+    expect(pilotHull(w, p)).toBeNull();
+    w.squadron.wingmen.push({ pilotId: 1, hp: 0, alive: false } as Wingman);
+    expect(pilotHull(w, p)).toEqual({ hp: 0, max: maxHpOf(w, 1) });
+  });
+});
+
+describe('objective line', () => {
+  it('counts hostiles: fighters and non-static targets that are alive', () => {
+    const w = world();
+    w.fighters.push({ alive: true } as never, { alive: false } as never);
+    w.targets.push(
+      { alive: true, kind: 'drone' } as never,
+      { alive: true, kind: 'static' } as never,
+      { alive: true, kind: 'turret' } as never,
+      { alive: false, kind: 'drone' } as never,
+    );
+    expect(hostileCount(w)).toBe(3);
+  });
+
+  it('reads BATTLE n/N · WAVE w/W · HOSTILES h from the wave total', () => {
+    const w = world();
+    w.fighters.push({ alive: true } as never);
+    w.run.waveTotal = 3;
+    expect(objectiveText(w)).toBe('BATTLE 2/4 · WAVE 2/3 · HOSTILES 1');
+    w.run.battle = 4;
+    w.run.wave = 0;
+    w.run.waveTotal = 4;
+    expect(objectiveText(w)).toBe('BATTLE 4/4 · WAVE 1/4 · HOSTILES 1');
+  });
+
+  it('is absent in practice mode and outside a battle', () => {
+    const w = world();
+    w.run.phase = 'debrief';
+    expect(objectiveText(w)).toBeNull();
+    w.run.phase = 'battle';
+    w.run.mode = 'practice';
+    expect(objectiveText(w)).toBeNull();
+  });
+});
+
+describe('run HUD layout', () => {
+  it('the roster and the objective clear the canvas HUD lines (order cue, RETURN TO ARENA)', () => {
+    const lastBaseline = PAD + 50; // ORDER / cue line and the RETURN TO ARENA warning
+    const lineHeight = 18; // 14px font at 1.3
+    expect(ROSTER_TOP).toBeGreaterThan(lastBaseline + 4); // below the baseline and its descenders
+    expect(OBJECTIVE_TOP + lineHeight).toBeLessThan(lastBaseline - 14); // above the warning text
+    expect(OBJECTIVE_TOP).toBeGreaterThan(PAD + 10 + 4); // below the first status line
+    expect(HUD_CSS).toContain(`top: ${ROSTER_TOP}px`);
+    expect(HUD_CSS).toContain(`top: ${OBJECTIVE_TOP}px`);
+  });
+});

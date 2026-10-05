@@ -56,8 +56,20 @@ function busyWorld(): World {
     battles: 1,
     status: 'active',
     veteran: false,
+    veteranId: 3,
   });
-  w.pods.push({ x: 100, y: 200, vx: 1, vy: 0, hp: 3, alive: true, progress: 0.2, pilotId: 2 });
+  w.pods.push({
+    x: 100,
+    y: 200,
+    vx: 1,
+    vy: 0,
+    hp: 3,
+    alive: true,
+    progress: 0.2,
+    pilotId: 2,
+    battle: 0,
+    rescued: false,
+  });
   w.run.battle = 2;
   w.run.wave = 1;
   w.squadron.cue = 'no-target';
@@ -177,5 +189,14 @@ describe('every gameplay field is in the replay hash', () => {
     const c = hashWorld(w);
     w.missiles.salvo.pending.push(3);
     expect(hashWorld(w)).not.toBe(c);
+    // The run's arrays (the pick on offer, the veterans on offer and the ticked ones; see core/run).
+    for (const list of [w.run.candidates, w.run.available, w.run.selectedVeterans]) {
+      const before = hashWorld(w);
+      (list as unknown[]).push(
+        list === w.run.selectedVeterans ? 4 : { id: 4, name: 'A B', trait: 'bold' },
+      );
+      expect(hashWorld(w)).not.toBe(before);
+      list.pop();
+    }
   });
 });

@@ -76,6 +76,7 @@ export function createFighter(
     hitTimeA: NO_HIT,
     hitTimeB: NO_HIT,
     diedAt: NO_HIT,
+    lastHitBy: 0,
   };
 }
 
@@ -107,5 +108,6 @@ export function mixFighters(mix: (n: number) => void, fighters: readonly Fighter
     mix(f.hitTimeA);
     mix(f.hitTimeB);
     mix(f.diedAt);
+    mix(f.lastHitBy ?? 0);
   }
 }
