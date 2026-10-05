@@ -10,7 +10,8 @@ it('advances tick and time and clears events each step', () => {
   stepWorld(world, 1 / 60);
   expect(world.tick).toBe(1);
   expect(world.time).toBeCloseTo(1 / 60);
-  expect(world.events.events).toHaveLength(0);
+  // The event emitted before the step is gone (the step itself may emit its own, e.g. a lock).
+  expect(world.events.events.some((e) => e.type === 'EvadeStarted')).toBe(false);
 });
 
 it('is deterministic for the same seed', () => {
