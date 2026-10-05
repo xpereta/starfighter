@@ -37,7 +37,8 @@ export const sounds: SoundTable = {
       tone('square', 1100, 140, 0.1, 0.25, { delay: 0.006, filter: lowpass(4000) }),
       noise('highpass', 6000, 3000, 0.02, 0.3),
     ],
-    { volume: 0.22, pitchRandom: 0.12, minGap: 0.045, maxVoices: 5, spatial: AROUND },
+    // Guns fire ~20 times a second: one blip per shot melts into a buzz, so only every ~0.13 s is voiced.
+    { volume: 0.16, pitchRandom: 0.12, minGap: 0.13, maxVoices: 2, spatial: AROUND },
   ),
   // A metallic ping on impact.
   Hit: sfx(

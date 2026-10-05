@@ -11,9 +11,11 @@ export const sounds: SoundTable = {
   ShotFired: sfx(
     [tone('square', 900, 250, 0.09, 0.5, { filter: { type: 'lowpass', freq: 3500, q: 1 } })],
     {
-      volume: 0.22,
+      // Guns fire ~20 times a second: one blip per shot melts into a buzz, so only every ~0.13 s is voiced.
+      volume: 0.16,
       pitchRandom: 0.1,
-      minGap: 0.04,
+      minGap: 0.13,
+      maxVoices: 2,
       spatial: AROUND,
     },
   ),
