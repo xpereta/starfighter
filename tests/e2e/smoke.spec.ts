@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { styles } from '../../data/styles';
 import { tuningParams } from '../../data/tuning';
 
 const GRIP = tuningParams.flight.grip.default;
@@ -359,15 +360,102 @@ test.describe('run menus', () => {
   });
 });
 
-for (const style of ['plain', 'no-such-style']) {
+// Every shipped style (data/styles), plus an unknown one that only warns.
+for (const style of [...Object.keys(styles), 'no-such-style']) {
   test(`?style=${style} loads without console errors`, async ({ page }) => {
     const errors = errorsOf(page);
-    await page.goto(`/?style=${style}`);
+    await page.goto(`/?style=${style}&practice`);
     await expect(page.locator('canvas').first()).toBeVisible();
-    await page.waitForTimeout(500);
+    await page.keyboard.down('w');
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(1500);
+    await page.keyboard.up('Space');
+    await page.keyboard.up('w');
     expect(errors).toEqual([]); // the unknown style only warns
   });
 }
+
+test('?style=realistic: every sound in the test list and every loop preview plays without errors', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?dev&practice&style=realistic');
+  await page.getByRole('button', { name: /Sound/ }).click();
+  const buttons = page.locator('#tuning-panel [data-sound-test]');
+  const count = await buttons.count();
+  expect(count).toBe(36);
+  for (let i = 0; i < count; i++) await buttons.nth(i).click();
+  await row(page, 'sound.loopPreview').click();
+  for (let i = 0; i < 8; i++) {
+    await row(page, 'sound.loop').click(); // next loop, previewed
+    await page.waitForTimeout(80);
+  }
+  await row(page, 'sound.loopPreview').click();
+  await page.waitForTimeout(300);
+  expect(errors).toEqual([]);
+});
+
+test('the Sound section shows the values the loops follow and which loops are on', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?dev&practice&style=realistic');
+  await page.getByRole('button', { name: /Sound/ }).click();
+  const values = page.locator('#tuning-panel [data-loop-values]');
+  const active = page.locator('#tuning-panel [data-loops-active]');
+  await expect(values).toContainText('speed');
+  await page.keyboard.down('KeyW'); // the first click on the panel already started the audio
+  await expect(active).toContainText('engine', { timeout: 5000 });
+  await expect(values).toContainText('throttle +1.00');
+  await expect(values).toContainText('flying');
+  await page.keyboard.up('KeyW');
+  expect(errors).toEqual([]);
+});
+
+test('the Sound section has the mix, a mute row and a sound test that plays without errors', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?dev&practice');
+  await page.getByRole('button', { name: /Sound/ }).click();
+  for (const p of ['master', 'effects', 'music', 'reverb', 'reverbTime'])
+    await expect(row(page, `sound.${p}`)).toBeVisible();
+  // Loops: the chosen loop's rows and the preview (which plays a loop at a chosen value).
+  await expect(row(page, 'sound.loop')).toBeVisible();
+  for (const p of ['volume', 'fadeIn', 'fadeOut', 'reverb'])
+    await expect(row(page, `loopEdit.${p}`)).toBeVisible();
+  await row(page, 'sound.loopPreview').click();
+  await row(page, 'sound.loop').click(); // next loop while the preview is on
+  await row(page, 'sound.loopPreview').click();
+  await expect(row(page, 'sound.mute')).toBeVisible();
+  await expect(page.locator('#tuning-panel [data-sound-test]')).toHaveCount(36);
+  await page.locator('#tuning-panel [data-sound-test="ShotFired"]').click();
+  await page.locator('#tuning-panel [data-sound-test="Killed"]').click();
+  await row(page, 'sound.edit').click(); // next sound
+  await row(page, 'sound.mute').click();
+  await expect(page.locator('html')).toHaveAttribute('data-audio-muted', 'true');
+  await page.getByRole('button', { name: /Restart music/ }).click();
+  await page.waitForTimeout(500);
+  expect(errors).toEqual([]);
+});
+
+test('M mutes and unmutes the sound, remembered across reloads, with no console errors', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?practice');
+  const html = page.locator('html');
+  await expect(html).toHaveAttribute('data-audio-muted', 'false');
+  await page.keyboard.press('m');
+  await expect(html).toHaveAttribute('data-audio-muted', 'true');
+  await page.reload();
+  await expect(html).toHaveAttribute('data-audio-muted', 'true');
+  await page.keyboard.press('m');
+  await expect(html).toHaveAttribute('data-audio-muted', 'false');
+  await page.keyboard.press('Space'); // fire: the audio engine runs without errors
+  await page.waitForTimeout(300);
+  expect(errors).toEqual([]);
+});
 
 test('the panel has Look and Sound sections with a Style picker showing plain', async ({
   page,

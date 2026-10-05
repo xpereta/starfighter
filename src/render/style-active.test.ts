@@ -81,7 +81,9 @@ describe('buildStyles', () => {
       y: { manifest: manifest('y', 'x') },
     });
     expect(out.lost!.warnings.join('\n')).toContain('not registered');
-    expect(Object.values(out).every((r) => r.pack.sounds.Hit === 'silent')).toBe(true);
+    expect(Object.values(out).every((r) => r.pack.sounds.Hit === out.plain!.pack.sounds.Hit)).toBe(
+      true,
+    );
     expect(
       Object.values(out)
         .flatMap((r) => r.warnings)

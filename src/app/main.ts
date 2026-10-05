@@ -3,6 +3,8 @@ import { applyFinishedRun, veteranOffers } from '../core/meta/meta';
 import { enterStartScreen, offerVeterans } from '../core/run/run';
 import { createWorld, stepWorld, type World } from '../core/world/world';
 import { createInput } from '../input/input';
+import { startAudio } from '../audio';
+import { loopStateOf } from '../audio/state';
 import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
 import { initStyle } from '../render/style-active';
@@ -28,6 +30,8 @@ const devToolsEnabled =
   (import.meta.env.DEV || new URLSearchParams(window.location.search).has('dev'));
 
 const world = createWorld(Date.now() >>> 0, createTuning(), save.bestTrialTime);
+// Sound: starts on the first key press or click; reads the same events as the renderer.
+const audio = startAudio();
 const renderer = createRenderer(document.body, world);
 const hud = createHud(document.body);
 const input = createInput();
@@ -60,6 +64,7 @@ const loop = createFixedLoop((dt) => {
   stepWorld(world, dt);
   // Events live for one step; hand them to FX before the next step clears them.
   renderer.consumeEvents(world.events.events);
+  audio.engine.consumeEvents(world.events.events, world.ship);
   runHud.step(world, dt);
   if (world.run.mode === 'run') {
     // Offer the saved veterans once per Start screen (a restart gets the updated roster).
@@ -90,6 +95,9 @@ function frame(now: number): void {
   input.poll(world.actions);
   pause.update(input.pause, canPause(world));
   loop.setPaused(pause.paused);
+  audio.engine.setPaused(pause.paused);
+  audio.engine.update();
+  audio.engine.setLoopState(loopStateOf(world), Math.min(0.1, (now - last) / 1000));
   // The pause buttons (pad Start is also the time trial) never act as flight controls.
   if (input.pause) maskFlightActions(world.actions);
   if (menuVisible(world.run)) maskFlightActions(world.actions); // the keys that fly never act behind a menu

@@ -91,6 +91,13 @@ function shoot(world: World, f: Fighter, cfg: FighterConfig): void {
   shots.data.vx[k] = ship.vx + Math.cos(angle) * cfg.bulletSpeed;
   shots.data.vy[k] = ship.vy + Math.sin(angle) * cfg.bulletSpeed;
   shots.data.life[k] = cfg.bulletLife;
+  world.events.emit({
+    type: 'EnemyShotFired',
+    x: shots.data.x[k]!,
+    y: shots.data.y[k]!,
+    angle,
+    from: 'fighter',
+  });
 }
 
 /** One fighter's decisions for this step: writes `f.actions` and may fire. */

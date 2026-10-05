@@ -10,40 +10,23 @@ import { createWingmanRenderer } from './wingmen';
 import { createMissileRenderer } from './missiles';
 import { viewSize } from '../core/camera/view';
 import { createShards } from './shards';
+import { createDeathFx } from './fx/death-fx';
+import { createScreenFx } from './fx/screen-fx';
 import { createSparks } from './sparks';
 import { createPodRenderer } from './pods';
 import { createTargetRenderer } from './targets';
 import { palette } from './palette';
+import { styleRevision } from './style-active';
+import { createShipArt, rollSquash } from './ship-art';
 
-/** Narrowest the ship gets mid-roll, so it never vanishes. */
-const MIN_ROLL_WIDTH = 0.15;
+/** The player's shape is authored in radius units; this is its drawn size (about 100 u long). */
+const PLAYER_SCALE = 60;
 
 export interface Renderer {
   /** Feed each simulation step's events (FX attach here). */
   consumeEvents(events: readonly GameEvent[]): void;
   render(world: World): void;
   dispose(): void;
-}
-
-/** Flat fighter silhouette, nose along +y, about 100 u long. */
-function fighterShape(): THREE.Shape {
-  const s = new THREE.Shape();
-  s.moveTo(0, 60);
-  s.lineTo(9, 28);
-  s.lineTo(14, 4);
-  s.lineTo(46, -26);
-  s.lineTo(46, -38);
-  s.lineTo(14, -24);
-  s.lineTo(8, -40);
-  s.lineTo(0, -34);
-  s.lineTo(-8, -40);
-  s.lineTo(-14, -24);
-  s.lineTo(-46, -38);
-  s.lineTo(-46, -26);
-  s.lineTo(-14, 4);
-  s.lineTo(-9, 28);
-  s.closePath();
-  return s;
 }
 
 export function createRenderer(
@@ -84,12 +67,16 @@ export function createRenderer(
   scene.add(sparks.object);
   const shards = createShards(qualityPresets[quality]);
   scene.add(shards.object);
+  // Death sequences (styles that define them) and the screen effects; plain keeps the shards.
+  const screenFx = createScreenFx(container, qualityPresets[quality]);
+  scene.add(screenFx.speedLines);
+  const deathFx = createDeathFx(qualityPresets[quality], world, screenFx.hooks);
+  scene.add(deathFx.object);
   let lastTime = performance.now();
+  let seenRevision = styleRevision();
 
-  const shipGeometry = new THREE.ShapeGeometry(fighterShape());
-  const shipMaterial = new THREE.MeshBasicMaterial({ color: palette.friendly });
-  const ship = new THREE.Mesh(shipGeometry, shipMaterial);
-  scene.add(ship);
+  const shipArt = createShipArt('player', () => palette.friendly);
+  scene.add(shipArt.object);
 
   function resize(): void {
     const w = window.innerWidth;
@@ -102,26 +89,49 @@ export function createRenderer(
   return {
     consumeEvents(events) {
       sparks.consume(events);
-      shards.consume(events);
+      deathFx.consume(events);
+      shards.consume(events, (kind) => deathFx.handles(kind));
     },
     render(world) {
       const { ship: s } = world;
       const { minSpeed, maxSpeed } = world.tuning.flight;
-      // The mesh points up (+y); heading 0 means +x.
-      ship.position.set(s.x, s.y, 0);
-      ship.rotation.z = s.heading - Math.PI / 2;
-      // Evade roll: squash the wingspan like a barrel roll seen from above.
-      ship.scale.x = s.roll === 0 ? 1 : Math.max(MIN_ROLL_WIDTH, Math.abs(Math.cos(s.roll)));
+      // A live style edit or a peek changes the background colour too.
+      if (styleRevision() !== seenRevision) {
+        seenRevision = styleRevision();
+        (scene.background as THREE.Color).setHex(palette.background);
+      }
+      const now = performance.now();
+      const frameDt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
       // Camera state comes from core/camera; the visible area is the same on every screen shape.
       const cam = world.camera;
       const view = viewSize(cam.view, cam.aspect);
+      const speedFactor = clamp((s.speed - minSpeed) / (maxSpeed - minSpeed), 0, 1);
+      // Hit-stop is drawing only: the simulation keeps running, the picture is simply not updated.
+      const frozen = screenFx.update(
+        frameDt,
+        { x: cam.x, y: cam.y, width: view.width, height: view.height },
+        speedFactor,
+        now / 1000,
+      );
+      if (frozen) {
+        renderer.render(scene, camera);
+        return;
+      }
       camera.left = -view.width / 2;
       camera.right = view.width / 2;
       camera.top = view.height / 2;
       camera.bottom = -view.height / 2;
       camera.updateProjectionMatrix();
       camera.position.set(cam.x + cam.shakeX, cam.y + cam.shakeY, 0);
-      const speedFactor = clamp((s.speed - minSpeed) / (maxSpeed - minSpeed), 0, 1);
+      shipArt.update({
+        x: s.x,
+        y: s.y,
+        heading: s.heading,
+        scale: PLAYER_SCALE,
+        squash: rollSquash(s.roll), // evade roll: the wingspan squashes like a barrel roll seen from above
+        thrust: speedFactor,
+      });
       background.update(cam.x, cam.y, s.vx, s.vy, speedFactor);
       bullets.update(world.bullets);
       enemyShots.update(world.enemyShots);
@@ -129,12 +139,10 @@ export function createRenderer(
       fighters.update(world.fighters);
       wingmen.update(world.squadron.wingmen, world.tuning.squadron.radius);
       pods.update(world.pods, world.tuning.rescue.podRadius);
-      const now = performance.now();
-      const frameDt = Math.min((now - lastTime) / 1000, 0.1);
       missiles.update(world, frameDt);
       sparks.update(frameDt);
       shards.update(frameDt);
-      lastTime = now;
+      deathFx.update(frameDt);
       renderer.render(scene, camera);
     },
     dispose() {
@@ -143,14 +151,15 @@ export function createRenderer(
       bullets.dispose();
       sparks.dispose();
       shards.dispose();
+      deathFx.dispose();
+      screenFx.dispose();
       targets.dispose();
       fighters.dispose();
       wingmen.dispose();
       pods.dispose();
       enemyShots.dispose();
       missiles.dispose();
-      shipGeometry.dispose();
-      shipMaterial.dispose();
+      shipArt.dispose();
       renderer.dispose();
     },
   };

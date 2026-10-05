@@ -22,16 +22,16 @@ A folder `data/styles/<id>/` plus one line in `data/styles/index.ts`. The contra
 | `ships.ts`       | shape per ship kind                                                                                          |
 | `deaths.ts`      | death sequence per ship kind                                                                                 |
 | `explosions.ts`  | explosion kinds                                                                                              |
-| `sounds.ts`      | event to sound table (every event has a sound or `'silent'`)                                                 |
+| `sounds.ts`      | event to sound table (every event has a sound or `'silent'`), and optionally `loops` (continuous sounds)     |
 | `index.ts`       | exports the pack                                                                                             |
 
-Anything a pack leaves out falls back to its `parent`, else to `plain`, with a console warning and a note in the panel's Look section. Inheritance makes variations cheap (same ships, new palette and sounds).
+Anything a pack leaves out falls back to its `parent`, else to `plain`, with a console warning and a note in the panel's Look section. The exception is sound: a pack whose parent is `plain` (or none) that has no sounds or loops of its own (or lacks entries for newer events) takes them from the `realistic` pack, so a new direction is never silent. Inheritance makes variations cheap (same ships, new palette and sounds).
 
 ## Steps
 
 1. **Intent and references.** Write the manifest: intent in one line, references with what is taken from each. Xavi approves the references.
 2. **Start the folder.** Copy `data/styles/plain/` (or fork an existing pack: set `parent`) to `data/styles/<id>/` and add one line to `data/styles/index.ts`.
-3. **Edit in this order, checking each in the panel** (`?dev&style=<id>`): theme, then ship shapes, then death sequences and explosions, then sounds.
+3. **Edit in this order, checking each in the panel** (`?dev&style=<id>`): theme (try colours, outline and shadow live in the Look section, then **Save theme.ts**), then ship shapes, then death sequences and explosions, then sounds. Hold **V** to peek at another style and **K** for a screenshot-friendly view, to compare two directions on the same moment.
 4. **Run the style checks** (below).
 5. **Open a PR** from branch `style/<id>`.
 6. **Play, then record notes in the manifest** (`notes`, `status`: `idea | active | shelved`). Xavi decides what is kept.

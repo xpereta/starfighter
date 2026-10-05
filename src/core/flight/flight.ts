@@ -141,7 +141,10 @@ export function stepFlight(
   const evading = ship.evadeTimer > 0;
   stepThrottle(ship, actions.throttle, cfg, dt);
 
+  const wasOutside = ship.outside;
   ship.outside = Math.hypot(ship.x, ship.y) > cfg.arenaRadius;
+  if (ship.outside !== wasOutside)
+    events.emit({ type: ship.outside ? 'ArenaEdgeEntered' : 'ArenaEdgeLeft' });
   let maxTurn = turnRateLimit(cfg, ship.speed);
   if (evading && !cfg.evadeSidestep) maxTurn *= cfg.evadeBreakTurnBoost;
   const target = desiredOmega(ship, actions, cfg, maxTurn);

@@ -231,7 +231,9 @@ function takeEnemyFire(world: World, w: Wingman, index: number, cfg: SquadronCon
     });
     shots.remove(k);
     w.hp -= ENEMY_SHOT_DAMAGE;
+    if (w.hp > 0) world.events.emit({ type: 'WingmanHit', x: w.ship.x, y: w.ship.y });
     if (w.hp <= 0) {
+      world.events.emit({ type: 'WingmanDown', x: w.ship.x, y: w.ship.y });
       w.alive = false;
       w.respawnTimer = cfg.respawnDelay;
       w.engagedId = -1;
@@ -276,6 +278,12 @@ function shoot(world: World, w: Wingman, cfg: SquadronConfig): void {
   bullets.data.life[k] = weapons.bulletLife;
   bullets.data.damage[k] = cfg.gunDamage;
   bullets.data.owner[k] = w.pilotId; // kill credit
+  world.events.emit({
+    type: 'WingmanShotFired',
+    x: bullets.data.x[k]!,
+    y: bullets.data.y[k]!,
+    angle,
+  });
 }
 
 /** One wingman's decisions for this step: pick an enemy or hold the slot, avoid collisions, maybe shoot. */

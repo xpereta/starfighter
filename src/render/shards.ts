@@ -30,8 +30,8 @@ export function shardCount(
 
 export interface Shards {
   readonly object: THREE.InstancedMesh;
-  /** Spawns shards for `Killed` events (the death-sequence hook). Call once per simulation step. */
-  consume(events: readonly GameEvent[]): void;
+  /** Spawns shards for `Killed` events, except kinds `skip` says a style's death sequences already handle. Call once per simulation step. */
+  consume(events: readonly GameEvent[], skip?: (kind: EntityKind) => boolean): void;
   /** Advances and draws the shards; `dt` is wall-clock seconds. */
   update(dt: number): void;
   dispose(): void;
@@ -65,9 +65,9 @@ export function createShards(quality: QualitySettings): Shards {
 
   return {
     object: mesh,
-    consume(events) {
+    consume(events, skip) {
       for (const e of events) {
-        if (e.type !== 'Killed') continue;
+        if (e.type !== 'Killed' || skip?.(e.kind)) continue;
         const n = shardCount(quality, Math.random());
         for (let k = 0; k < n; k++) {
           const i = pool.spawn();

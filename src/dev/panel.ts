@@ -29,6 +29,8 @@ import {
 } from './panel-ui';
 import { DEFAULT_PANEL_OPACITY, MIN_PANEL_OPACITY } from './panel-style';
 import { activeStyle, activeWarnings, rememberStyle, styleIds } from '../render/style-active';
+import { addLookRows } from './panel-look';
+import { buildSoundSection } from './panel-sound';
 import { createReplayControls, type ReplayControls } from './replay-controls';
 
 const PRESETS_KEY = 'starfighter.presets';
@@ -67,6 +69,8 @@ const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 
 export interface Panel {
+  /** Live readout in the Sound section (loop values and active loops); call about ten times a second. */
+  readonly soundReadout: { update(world: World): void };
   readonly debug: { overlay: boolean };
   readonly replay: ReplayControls;
   dispose(): void;
@@ -256,9 +260,8 @@ export function createPanel(world: World): Panel {
       : `${activeStyle().manifest.name}: ${activeStyle().manifest.intent}`,
   );
   look.add(styleStatus);
-  const soundStatus = statusLine();
-  soundStatus.set('No sounds yet: every event is silent in this style.');
-  sound.add(soundStatus);
+  const disposeLook = addLookRows(ctx, look, track);
+  const soundReadout = buildSoundSection(ctx, sound, track, refresh);
 
   // Presets.
   const presets = section('Presets', false);
@@ -464,10 +467,12 @@ export function createPanel(world: World): Panel {
   refresh();
 
   return {
+    soundReadout,
     debug,
     replay,
     dispose() {
       window.removeEventListener('keydown', onKey);
+      disposeLook();
       tip.dispose();
       root.remove();
       hint.remove();

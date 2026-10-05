@@ -10,13 +10,24 @@ export interface DevTools {
   dispose(): void;
 }
 
+/** Seconds between two updates of the Sound section's loop readout (s). */
+const READOUT_INTERVAL = 0.1;
+
 /** Tuning panel + debug overlay. Loaded lazily (see app/main.ts), never part of the gameplay bundle. */
 export function createDevTools(world: World, container: HTMLElement): DevTools {
   const panel = createPanel(world);
   const overlay = createDebugOverlay(container);
+  let sinceReadout = 0;
   return {
     beforeStep: (w) => panel.replay.beforeStep(w),
-    draw: (w, frameSeconds) => overlay.draw(w, frameSeconds, panel.debug.overlay),
+    draw: (w, frameSeconds) => {
+      overlay.draw(w, frameSeconds, panel.debug.overlay);
+      sinceReadout += frameSeconds;
+      if (sinceReadout >= READOUT_INTERVAL) {
+        sinceReadout = 0;
+        panel.soundReadout.update(w);
+      }
+    },
     dispose() {
       panel.dispose();
       overlay.dispose();

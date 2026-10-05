@@ -8,6 +8,8 @@ import {
   resolveStyle,
   silentSoundTable,
   SOUND_EVENT_KEYS,
+  type DeathDef,
+  type ExplosionDef,
   type SoundEntry,
   type StyleInput,
   type StyleManifest,
@@ -25,11 +27,44 @@ const manifest: StyleManifest = {
 const good = (over: Partial<StyleInput> = {}): StyleInput => ({ manifest, ...over });
 const triangle = [
   [0, 0],
-  [10, 0],
-  [0, 10],
+  [1, 0],
+  [0, 1],
 ] as const;
+const blast: ExplosionDef = {
+  size: 40,
+  duration: 0.5,
+  ramp: [0xffffff, 0xff8800],
+  layers: 2,
+  ring: 0.5,
+  puffs: 2,
+  spikes: 0,
+  cross: 0,
+  flashFrames: 0,
+};
+const death: DeathDef = {
+  pieces: [3, 5],
+  primary: { kind: 'small', size: 2 },
+  secondary: [
+    {
+      kind: 'small',
+      count: [1, 2],
+      size: [0.5, 1],
+      delay: [0.1, 1],
+      attach: 'piece',
+      consume: 0.5,
+      chain: 0.3,
+    },
+  ],
+  debris: { life: [1, 2], drift: [50, 100], spin: 4, fade: 0.5, trail: 2 },
+  blow: 0.5,
+  momentum: 0.5,
+  hitStop: 0.05,
+};
 const beep: SoundEntry = {
-  source: { kind: 'synth', waveform: 'sine' },
+  source: {
+    kind: 'synth',
+    layers: [{ waveform: 'sine', freq: 440, attack: 0.01, decay: 0.1, gain: 0.5 }],
+  },
   pitch: 1,
   pitchRandom: 0.1,
   volume: 0.5,
@@ -46,8 +81,8 @@ describe('style validation', () => {
         good({
           theme: { palette: { enemy: 0xff0000 }, glow: 0.5 },
           ships: { player: { polygon: triangle } },
-          deaths: { fighter: { pieces: 5 } },
-          explosions: { small: { size: 40, duration: 0.5 } },
+          deaths: { fighter: death },
+          explosions: { small: blast },
           sounds: { ShotFired: beep, Hit: 'silent' },
         }),
       ),
@@ -114,10 +149,38 @@ describe('style validation', () => {
       }),
       'ships.player.polygon[1]',
     ],
-    ['zero pieces', good({ deaths: { fighter: { pieces: 0 } } }), 'deaths.fighter.pieces'],
+    [
+      'zero pieces',
+      good({ deaths: { fighter: { ...death, pieces: [0, 2] } } }),
+      'deaths.fighter.pieces',
+    ],
+    [
+      'too many blasts',
+      good({
+        deaths: {
+          fighter: {
+            ...death,
+            secondary: [
+              { ...death.secondary[0]!, count: [10, 20] },
+              { ...death.secondary[0]!, count: [10, 10] },
+            ],
+          },
+        },
+      }),
+      'blasts in total',
+    ],
+    [
+      'a delay beyond the limit',
+      good({
+        deaths: {
+          fighter: { ...death, secondary: [{ ...death.secondary[0]!, delay: [0, 99] }] },
+        },
+      }),
+      'secondary[0].delay',
+    ],
     [
       'explosion without duration',
-      good({ explosions: { small: { size: 10, duration: 0 } } }),
+      good({ explosions: { small: { ...blast, duration: 0 } } }),
       'explosions.small.duration',
     ],
     ['unknown event', good({ sounds: { Boom: 'silent' } as never }), 'sounds.Boom'],
@@ -125,7 +188,7 @@ describe('style validation', () => {
     ['bad voices', good({ sounds: { Hit: { ...beep, maxVoices: 0 } } }), 'sounds.Hit.maxVoices'],
     [
       'sample without file',
-      good({ sounds: { Hit: { ...beep, source: { kind: 'sample', file: '' } } } }),
+      good({ sounds: { Hit: { ...beep, source: { kind: 'sample', file: '', duration: 1 } } } }),
       'source.file',
     ],
   ])('rejects %s', (_name, pack, fragment) => {
@@ -164,7 +227,7 @@ describe('fallback to plain', () => {
     expect(pack.theme.palette.enemy).toBe(0x123456);
     expect(pack.theme.palette.friendly).toBe(base.theme.palette.friendly);
     expect(pack.sounds.Hit).toBe(beep);
-    expect(pack.sounds.Killed).toBe('silent');
+    expect(pack.sounds.Killed).toBe(base.sounds.Killed);
   });
 
   it('an invalid part falls back whole, with a warning that says why', () => {
@@ -179,7 +242,6 @@ describe('fallback to plain', () => {
 
   it('lists what a pack misses', () => {
     expect(missingParts(plain)).toEqual([
-      expect.stringContaining('ships'),
       expect.stringContaining('deaths'),
       expect.stringContaining('explosions'),
     ]);

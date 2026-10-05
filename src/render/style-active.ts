@@ -1,9 +1,11 @@
 import { styles as registry } from '../../data/styles';
 import {
   checkStyle,
+  LOOP_KEYS,
   PALETTE_KEYS,
   resolveStyle,
   SOUND_EVENT_KEYS,
+  THEME_SCALARS,
   type ResolvedStyle,
   type StyleInput,
   type StylePack,
@@ -13,6 +15,11 @@ import {
 
 /** The fallback pack every other style builds on. */
 export const FALLBACK_STYLE = 'plain';
+/**
+ * The pack whose sounds and loops fill the gaps of a pack that has no parent (a pack without its
+ * own sound table, or without entries for newer events or loops): believable sound design, not beeps.
+ */
+export const SOUND_DEFAULT_STYLE = 'realistic';
 export const STYLE_STORAGE_KEY = 'starfighter.style';
 
 /** Turns `plain` into a complete pack. `plain` must give the whole theme and sound table. */
@@ -21,15 +28,12 @@ export function completeFallback(input: StyleInput): StylePack {
   const t = input.theme;
   if (!t?.palette || PALETTE_KEYS.some((k) => t.palette?.[k] === undefined))
     errors.push('the fallback style must define the whole palette');
-  if (
-    t?.outlineWidth === undefined ||
-    t.outlineColor === undefined ||
-    t.shadowShare === undefined ||
-    t.glow === undefined
-  )
+  if (THEME_SCALARS.some((k) => t?.[k] === undefined))
     errors.push('the fallback style must define every theme field');
   if (SOUND_EVENT_KEYS.some((k) => input.sounds?.[k] === undefined))
     errors.push('the fallback style must have an entry or "silent" for every event');
+  if (LOOP_KEYS.some((k) => input.loops?.[k] === undefined))
+    errors.push('the fallback style must have an entry or "silent" for every loop');
   if (errors.length) throw new Error(`style "${input.manifest.id}": ${errors.join('; ')}`);
   return {
     manifest: input.manifest,
@@ -38,6 +42,8 @@ export function completeFallback(input: StyleInput): StylePack {
     deaths: input.deaths ?? {},
     explosions: input.explosions ?? {},
     sounds: input.sounds as StylePack['sounds'],
+    loops: input.loops as StylePack['loops'],
+    music: input.music ?? null,
   };
 }
 
@@ -67,6 +73,19 @@ export function buildStyles(reg: StyleRegistry): Record<string, ResolvedStyle> {
     }
     resolving.delete(id);
     const r = resolveStyle(input, base);
+    // A pack that builds directly on `plain` takes the default sound pack's sounds and loops where it has none of its own.
+    const soundBase =
+      id !== SOUND_DEFAULT_STYLE && base === fallback ? reg[SOUND_DEFAULT_STYLE] : undefined;
+    if (soundBase) {
+      const d = resolve(SOUND_DEFAULT_STYLE).pack;
+      const sounds = { ...r.pack.sounds };
+      for (const k of SOUND_EVENT_KEYS)
+        if (input.sounds?.[k] === undefined) sounds[k] = d.sounds[k];
+      const loops = { ...r.pack.loops };
+      for (const k of LOOP_KEYS) if (input.loops?.[k] === undefined) loops[k] = d.loops[k];
+      r.pack.sounds = sounds;
+      r.pack.loops = loops;
+    }
     return (out[id] = { pack: r.pack, warnings: [...extra, ...r.warnings] });
   };
   for (const id of Object.keys(reg)) resolve(id);
@@ -95,6 +114,21 @@ export function chooseStyleId(
 
 let packs: Record<string, ResolvedStyle> | null = null;
 let active = FALLBACK_STYLE;
+let revision = 0;
+let peek: string | null = null;
+
+/**
+ * Bumped whenever the active pack is edited live (the panel's Look section), so render code that
+ * caches meshes built from it knows to rebuild.
+ */
+export function styleRevision(): number {
+  return revision;
+}
+
+/** Call after editing the active pack in place. */
+export function touchStyle(): void {
+  revision++;
+}
 
 const all = (): Record<string, ResolvedStyle> => (packs ??= buildStyles(registry));
 
@@ -129,9 +163,26 @@ export function initStyle(search: string, stored: string | null = readStored()):
   return all()[active]!.pack;
 }
 
-/** The one accessor: the active style pack (complete). `plain` until `initStyle` runs. */
+/** The one accessor: the active style pack (complete). `plain` until `initStyle` runs. While a peek is on, the peeked pack. */
 export function activeStyle(): StylePack {
-  return all()[active]!.pack;
+  return all()[peek ?? active]!.pack;
+}
+
+/** Id of the style chosen at startup (not the peeked one). */
+export function chosenStyleId(): string {
+  return active;
+}
+
+/**
+ * Shows another registered style until called with `null` (the panel's hold-to-compare key). Bumps
+ * the revision so meshes built from the style rebuild; nothing is reloaded and nothing is saved.
+ */
+export function peekStyle(id: string | null): void {
+  if (id !== null && !(id in all())) return;
+  const next = id === active ? null : id;
+  if (next === peek) return;
+  peek = next;
+  revision++;
 }
 
 /** What the active style leaves to its fallback (shown in the panel). */
