@@ -11,3 +11,10 @@
   - `roster.ts`: pure. `rosterRows` (name, trait label, hull pips; fallen pilots stay, struck through), `objectiveText` (`BATTLE 2/4 · WAVE 2/3 · HOSTILES 5`, waves per battle `[2, 3, 3, 4]` until the run module defines them) and `pilotHull`. **Integration point:** `pilotHull` assumes the i-th active pilot in `world.pilots.roster` is the i-th wingman; swap it for the real link when Track A defines one.
   - `hud-view.ts`: the DOM overlay (`#run-hud`) with the roster (top-left under the canvas lines), the objective (top-centre) and the chatter (bottom-centre). Run mode and battle phase only; the chatter is cleared whenever a menu is up.
 - **Wiring:** `app/main.ts` creates the view with a `getExtras` callback (veterans and best run, empty until the meta module exists) and masks the flight actions while `menuVisible`.
+
+## spectacle (`src/ui/spectacle/`, style `anime-spectacle`)
+
+A presentation layer for styles that provide `data/styles/<id>/presentation.ts` (registered in `spectacle/active.ts`); other styles keep the classic HUD and menus. **Render and UI only:** it reads the step's events and read-only state, keeps its own timers and seeded streams, never writes the world, and is not in the replay hash (`tests/sim/spectacle.sim.test.ts` checks the hash with every preset watching). Every effect has a switch or an intensity in `settings.ts` (panel section "Spectacle", `?spectacle=full|calm|overdrive|off`).
+
+- `settings.ts` live settings, presets (`full`, `calm`, `overdrive`, `off`), URL and localStorage; `presentation.ts` the data contract and validation; `active.ts` which style has one.
+- Pure logic, unit-tested: `feel.ts` (zoom punch, roll, extra shake, hit-stop and kill-cam freeze, flashes, tension vignette), `combo.ts` (streak, score, kill feed), `banners.ts` (title cards), `comm.ts` (comm windows from chatter lines), `indicators.ts` (off-screen arrows, threats, distance), `portrait.ts` (seeded face-less visor portraits), `anim.ts` (easing and slides).

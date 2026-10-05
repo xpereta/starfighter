@@ -31,6 +31,7 @@ import { DEFAULT_PANEL_OPACITY, MIN_PANEL_OPACITY } from './panel-style';
 import { activeStyle, activeWarnings, rememberStyle, styleIds } from '../render/style-active';
 import { addLookRows } from './panel-look';
 import { buildSoundSection } from './panel-sound';
+import { buildSpectacleSection } from './panel-spectacle';
 import { createReplayControls, type ReplayControls } from './replay-controls';
 
 const PRESETS_KEY = 'starfighter.presets';
@@ -233,7 +234,8 @@ export function createPanel(world: World): Panel {
   // Look and Sound: skeleton sections, the Look track and the Sound track fill them.
   const look = section('Look', false);
   const sound = section('Sound', false);
-  root.append(look.el, sound.el);
+  const spectacleSection = section('Spectacle', false);
+  root.append(look.el, sound.el, spectacleSection.el);
   track(
     choiceRow<string>(ctx, {
       id: 'style.id',
@@ -262,6 +264,7 @@ export function createPanel(world: World): Panel {
   look.add(styleStatus);
   const disposeLook = addLookRows(ctx, look, track);
   const soundReadout = buildSoundSection(ctx, sound, track, refresh);
+  buildSpectacleSection(ctx, spectacleSection, track);
 
   // Presets.
   const presets = section('Presets', false);
