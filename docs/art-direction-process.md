@@ -51,6 +51,15 @@ Run by `npm test` (`src/render/style.test.ts`, `src/render/style-active.test.ts`
 - The replay hash is identical under every style (`tests/sim/style.sim.test.ts`).
 - The page loads with each style without console errors (`tests/e2e/smoke.spec.ts`).
 
+## Richer ships, the backdrop and the tools (contract additions)
+
+All additive: a pack that uses none of this is drawn exactly as before.
+
+- **Layered ship parts** (`ShapeDef.parts`): after the outer `polygon` (outline, base fill, death fracture) a ship may have up to 96 parts drawn in order: kinds `hull`, `panel`, `greeble`, `canopy`, `nacelle`, `flap`, `hardpoint`, `scar` (filled polygons) and `line` (panel lines, strips: a polyline with a width). Each has a colour **role** (`hull` = the faction colour, `panel` and `dark` = tones of it, `accent`, `glass`, `glow` from `theme.partColors`) or an exact `color`, and `mirror: true` draws the mirror image for symmetric ships. All parts of a ship are one vertex-coloured mesh (plus one for lights, drawn above the shadow), built once. Complexity budget per shape: 900 triangles (the `capital` 4000), checked by the validator; `shapeTriangles()` tells the cost. A death still cuts the **outer polygon** into pieces; the part under a piece's centre colours it.
+- **Extra shape slots** (`EXTRA_SHAPE_KINDS`): `wingmanB`/`wingmanC` (liveries for the 2nd and 3rd wingman; keep the wingman silhouette), `gunship`, `lancer`, `capital` and the capital's parts (`capitalTurret`, `capitalEngine`, `capitalPlate`, `capitalBridge`, `capitalCore`). Optional for every pack; `deaths` accepts the same ids.
+- **Backdrop** (`theme.backdrop`): up to 6 soft glows or lit spheres (planets) and film grain behind the stars, sized as fractions of the view so they look the same at every zoom.
+- **Tools** (headless Chromium with software GL, served by Vite, nothing is built): `node scripts/style-sheet.mjs <style> [--each]` draws every ship large on the pack's backdrop (the reference sheet, saved under `docs/reference/<style>/`). Use a free `--port=`.
+
 ## Agent prompt template
 
 Copy, fill the `<...>` parts, and give it to an agent started from `art-baseline`.

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { discTriangles, ringOutline, shadowFor } from './shape-geometry';
-import type { Point, ShipKind } from './style';
+import { buildParts } from './shape-parts';
+import { SHAPE_FALLBACK, type Point, type ShapeKind } from './style';
 import { activeStyle, styleRevision } from './style-active';
 
 /** Hard shadow tone: the fill colour times this. */
@@ -20,6 +21,9 @@ const Z_GLOW = 0.01;
 const Z_FILL = 0.02;
 const Z_SHADOW = 0.03;
 const Z_EYE = 0.04;
+/** Layered parts: below the shadow, and (glass and glow roles) above it but under the eye. */
+const Z_PARTS = 0.0205;
+const Z_LIGHTS = 0.0305;
 
 /** Narrowest a ship gets mid-roll, so it never vanishes. */
 export const MIN_ROLL_WIDTH = 0.15;
@@ -57,6 +61,22 @@ function trianglesGeometry(positions: number[]): THREE.BufferGeometry {
   return g;
 }
 
+/** A mesh of vertex-coloured triangles (x, y, z triples and linear RGB triples). */
+function partsMesh(
+  own: <T extends { dispose(): void }>(o: T) => T,
+  positions: number[],
+  colors: number[],
+  z: number,
+): THREE.Mesh {
+  const g = own(new THREE.BufferGeometry());
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+  const m = own(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  const out = new THREE.Mesh(g, m);
+  out.position.z = z;
+  return out;
+}
+
 const mesh = (g: THREE.BufferGeometry, m: THREE.Material, z: number): THREE.Mesh => {
   const out = new THREE.Mesh(g, m);
   out.position.z = z;
@@ -69,7 +89,7 @@ const mesh = (g: THREE.BufferGeometry, m: THREE.Material, z: number): THREE.Mesh
  * rebuilt when the style revision or the drawn size changes (a theme edit in the panel), never per
  * frame otherwise. `color` gives the fill colour (faction colour from the palette).
  */
-export function createShipArt(kind: ShipKind, color: () => number): ShipArt {
+export function createShipArt(kind: ShapeKind, color: () => number): ShipArt {
   const group = new THREE.Group();
   group.visible = false;
   let built = '';
@@ -88,7 +108,9 @@ export function createShipArt(kind: ShipKind, color: () => number): ShipArt {
   const build = (scale: number): void => {
     clear();
     const style = activeStyle();
-    const def = style.ships[kind]!;
+    const fallback = SHAPE_FALLBACK[kind];
+    const def = style.ships[kind] ?? (fallback ? style.ships[fallback] : undefined);
+    if (!def) return; // an optional kind this pack has no shape for: nothing to draw
     const theme = style.theme;
     const own = <T extends { dispose(): void }>(o: T): T => {
       owned.push(o);
@@ -126,11 +148,31 @@ export function createShipArt(kind: ShipKind, color: () => number): ShipArt {
     }
     const body = new THREE.ShapeGeometry(shapeOf(def.polygon, def.hole));
     group.add(mesh(own(body), flat(fill), Z_FILL));
+    const layered = !!def.parts?.length;
+    if (layered) {
+      // One vertex-coloured mesh per layer group: every part of a ship in one draw call.
+      const built = buildParts(def, fill, theme.partColors, Z_PARTS, Z_LIGHTS);
+      if (built.body.positions.length)
+        group.add(partsMesh(own, built.body.positions, built.body.colors, 0));
+      if (built.lights.positions.length)
+        group.add(partsMesh(own, built.lights.positions, built.lights.colors, 0));
+    }
     if (def.shadow && theme.shadowShare > 0) {
       const cut = shadowFor(def.shadow, theme.shadowShare);
       if (cut.length >= 3) {
-        const tone = new THREE.Color(fill).multiplyScalar(SHADOW_TONE).getHex();
-        group.add(mesh(own(new THREE.ShapeGeometry(shapeOf(cut))), flat(tone), Z_SHADOW));
+        if (layered) {
+          // Parts carry their own colours, so the shade is a translucent darkening over all of them.
+          group.add(
+            mesh(
+              own(new THREE.ShapeGeometry(shapeOf(cut))),
+              flat(0x000000, { transparent: true, opacity: 1 - SHADOW_TONE, depthWrite: false }),
+              Z_SHADOW,
+            ),
+          );
+        } else {
+          const tone = new THREE.Color(fill).multiplyScalar(SHADOW_TONE).getHex();
+          group.add(mesh(own(new THREE.ShapeGeometry(shapeOf(cut))), flat(tone), Z_SHADOW));
+        }
       }
     }
     if (def.eye) {
