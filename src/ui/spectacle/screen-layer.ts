@@ -178,6 +178,9 @@ function vignette(
   g.fillRect(0, 0, w, h);
 }
 
+/** How strong the speed lines draw (subdued: they were too visible). */
+const SPEED_LINE_OPACITY = 0.3;
+
 /** Radial speed lines from the middle of the screen outward; they re-roll 18 times a second like drawn frames. */
 function speedLines(
   g: CanvasRenderingContext2D,
@@ -199,8 +202,8 @@ function speedLines(
     const a = hash(i * 7 + frame * 131) * Math.PI * 2;
     const r0 = r * (0.3 + 0.45 * hash(i * 13 + frame * 17));
     const r1 = r * (0.95 + 0.25 * hash(i * 29 + frame * 3));
-    g.globalAlpha = amount * (0.35 + 0.65 * hash(i * 5 + frame));
-    g.lineWidth = 1 + 3.5 * hash(i * 11 + frame * 7) * amount;
+    g.globalAlpha = SPEED_LINE_OPACITY * amount * (0.35 + 0.65 * hash(i * 5 + frame));
+    g.lineWidth = 1 + 1.6 * hash(i * 11 + frame * 7) * amount;
     g.beginPath();
     g.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
     g.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
