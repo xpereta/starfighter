@@ -51,6 +51,8 @@ export interface LoopFrame {
   send: number;
   /** The curve value before smoothing (what the game state asks for), for the panel readout. */
   target: number;
+  /** The smoothed curve value 0..1 (how far up the loop is, before its volume). */
+  level: number;
 }
 
 /**
@@ -120,6 +122,7 @@ export function createLoopPlanner(table: () => LoopTable): LoopPlanner {
           cutoff: entry.cutoff ? clamp(sampleLoopCurve(entry.cutoff, state), 0.1, 8) : 1,
           send: clamp(entry.reverb ?? 0, 0, 1),
           target,
+          level: next,
         });
       }
       return out;

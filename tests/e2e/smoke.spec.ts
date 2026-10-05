@@ -395,6 +395,23 @@ test('?style=realistic: every sound in the test list and every loop preview play
   expect(errors).toEqual([]);
 });
 
+test('the Sound section shows the values the loops follow and which loops are on', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?dev&practice&style=realistic');
+  await page.getByRole('button', { name: /Sound/ }).click();
+  const values = page.locator('#tuning-panel [data-loop-values]');
+  const active = page.locator('#tuning-panel [data-loops-active]');
+  await expect(values).toContainText('speed');
+  await page.keyboard.down('KeyW'); // the first click on the panel already started the audio
+  await expect(active).toContainText('engine', { timeout: 5000 });
+  await expect(values).toContainText('throttle +1.00');
+  await expect(values).toContainText('flying');
+  await page.keyboard.up('KeyW');
+  expect(errors).toEqual([]);
+});
+
 test('the Sound section has the mix, a mute row and a sound test that plays without errors', async ({
   page,
 }) => {

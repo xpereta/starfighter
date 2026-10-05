@@ -1,5 +1,8 @@
 import { mixParams } from '../../data/audio/mix';
 import { activeAudio } from '../audio';
+import { loopStateOf } from '../audio/state';
+import type { World } from '../core/world/world';
+import { formatLoopsActive, formatLoopValues } from './panel-sound-logic';
 import type { ParamDef } from '../core/params/params';
 import {
   LOOP_KEYS,
@@ -145,13 +148,34 @@ export function buildSoundSection(
   sound: Section,
   track: Track,
   refreshAll: () => void,
-): void {
+): SoundReadout {
   const audio = activeAudio();
   const status = statusLine();
   sound.add(status);
+  // The live readout: the values the loops follow and which loops are on. Updated while the panel is open.
+  const valuesLine = statusLine();
+  const loopsLine = statusLine();
+  sound.add(valuesLine);
+  sound.add(loopsLine);
+  valuesLine.el.dataset.loopValues = '';
+  loopsLine.el.dataset.loopsActive = '';
+  const readout: SoundReadout = {
+    update(world) {
+      const a = activeAudio();
+      if (!a) return;
+      if (!a.engine.unlocked) {
+        valuesLine.set(`${formatLoopValues(loopStateOf(world))} (audio starts after a key press)`);
+        loopsLine.set('loops: not running yet');
+        return;
+      }
+      const { state, frames } = a.engine.loopStatus;
+      valuesLine.set(formatLoopValues(state));
+      loopsLine.set(formatLoopsActive(frames, activeStyle().loops));
+    },
+  };
   if (!audio) {
     status.set('Sound is not running.');
-    return;
+    return readout;
   }
   const { engine, mix } = audio;
   const style = activeStyle();
@@ -356,4 +380,10 @@ export function buildSoundSection(
     ),
     sound,
   );
+  return readout;
+}
+
+/** What the panel calls every frame (throttled by the caller) to keep the loop readout live. */
+export interface SoundReadout {
+  update(world: World): void;
 }

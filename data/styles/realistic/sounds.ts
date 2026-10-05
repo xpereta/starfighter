@@ -167,7 +167,7 @@ export const sounds: SoundTable = {
       }),
     ],
     {
-      volume: 0.5,
+      volume: 0.4,
       pitchRandom: 0.1,
       minGap: 0.12,
       maxVoices: 2,
@@ -278,7 +278,7 @@ export const sounds: SoundTable = {
       noise('lowpass', 300, 150, 0.4, 0.5, { waveform: 'brown', attack: 0.06 }),
       tone('sawtooth', 90, 130, 0.5, 0.08, { attack: 0.1, filter: lowpass(400) }),
     ],
-    { volume: 0.22, pitchRandom: 0.1, minGap: 0.3, maxVoices: 1, reverb: 0.15 },
+    { volume: 0.3, pitchRandom: 0.1, minGap: 0.3, maxVoices: 1, reverb: 0.15 },
   ),
   // Lock-on: soft instrument tones in the cockpit, not arcade bleeps.
   LockAcquiring: sfx(instrument(1040, 0, 0.09, 0.6), {
@@ -310,7 +310,7 @@ export const sounds: SoundTable = {
       noise('bandpass', 300, 1500, 0.7, 0.35, { waveform: 'pink', attack: 0.2 }),
     ],
     {
-      volume: 0.33,
+      volume: 0.28,
       minGap: 0.2,
       maxVoices: 2,
       reverb: 0.35,
@@ -363,7 +363,7 @@ export const sounds: SoundTable = {
       tone('sine', 48, 52, 1.8, 0.5, { attack: 0.5, detune: -9 }),
     ],
     {
-      volume: 0.3,
+      volume: 0.2,
       maxVoices: 1,
       minGap: 1,
       reverb: 0.5,
@@ -405,7 +405,7 @@ export const sounds: SoundTable = {
       noise('lowpass', 200, 120, 3, 0.5, { waveform: 'brown', attack: 0.5 }),
     ],
     {
-      volume: 0.3,
+      volume: 0.12,
       maxVoices: 1,
       minGap: 2,
       reverb: 0.7,
@@ -509,7 +509,7 @@ export const sounds: SoundTable = {
   MenuMove: sfx(
     [click(0, 0.8, 0.012, 3600), tone('sine', 1500, 1200, 0.02, 0.3, { attack: 0.001 })],
     {
-      volume: 0.09,
+      volume: 0.18,
       pitchRandom: 0.03,
       minGap: 0.04,
       maxVoices: 2,
@@ -530,7 +530,7 @@ export const sounds: SoundTable = {
     maxVoices: 1,
   }),
   MenuTick: sfx([click(0, 0.8, 0.01, 4200), click(0.03, 0.5, 0.01, 3000)], {
-    volume: 0.1,
+    volume: 0.14,
     pitchRandom: 0.02,
     minGap: 0.05,
     maxVoices: 1,
@@ -595,7 +595,7 @@ export const loops: LoopTable = {
       }),
       layer('triangle', 480, 0.04, { filter: { type: 'bandpass', freq: 900, q: 3 } }),
     ],
-    volume: 0.16,
+    volume: 0.036,
     gain: {
       state: 'speed',
       points: [
@@ -632,7 +632,7 @@ export const loops: LoopTable = {
         filter: { type: 'lowpass', freq: 300, q: 0.7 },
       }),
     ],
-    volume: 0.14,
+    volume: 0.06,
     gain: {
       state: 'throttle',
       points: [
@@ -657,7 +657,7 @@ export const loops: LoopTable = {
       layer('pink', 500, 0.8, { filter: { type: 'bandpass', freq: 500, q: 0.6 } }),
       layer('noise', 3000, 0.08, { filter: { type: 'highpass', freq: 3000, q: 0.7 } }),
     ],
-    volume: 0.12,
+    volume: 0.024,
     gain: {
       state: 'speed',
       points: [
@@ -683,7 +683,7 @@ export const loops: LoopTable = {
       layer('sine', 41.4, 0.3),
       layer('pink', 6000, 0.05, { filter: { type: 'highpass', freq: 6000, q: 0.7 } }),
     ],
-    volume: 0.07,
+    volume: 0.015,
     gain: {
       state: 'always',
       points: [
@@ -702,7 +702,7 @@ export const loops: LoopTable = {
       }),
       layer('noise', 4000, 0.1, { filter: { type: 'highpass', freq: 4000, q: 0.7 } }),
     ],
-    volume: 0.12,
+    volume: 0.048,
     gain: {
       state: 'missiles',
       points: [
@@ -730,7 +730,7 @@ export const loops: LoopTable = {
         filter: { type: 'lowpass', freq: 3000, q: 0.7 },
       }),
     ],
-    volume: 0.09,
+    volume: 0.02,
     gain: {
       state: 'rescue',
       points: [
@@ -761,7 +761,7 @@ export const loops: LoopTable = {
         filter: { type: 'lowpass', freq: 2500, q: 0.7 },
       }),
     ],
-    volume: 0.1,
+    volume: 0.04,
     gain: {
       state: 'hull',
       points: [
@@ -786,7 +786,7 @@ export const loops: LoopTable = {
         filter: { type: 'lowpass', freq: 2500, q: 0.7 },
       }),
     ],
-    volume: 0.1,
+    volume: 0.043,
     gain: {
       state: 'edge',
       points: [

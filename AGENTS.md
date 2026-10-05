@@ -6,17 +6,18 @@ Browser game (top-down 2D space dogfighting roguelite): Vite + TypeScript (stric
 
 Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 
-| Command             | What it does                                                        |
-| ------------------- | ------------------------------------------------------------------- |
-| `npm run dev`       | Vite dev server                                                     |
-| `npm run build`     | typecheck + production build into `dist/`                           |
-| `npm test`          | unit tests (Vitest, `src/**/*.test.ts`)                             |
-| `npm run test:sim`  | headless simulation tests (`tests/sim`)                             |
-| `npm run lint`      | ESLint (includes the core boundary rule)                            |
-| `npm run format`    | Prettier write (`format:check` to verify)                           |
-| `npm run typecheck` | `tsc --noEmit`                                                      |
-| `npm run e2e`       | Playwright smoke test (builds + serves `dist/`)                     |
-| `npm run board`     | sync the GitHub Project board (needs `gh` with the `project` scope) |
+| Command                 | What it does                                                                 |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `npm run dev`           | Vite dev server                                                              |
+| `npm run build`         | typecheck + production build into `dist/`                                    |
+| `npm test`              | unit tests (Vitest, `src/**/*.test.ts`)                                      |
+| `npm run test:sim`      | headless simulation tests (`tests/sim`)                                      |
+| `npm run lint`          | ESLint (includes the core boundary rule)                                     |
+| `npm run format`        | Prettier write (`format:check` to verify)                                    |
+| `npm run typecheck`     | `tsc --noEmit`                                                               |
+| `npm run e2e`           | Playwright smoke test (builds + serves `dist/`)                              |
+| `npm run board`         | sync the GitHub Project board (needs `gh` with the `project` scope)          |
+| `npm run audio:measure` | headless level check of the sound (after a build; see `src/audio/README.md`) |
 
 ## Module map
 

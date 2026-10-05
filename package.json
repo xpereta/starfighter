@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "prepare": "lefthook install",
-    "board": "node scripts/board-sync.mjs"
+    "board": "node scripts/board-sync.mjs",
+    "audio:measure": "node scripts/audio-measure.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"

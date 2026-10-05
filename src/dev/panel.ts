@@ -69,6 +69,8 @@ const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 
 export interface Panel {
+  /** Live readout in the Sound section (loop values and active loops); call about ten times a second. */
+  readonly soundReadout: { update(world: World): void };
   readonly debug: { overlay: boolean };
   readonly replay: ReplayControls;
   dispose(): void;
@@ -259,7 +261,7 @@ export function createPanel(world: World): Panel {
   );
   look.add(styleStatus);
   const disposeLook = addLookRows(ctx, look, track);
-  buildSoundSection(ctx, sound, track, refresh);
+  const soundReadout = buildSoundSection(ctx, sound, track, refresh);
 
   // Presets.
   const presets = section('Presets', false);
@@ -465,6 +467,7 @@ export function createPanel(world: World): Panel {
   refresh();
 
   return {
+    soundReadout,
     debug,
     replay,
     dispose() {
