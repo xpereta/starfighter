@@ -233,6 +233,8 @@ function sheet(
   zoom = 1,
 ): { width: number; height: number; cells: number } {
   const CELL = 340 * zoom;
+  init(Math.max(size.width, 16), Math.max(size.height, 16));
+  setStyle(styleId); // before anything asks what the pack has
   const cells = SHEET_ORDER.filter((c) => (!only || only.includes(c.kind)) && has(c.kind));
   const rows: SheetCell[][] = [];
   let row: SheetCell[] = [];

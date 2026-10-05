@@ -204,6 +204,8 @@ export interface ShapeDef {
   eye?: readonly Point[];
   /** Engine glow points (where the flame starts), drawn with `theme.glow`. */
   glow?: readonly Point[];
+  /** Colour of the engine glow (0xRRGGBB); omit for the ship's own colour. Ion blue, sodium orange, plasma white. */
+  glowColor?: number;
   /**
    * Layered detail on top of the silhouette, drawn in order (later parts over earlier ones): hull
    * plates, panel lines, greebles, canopy, nacelles, flaps, hardpoints, damage scars. Optional: a
@@ -828,6 +830,9 @@ export function validateShips(ships: ShipShapes): string[] {
       ...(def.shadow ? validatePolygon(`ships.${kind}.shadow`, def.shadow, 3) : []),
       ...(def.eye ? validatePolygon(`ships.${kind}.eye`, def.eye, 3) : []),
       ...(def.glow ? validatePolygon(`ships.${kind}.glow`, def.glow, 1) : []),
+      ...(def.glowColor !== undefined && !isColor(def.glowColor)
+        ? [`ships.${kind}.glowColor must be a colour 0..0xffffff`]
+        : []),
       ...(def.parts !== undefined ? validateParts(`ships.${kind}`, def.parts) : []),
     ];
     if (own.length === 0) {
