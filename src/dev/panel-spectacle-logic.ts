@@ -374,6 +374,18 @@ export const SPECTACLE_SLIDERS: readonly SpectacleSlider[] = [
     'Radius of enemy plasma orbs. 0 = plain shots.',
     0.5,
   ),
+  slider('cards', '', 'duration', 'Card time', 0.5, 6, 's', 'How long a title card stays.', 0.1),
+  slider(
+    'cards',
+    '',
+    'letterbox',
+    'Letterbox',
+    0,
+    0.2,
+    '',
+    'Height of the black bars of an intro card, as a share of the screen.',
+    0.01,
+  ),
 ];
 
 /** The object a slider edits inside a spectacle, or null when the pack lacks that section. */

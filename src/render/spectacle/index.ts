@@ -7,6 +7,7 @@ import { palette } from '../palette';
 import { activeStyle } from '../style-active';
 import { createCombatFx, type CombatFx, type CombatFxStats, type CombatHooks } from './combat-fx';
 import { createBackdrop, type Backdrop, type BackdropStats } from './backdrop';
+import { createCards, type Cards } from './cards';
 import { createPost, type Post } from './post';
 import { createShipFx, type ShipFx, type ShipFxStats } from './ship-fx';
 import { currentFxLevel, fxLevelRevision, spectacleSettings } from './settings';
@@ -166,7 +167,9 @@ export function createSpectacle(
   scene: THREE.Scene,
   camera: THREE.Camera,
   world: World,
+  container: HTMLElement,
 ): Spectacle {
+  let cards: Cards | null = null;
   let post: Post | null = null;
   let parts: SpectacleParts | null = null;
   let builtFor = -1;
@@ -213,8 +216,13 @@ export function createSpectacle(
   return {
     active: () => spec() !== null,
     consume(events) {
-      if (!spec()) return;
+      const sp = spec();
+      if (!sp) return;
       parts?.consume(events);
+      if (sp.cards && spectacleSettings.cards && quality().cards > 0) {
+        cards ??= createCards(container);
+        cards.consume(events, sp.cards);
+      }
       if (!post) return;
       for (const e of events) {
         if (e.type === 'PlayerDamaged') post.hit(1);
@@ -223,6 +231,7 @@ export function createSpectacle(
       }
     },
     update(frame) {
+      if (!spectacleSettings.cards || !spec()?.cards) cards?.clear();
       if (!spec()) {
         if (parts) parts.object.visible = false;
         restoreBackground();
@@ -247,6 +256,8 @@ export function createSpectacle(
       post?.resize(width, height);
     },
     dispose() {
+      cards?.dispose();
+      cards = null;
       post?.dispose();
       post = null;
       if (parts) {

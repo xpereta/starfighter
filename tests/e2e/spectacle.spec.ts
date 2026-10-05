@@ -39,6 +39,8 @@ test('a run with the spectacle pack: start a battle and fly without console erro
   await page.goto('/?style=anime-spectacle');
   await page.keyboard.press('Enter');
   await expect(page.locator('#run-hud')).toContainText('BATTLE 1/4');
+  await expect(page.locator('#sf-cards')).toHaveClass(/intro/); // the intro title card
+  await expect(page.locator('#sf-cards .title')).toHaveText('FIRST CONTACT');
   await fly(page, 2500);
   expect(errors).toEqual([]);
 });

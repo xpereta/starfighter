@@ -67,3 +67,7 @@ Thin, high-contrast HUD in the Indigo Night family: cel white text, gold for loc
 | Akira and Patlabor-era explosions | Hand-drawn layered spherical bursts, hard-edged smoke puffs, shockwave rings, drifting debris that bursts again. |
 
 Xavi supplies or approves the references: swap any title for one you prefer and the notes in `data/styles/anime-80s/style.ts` follow.
+
+## Spectacle (`anime-spectacle`)
+
+A second pack on the same direction, `data/styles/anime-spectacle/` (parent `anime-80s`, view with `?style=anime-spectacle`, quality `&fx=low|medium|high`): the same ships and palette with the lights on. Bloom on emissives, a faint laser-disc colour fringe, vignette and grain; a living backdrop with a new sky each battle (gas clouds, a ringed planet, a colony ring or a carrier, drifting rocks, distant flashes); engine plumes, nav lights, wingtip trails, a helix streak on the roll, spiralling missile smoke; multi-stage blasts (flash frame, shock rings, fireball, ink-blot smoke, glinting debris, chain reactions, capital-scale turret kills) with a zoom punch; title cards. All render-only (contract: `src/render/spectacle-contract.ts`, notes: `src/render/spectacle/README.md`). Screenshots: `docs/reference/spectacle/`.

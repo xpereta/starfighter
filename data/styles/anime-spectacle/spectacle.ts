@@ -122,6 +122,19 @@ export const spectacle: SpectacleDef = {
     },
     tracers: { length: 46, width: 4, orb: 7, glow: 1.9 },
   },
+  // Title cards in the style's voice: letterbox, wiped title, gold sunburst, red strike.
+  cards: {
+    battleTitles: ['FIRST CONTACT', 'THE CRIMSON RIFT', 'EMERALD VEIL', 'GOLDEN ASH'],
+    subtitles: ['Hold the line', 'No retreat', 'Bring them home', 'The last sortie'],
+    cleared: 'SECTOR CLEAR',
+    pilotLost: 'PILOT LOST',
+    victory: 'VICTORY',
+    defeat: 'SQUADRON LOST',
+    accent: 0x57d6ff,
+    text: 0xf2f6ff,
+    duration: 3,
+    letterbox: 0.09,
+  },
   // One sky per battle of a run (cycling): a cobalt ringed planet, a crimson rift with a carrier,
   // an emerald veil around a colony ring, then golden ash. Practice mode uses the first.
   backdrop: {

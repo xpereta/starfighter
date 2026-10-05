@@ -88,6 +88,16 @@ const frames = (page, n) =>
   await page.close();
 }
 
+// The intro title card of battle 1 (a run starts with Enter).
+{
+  const { page, errors } = await open('style=anime-spectacle&fx=medium');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1400);
+  await page.screenshot({ path: `${out}/title-card.png` });
+  shots.push(`title-card ${errors.length ? `ERRORS ${errors}` : 'ok'}`);
+  await page.close();
+}
+
 // One shot per battle sky.
 for (const sky of [1, 2, 3, 4]) {
   const { page, errors } = await open(`style=anime-spectacle&sky=${sky}&practice&dev`);
