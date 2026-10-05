@@ -1,6 +1,13 @@
 import type { World } from '../core/world/world';
 import { PAD } from '../render/hud/hud';
-import { clearChatter, createChatter, feedChatter, lineAlpha, stepChatter } from './chatter';
+import {
+  clearChatter,
+  createChatter,
+  feedChatter,
+  lineAlpha,
+  stepChatter,
+  type ChatterLine,
+} from './chatter';
 import { menuVisible } from './menu-model';
 import { objectiveText, rosterRows, type RosterRow } from './roster';
 
@@ -35,6 +42,8 @@ export interface HudView {
   /** Once per fixed step, after the world step (reads this step's events). */
   step(world: World, dt: number): void;
   draw(world: World): void;
+  /** The radio lines on screen now (a presentation layer may draw them its own way). */
+  chatterLines(): readonly ChatterLine[];
   dispose(): void;
 }
 
@@ -114,6 +123,7 @@ export function createHudView(container: HTMLElement, seed: number): HudView {
         );
       }
     },
+    chatterLines: () => chatter.lines,
     dispose() {
       root.remove();
       style.remove();

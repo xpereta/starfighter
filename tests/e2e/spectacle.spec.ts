@@ -51,7 +51,7 @@ test('the Spectacle panel section has quality, switches and sliders, and works l
   const errors = errorsOf(page);
   await page.goto('/?dev&practice&style=anime-spectacle');
   await expect(page.locator('#tuning-panel')).toBeVisible();
-  await page.getByRole('button', { name: /Spectacle/ }).click();
+  await page.getByRole('button', { name: /Spectacle visuals/ }).click();
   await expect(row(page, 'spectacle.quality')).toContainText('high');
   for (const p of ['post', 'bloom', 'backdrop', 'ships', 'combat', 'cards'])
     await expect(row(page, `spectacle.${p}`)).toBeVisible();
@@ -73,7 +73,7 @@ test('the Spectacle panel section has quality, switches and sliders, and works l
 test('on a style without a spectacle the section only explains', async ({ page }) => {
   const errors = errorsOf(page);
   await page.goto('/?dev&practice&style=anime-80s');
-  await page.getByRole('button', { name: /Spectacle/ }).click();
+  await page.getByRole('button', { name: /Spectacle visuals/ }).click();
   await expect(page.locator('#tuning-panel')).toContainText('no spectacle');
   await expect(row(page, 'spectacle.post.bloom.strength')).toHaveCount(0);
   expect(errors).toEqual([]);

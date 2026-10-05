@@ -9,6 +9,9 @@ import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
 import { initFxLevel } from '../render/spectacle/settings';
 import { initStyle } from '../render/style-active';
+import { initSpectacle, spectacleOn } from '../ui/spectacle/active';
+import { spectacle as spectacleSettings } from '../ui/spectacle/settings';
+import { createSpectacle } from '../ui/spectacle/controller';
 import { menuVisible } from '../ui/menu-model';
 import { maskFlightActions } from '../ui/menu-nav';
 import { createHudView } from '../ui/hud-view';
@@ -23,6 +26,8 @@ const save = loadSave();
 initStyle(window.location.search);
 // Eye-candy quality: `?fx=low|medium|high` (high by default); `low` is the fallback for weak devices.
 const fxLevel = initFxLevel(window.location.search);
+// The presentation of the style (HUD, menus, camera feel), when it has one: render and UI only, core never knows.
+const presentation = initSpectacle(window.location.search);
 
 /**
  * Dev tools (tuning panel, debug overlay) are a separate lazy chunk: on with `?dev` (always in
@@ -36,7 +41,19 @@ const world = createWorld(Date.now() >>> 0, createTuning(), save.bestTrialTime);
 // Sound: starts on the first key press or click; reads the same events as the renderer.
 const audio = startAudio();
 const renderer = createRenderer(document.body, world, fxLevel);
-const hud = createHud(document.body);
+const hud = createHud(document.body, {
+  skipArrows: () => spectacleOn() && spectacleSettings.indicators,
+  skipWorld: () => spectacleOn(),
+  skipText: () => spectacleOn() && spectacleSettings.hud,
+});
+const fx = presentation
+  ? createSpectacle(document.body, presentation, { getBestRun: () => save.meta.bestRun })
+  : null;
+// Dev builds only: the effects' event entry point, so tests and screenshots can stage a moment.
+if (devToolsEnabled) {
+  (window as unknown as { __sf: unknown }).__sf = { world };
+  if (fx) (window as unknown as { __presentation: unknown }).__presentation = fx;
+}
 const input = createInput();
 const menus = createMenuView(document.body, () => save.meta.bestRun);
 const pauseView = createPauseView(document.body);
@@ -69,6 +86,7 @@ const loop = createFixedLoop((dt) => {
   renderer.consumeEvents(world.events.events);
   audio.engine.consumeEvents(world.events.events, world.ship);
   runHud.step(world, dt);
+  fx?.step(world, dt);
   if (world.run.mode === 'run') {
     // Offer the saved veterans once per Start screen (a restart gets the updated roster).
     if (world.run.phase === 'start' && !offered) {
@@ -108,11 +126,17 @@ function frame(now: number): void {
   const previous = last;
   loop.advance((now - last) / 1000);
   last = now;
-  renderer.render(world);
-  hud.draw(world);
+  const { frozen } = fx?.update(world, Math.min(0.1, (now - previous) / 1000), now / 1000) ?? {
+    frozen: false,
+  };
+  // Hit-stop and the kill-cam are drawing only: the simulation above keeps running, the picture holds.
+  if (!frozen) renderer.render(world);
+  if (!frozen) hud.draw(world);
+  fx?.draw(world, now / 1000);
   menus.draw(world);
   pauseView.draw(world, pause.paused);
   runHud.draw(world);
+  fx?.drawUi(world, runHud.chatterLines());
   devTools?.draw(world, (now - previous) / 1000);
   requestAnimationFrame(frame);
 }

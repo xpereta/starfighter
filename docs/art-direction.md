@@ -2,7 +2,7 @@
 
 One page, kept short. Written by Claude as a first proposal for the `anime-80s` direction; **Xavi edits it** (the references above all). Each style pack (`data/styles/<id>/`) states its own intent and references in its manifest; this page holds the direction the first considered pack follows, and the headings every direction answers (`specs/prototype-4-look-and-sound.md`, section 1).
 
-Packs today: `plain` (flat placeholder shapes, silent: the baseline and the fallback) and `anime-80s` (this page). View with `?style=anime-80s`.
+Packs today: `plain` (flat placeholder shapes, silent: the baseline and the fallback) and `anime-80s` (this page). View with `?style=anime-80s`. `anime-spectacle` builds on it with a presentation layer (angled neon HUD, comm windows with visor portraits, title cards, camera punch/roll/kill-cam, readability aids; see `src/ui/README.md`): `?style=anime-spectacle`, `&spectacle=calm|full|overdrive|off`.
 
 ## Mood
 

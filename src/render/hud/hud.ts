@@ -43,8 +43,19 @@ export interface Hud {
   dispose(): void;
 }
 
+/**
+ * Parts of the classic HUD a presentation layer can take over (they are asked every frame): the
+ * off-screen arrows, and everything anchored to the world (lock rings, pod rings, the order marker).
+ */
+export interface HudOptions {
+  skipArrows?: () => boolean;
+  skipWorld?: () => boolean;
+  /** The text readouts: flight, status lines, trial (the lock panel counts as one). */
+  skipText?: () => boolean;
+}
+
 /** 2D canvas overlay. All placement math lives in layout.ts; this file only draws. */
-export function createHud(container: HTMLElement): Hud {
+export function createHud(container: HTMLElement, options: HudOptions = {}): Hud {
   const canvas = document.createElement('canvas');
   canvas.id = 'hud';
   // Explicit CSS size: a canvas ignores inset and would otherwise show at its pixel size (2x on Retina).
@@ -171,6 +182,11 @@ export function createHud(container: HTMLElement): Hud {
     drawLockPanel(g, world, lockLimit(world), screen.height);
   }
 
+  /** The locks/salvo panel is screen-anchored and stays here when a presentation layer draws the world part. */
+  function drawLockPanelOnly(world: World): void {
+    drawLockPanel(g, world, lockLimit(world), screen.height);
+  }
+
   function drawFlight(world: World): void {
     const { ship, tuning, actions } = world;
     const flight = tuning.flight;
@@ -276,10 +292,14 @@ export function createHud(container: HTMLElement): Hud {
       g.clearRect(0, 0, screen.width, screen.height);
       g.font = FONT;
       g.textBaseline = 'alphabetic';
-      drawEdgeArrows(world);
-      drawLocks(world);
-      drawFlight(world);
-      drawStatus(world);
+      if (!options.skipArrows?.()) drawEdgeArrows(world);
+      const text = !options.skipText?.();
+      if (!options.skipWorld?.()) drawLocks(world);
+      else if (text) drawLockPanelOnly(world);
+      if (text) {
+        drawFlight(world);
+        drawStatus(world);
+      }
     },
     dispose() {
       window.removeEventListener('resize', resize);

@@ -31,6 +31,7 @@ import { DEFAULT_PANEL_OPACITY, MIN_PANEL_OPACITY } from './panel-style';
 import { activeStyle, activeWarnings, rememberStyle, styleIds } from '../render/style-active';
 import { addLookRows } from './panel-look';
 import { addSpectacleRows } from './panel-spectacle';
+import { buildPresentationSection } from './panel-presentation';
 import { buildSoundSection } from './panel-sound';
 import { createReplayControls, type ReplayControls } from './replay-controls';
 
@@ -233,9 +234,10 @@ export function createPanel(world: World): Panel {
 
   // Look and Sound: skeleton sections, the Look track and the Sound track fill them.
   const look = section('Look', false);
-  const spectacleSection = section('Spectacle', false);
+  const spectacleSection = section('Spectacle visuals', false);
+  const presentationSection = section('Spectacle presentation', false);
   const sound = section('Sound', false);
-  root.append(look.el, spectacleSection.el, sound.el);
+  root.append(look.el, spectacleSection.el, presentationSection.el, sound.el);
   track(
     choiceRow<string>(ctx, {
       id: 'style.id',
@@ -265,6 +267,7 @@ export function createPanel(world: World): Panel {
   const disposeLook = addLookRows(ctx, look, track);
   addSpectacleRows(ctx, spectacleSection, track);
   const soundReadout = buildSoundSection(ctx, sound, track, refresh);
+  buildPresentationSection(ctx, presentationSection, track);
 
   // Presets.
   const presets = section('Presets', false);
