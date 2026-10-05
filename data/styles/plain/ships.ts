@@ -54,6 +54,23 @@ export const ships: ShipShapes = {
       [0.35, 0.28],
     ],
   },
+  // Missile fighter (prototype 5, placeholder): a long needle nose and short swept wings, so it reads
+  // apart from the fighter's wide delta at a glance. A proper look comes with the style packs later.
+  lancer: {
+    polygon: [
+      [1.6, 0],
+      [0.5, -0.2],
+      [-0.1, -0.2],
+      [-0.7, -0.95],
+      [-0.55, -0.3],
+      [-1.0, -0.2],
+      [-1.0, 0.2],
+      [-0.55, 0.3],
+      [-0.7, 0.95],
+      [-0.1, 0.2],
+      [0.5, 0.2],
+    ],
+  },
   drone: {
     polygon: [
       [1.15, 0],

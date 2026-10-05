@@ -6,6 +6,7 @@ import { lockLimit } from '../../core/lockon/lockon';
 import { palette } from '../palette';
 import { drawLockPanel, drawLockRings } from './locks-hud';
 import { drawOrderMarker } from './order-marker';
+import { drawMissileWarning } from './missile-warning-hud';
 import { drawPodRings } from './pods-hud';
 import { podDistanceLabel } from './pods';
 import {
@@ -168,6 +169,7 @@ export function createHud(container: HTMLElement): Hud {
     drawLockRings(g, world, lockCenter, view, screen);
     drawOrderMarker(g, world, lockCenter, view, screen);
     drawPodRings(g, world, lockCenter, view, screen);
+    drawMissileWarning(g, world, lockCenter, view, screen);
     drawLockPanel(g, world, lockLimit(world), screen.height);
   }
 
