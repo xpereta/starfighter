@@ -10,14 +10,14 @@ export const lockonParams = {
     note: 'How wide the lock-on cone is, measured from the nose to each side. Higher = easier to paint targets without perfect aim, but less skill; lower = you must point right at them.',
   },
   lockRange: {
-    default: 1500,
+    default: 4280,
     min: 300,
     max: 5000,
     unit: 'u',
     note: 'How far ahead a target can be locked. Higher = lock enemies from far away, before a fight starts; lower = you must get close, into guns range.',
   },
   lockTime: {
-    default: 1,
+    default: 0.7,
     min: 0.2,
     max: 4,
     step: 0.05,
