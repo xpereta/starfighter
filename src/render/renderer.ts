@@ -19,6 +19,7 @@ import { palette } from './palette';
 import { styleRevision } from './style-active';
 import { createShipArt, PLAYER_SCALE, rollSquash } from './ship-art';
 import { createSpectacle } from './spectacle';
+import { demoEvents } from './spectacle/demo';
 
 export interface Renderer {
   /** Feed each simulation step's events (FX attach here). */
@@ -87,7 +88,7 @@ export function createRenderer(
   window.addEventListener('resize', resize);
   resize();
 
-  return {
+  const api: Renderer = {
     consumeEvents(events) {
       sparks.consume(events);
       deathFx.consume(events);
@@ -175,4 +176,7 @@ export function createRenderer(
       renderer.dispose();
     },
   };
+  // The panel's "Demo blasts" button: synthetic events for the effects only (never the simulation).
+  (globalThis as { __sfDemo?: () => void }).__sfDemo = () => api.consumeEvents(demoEvents(world));
+  return api;
 }

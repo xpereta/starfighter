@@ -56,6 +56,8 @@ test('the Spectacle panel section has quality, switches and sliders, and works l
   await expect(row(page, 'spectacle.post.bloom.strength')).toBeVisible();
   await expect(row(page, 'spectacle.post.vignette')).toBeVisible();
   await expect(row(page, 'spectacle.backdrop.nebula.strength')).toBeVisible();
+  await page.getByRole('button', { name: 'Demo blasts' }).click();
+  await page.waitForTimeout(400);
   await row(page, 'spectacle.sky').click(); // auto -> battle 1 ... cycle through the skies
   await row(page, 'spectacle.sky').click();
   await row(page, 'spectacle.quality').click(); // high -> low

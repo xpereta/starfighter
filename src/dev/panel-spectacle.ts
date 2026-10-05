@@ -7,6 +7,7 @@ import {
 } from '../render/spectacle/settings';
 import { SPECTACLE_SLIDERS, sliderTarget } from './panel-spectacle-logic';
 import {
+  buttonRow,
   choiceRow,
   sliderRow,
   statusLine,
@@ -67,6 +68,14 @@ export function addSpectacleRows(
   );
   sec.add(say);
 
+  sec.add(
+    buttonRow(
+      ctx,
+      'Demo blasts',
+      () => (globalThis as { __sfDemo?: () => void }).__sfDemo?.(),
+      'Sets off one kill of each kind (turret, fighter, drone, static target, wingman), a missile impact and some hits ahead of you, in the active style. Only the picture: nothing in the game changes.',
+    ),
+  );
   track(
     choiceRow<string>(ctx, {
       id: 'spectacle.quality',

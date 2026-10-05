@@ -62,6 +62,32 @@ for (const style of ['anime-80s', 'anime-spectacle']) {
   await page.close();
 }
 
+// Multi-stage blasts: the panel's demo button sets off one kill of each kind ahead of the ship.
+const frames = (page, n) =>
+  page.evaluate(
+    (count) =>
+      new Promise((resolve) => {
+        let i = 0;
+        const tick = () => (++i >= count ? resolve() : requestAnimationFrame(tick));
+        requestAnimationFrame(tick);
+      }),
+    n,
+  );
+{
+  const { page, errors } = await open('style=anime-spectacle&practice&dev&sky=2');
+  await page.keyboard.press('k');
+  await hold(page, ['KeyW'], 800);
+  await page.evaluate(() => globalThis.__sfDemo());
+  let at = 0;
+  for (const n of [2, 5, 9, 16]) {
+    await frames(page, n - at);
+    at = n;
+    await page.screenshot({ path: `${out}/blasts-${n}.png` });
+  }
+  shots.push(`blasts ${errors.length ? `ERRORS ${errors}` : 'ok'}`);
+  await page.close();
+}
+
 // One shot per battle sky.
 for (const sky of [1, 2, 3, 4]) {
   const { page, errors } = await open(`style=anime-spectacle&sky=${sky}&practice&dev`);

@@ -559,7 +559,7 @@ export function createBackdrop(quality: SpectacleQuality, worldSeed: number): Ba
         islandMat.color.copy(tmpBase).multiplyScalar(0.55).lerp(tmpSky, 0.15);
         panelMat.color.copy(tmpBase).multiplyScalar(0.2).lerp(tmpSky, 0.4);
         deckMat.color.copy(tmpBase).multiplyScalar(0.8);
-        engineMat.color.setRGB(1.6, 1.2, 0.8);
+        engineMat.color.setRGB(1.1, 0.8, 0.5);
         lightMat.color.setRGB(1.4, 1.3, 0.9);
         hullMat.opacity =
           edgeMat.opacity =

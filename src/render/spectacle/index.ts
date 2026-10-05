@@ -5,6 +5,7 @@ import type { GameEvent } from '../../core/events/events';
 import type { World } from '../../core/world/world';
 import { palette } from '../palette';
 import { activeStyle } from '../style-active';
+import { createCombatFx, type CombatFx, type CombatFxStats, type CombatHooks } from './combat-fx';
 import { createBackdrop, type Backdrop, type BackdropStats } from './backdrop';
 import { createPost, type Post } from './post';
 import { createShipFx, type ShipFx, type ShipFxStats } from './ship-fx';
@@ -31,6 +32,7 @@ export interface SpectacleFrame {
 export interface SpectaclePartsStats {
   backdrop: BackdropStats | null;
   ships: ShipFxStats | null;
+  combat: CombatFxStats | null;
 }
 
 export interface SpectacleParts {
@@ -45,11 +47,18 @@ export interface SpectacleParts {
   dispose(): void;
 }
 
-export function createSpectacleParts(world: World, level: QualityLevel): SpectacleParts {
+const NO_HOOKS: CombatHooks = { punch: () => {}, hit: () => {} };
+
+export function createSpectacleParts(
+  world: World,
+  level: QualityLevel,
+  hooks: CombatHooks = NO_HOOKS,
+): SpectacleParts {
   const quality = spectacleQualityPresets[level];
   const group = new THREE.Group();
   let backdrop: Backdrop | null = null;
   let shipFx: ShipFx | null = null;
+  let combat: CombatFx | null = null;
   let sky: number | null = null;
 
   const spec = () => activeStyle().spectacle;
@@ -63,6 +72,7 @@ export function createSpectacleParts(world: World, level: QualityLevel): Spectac
         if (e.type === 'Killed') backdrop?.excite(e.kind === 'turret' ? 1 : 0.4);
       }
       if (spectacleSettings.ships) shipFx?.consume(events);
+      if (s.combat) combat?.consume(events, s.combat);
     },
     update(f) {
       const s = spec();
@@ -96,6 +106,14 @@ export function createSpectacleParts(world: World, level: QualityLevel): Spectac
         shipFx = createShipFx(world, quality);
         group.add(shipFx.object);
       }
+      if (s?.combat && !combat) {
+        combat = createCombatFx(world, quality, hooks);
+        group.add(combat.object);
+      }
+      if (combat) {
+        if (s?.combat) combat.update(f.dt, s.combat, spectacleSettings.combat);
+        else combat.object.visible = false;
+      }
       if (shipFx) {
         if (s?.ships)
           shipFx.update(
@@ -110,12 +128,15 @@ export function createSpectacleParts(world: World, level: QualityLevel): Spectac
     stats: () => ({
       backdrop: backdrop?.object.visible ? backdrop.stats() : null,
       ships: shipFx?.object.visible ? shipFx.stats() : null,
+      combat: combat?.object.visible ? combat.stats() : null,
     }),
     dispose() {
       backdrop?.dispose();
       backdrop = null;
       shipFx?.dispose();
       shipFx = null;
+      combat?.dispose();
+      combat = null;
       group.clear();
     },
   };
@@ -166,7 +187,10 @@ export function createSpectacle(
       scene.remove(parts.object);
       parts.dispose();
     }
-    parts = createSpectacleParts(world, currentFxLevel());
+    parts = createSpectacleParts(world, currentFxLevel(), {
+      punch: (a) => post?.punch(a),
+      hit: (a) => post?.hit(a),
+    });
     scene.add(parts.object);
     // Pool readout for the screenshot and frame-time scripts (and a look in the console).
     (globalThis as { __spectacle?: unknown }).__spectacle = {
@@ -195,7 +219,7 @@ export function createSpectacle(
       for (const e of events) {
         if (e.type === 'PlayerDamaged') post.hit(1);
         else if (e.type === 'WingmanDown') post.hit(0.5);
-        else if (e.type === 'Killed') post.hit(0.3);
+        else if (e.type === 'Killed' && !spec()?.combat) post.hit(0.3);
       }
     },
     update(frame) {
