@@ -12,5 +12,5 @@ export const theme: ThemeInput = {
     star: 0xc4d2ff,
   },
   glow: 1,
-  speedLines: 0.7,
+  speedLines: 0, // the radial lines at high speed were removed (Xavi: distracting); raise to bring them back
 };
