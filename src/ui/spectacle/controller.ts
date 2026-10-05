@@ -248,6 +248,7 @@ export function createSpectacle(
       cl.toggle('sxb-comms', on && spectacle.comms);
       cl.toggle('sxb-menus', on && spectacle.menus);
       cl.toggle('sxb-calm', on && matchingPreset(spectacle) === 'calm');
+      hud.root.style.setProperty('--sx-ui-scale', String(spectacle.hudScale));
       hud.root.hidden = !on || menuUp;
       if (on && !menuUp) {
         hud.draw({

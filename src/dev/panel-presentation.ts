@@ -5,7 +5,10 @@ import {
   INTENSITY_KEYS,
   LAYER_KEYS,
   matchingPreset,
+  DEFAULT_HUD_SCALE,
+  MAX_HUD_SCALE,
   MAX_INTENSITY,
+  MIN_HUD_SCALE,
   PRESET_NAMES,
   spectacle,
   storeSettings,
@@ -143,6 +146,24 @@ export function buildPresentationSection(
       }),
     );
   }
+  add(
+    sliderRow(ctx, {
+      key: 'hudScale',
+      group: 'presentation',
+      def: {
+        default: DEFAULT_HUD_SCALE,
+        min: MIN_HUD_SCALE,
+        max: MAX_HUD_SCALE,
+        unit: 'x',
+        step: 0.05,
+        note: 'Size of the HUD panels (hull, flight, roster, objective, feed, comms). Lower = a smaller interface that leaves more of the fight visible; 1 = the full designed size.',
+      },
+      target: spectacle as unknown as Record<string, unknown>,
+      label: 'HUD size',
+      trackChange: false,
+      onChange: changed,
+    }),
+  );
   for (const name of Object.keys(PREVIEWS) as PreviewName[]) {
     section.add(
       buttonRow(

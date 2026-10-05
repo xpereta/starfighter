@@ -6,6 +6,11 @@
 
 /** Intensities run 0 (off) to `MAX_INTENSITY` (overdrive); 1 is the designed look. */
 export const MAX_INTENSITY = 1.5;
+/** The HUD size range (a scale, not an intensity). */
+export const MIN_HUD_SCALE = 0.4;
+export const MAX_HUD_SCALE = 1.2;
+/** The default HUD size: compact, so the interface leaves the fight visible. */
+export const DEFAULT_HUD_SCALE = 0.7;
 
 export interface SpectacleSettings {
   /** Master switch: off = the classic HUD and menus, no effects (the style pack's flag still has to be on). */
@@ -28,6 +33,8 @@ export interface SpectacleSettings {
   shake: number;
   vignette: number;
   speedFlash: number;
+  /** Size of the HUD panels (0.4 to 1.2; 1 is the full designed size). */
+  hudScale: number;
 }
 
 export const LAYER_KEYS = [
@@ -81,7 +88,7 @@ const intensities = (v: number): Record<IntensityKey, number> => ({
 
 /** The presets. `calm` keeps the whole anime interface but almost none of the motion (for comfort). */
 export const PRESETS: Record<PresetName, SpectacleSettings> = {
-  full: { enabled: true, ...allLayers(true), ...intensities(1) },
+  full: { enabled: true, ...allLayers(true), ...intensities(1), hudScale: DEFAULT_HUD_SCALE },
   calm: {
     enabled: true,
     ...allLayers(true),
@@ -92,9 +99,10 @@ export const PRESETS: Record<PresetName, SpectacleSettings> = {
     shake: 0.25,
     vignette: 0.5,
     speedFlash: 0,
+    hudScale: 0.6,
   },
-  overdrive: { enabled: true, ...allLayers(true), ...intensities(MAX_INTENSITY) },
-  off: { enabled: false, ...allLayers(false), ...intensities(0) },
+  overdrive: { enabled: true, ...allLayers(true), ...intensities(MAX_INTENSITY), hudScale: 1 },
+  off: { enabled: false, ...allLayers(false), ...intensities(0), hudScale: 1 },
 };
 
 export function isPresetName(s: string | null | undefined): s is PresetName {
@@ -114,6 +122,9 @@ export function sanitize(
     if (typeof v === 'number' && Number.isFinite(v))
       out[k] = Math.min(MAX_INTENSITY, Math.max(0, v));
   }
+  const h = input.hudScale;
+  if (typeof h === 'number' && Number.isFinite(h))
+    out.hudScale = Math.min(MAX_HUD_SCALE, Math.max(MIN_HUD_SCALE, h));
   return out;
 }
 
@@ -124,6 +135,7 @@ export function matchingPreset(s: SpectacleSettings): PresetName | 'custom' {
     if (p.enabled !== s.enabled) continue;
     if (LAYER_KEYS.some((k) => p[k] !== s[k])) continue;
     if (INTENSITY_KEYS.some((k) => Math.abs(p[k] - s[k]) > 1e-6)) continue;
+    if (Math.abs(p.hudScale - s.hudScale) > 1e-6) continue;
     return name;
   }
   return 'custom';

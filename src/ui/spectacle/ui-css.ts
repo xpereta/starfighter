@@ -38,6 +38,7 @@ export const SX_CSS = `
 .sx-num { font-family: var(--mono); font-weight: 800; font-variant-numeric: tabular-nums; }
 
 /* ---- top left: hull, status, roster ---- */
+.sx-tl, .sx-tr, .sx-bl, .sx-comms { zoom: var(--sx-ui-scale, 1); }
 .sx-tl { position: absolute; left: 22px; top: 16px; display: grid; gap: 8px; width: min(300px, 44vw); }
 .sx-hull-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
 .sx-segs { display: flex; gap: 3px; }
