@@ -4,6 +4,7 @@ import {
   PALETTE_KEYS,
   resolveStyle,
   SOUND_EVENT_KEYS,
+  THEME_SCALARS,
   type ResolvedStyle,
   type StyleInput,
   type StylePack,
@@ -21,12 +22,7 @@ export function completeFallback(input: StyleInput): StylePack {
   const t = input.theme;
   if (!t?.palette || PALETTE_KEYS.some((k) => t.palette?.[k] === undefined))
     errors.push('the fallback style must define the whole palette');
-  if (
-    t?.outlineWidth === undefined ||
-    t.outlineColor === undefined ||
-    t.shadowShare === undefined ||
-    t.glow === undefined
-  )
+  if (THEME_SCALARS.some((k) => t?.[k] === undefined))
     errors.push('the fallback style must define every theme field');
   if (SOUND_EVENT_KEYS.some((k) => input.sounds?.[k] === undefined))
     errors.push('the fallback style must have an entry or "silent" for every event');

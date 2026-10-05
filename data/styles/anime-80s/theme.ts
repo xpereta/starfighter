@@ -26,4 +26,5 @@ export const theme: ThemeInput = {
   shadowShare: 0.45,
   glow: 0.8,
   eyeColor: 0xfff4b0,
+  speedLines: 0.5,
 };

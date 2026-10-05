@@ -10,6 +10,8 @@ import { createWingmanRenderer } from './wingmen';
 import { createMissileRenderer } from './missiles';
 import { viewSize } from '../core/camera/view';
 import { createShards } from './shards';
+import { createDeathFx } from './fx/death-fx';
+import { createScreenFx } from './fx/screen-fx';
 import { createSparks } from './sparks';
 import { createPodRenderer } from './pods';
 import { createTargetRenderer } from './targets';
@@ -64,6 +66,11 @@ export function createRenderer(
   scene.add(sparks.object);
   const shards = createShards(qualityPresets[quality]);
   scene.add(shards.object);
+  // Death sequences (styles that define them) and the screen effects; plain keeps the shards.
+  const screenFx = createScreenFx(container, qualityPresets[quality]);
+  scene.add(screenFx.speedLines);
+  const deathFx = createDeathFx(qualityPresets[quality], world, screenFx.hooks);
+  scene.add(deathFx.object);
   let lastTime = performance.now();
 
   const shipArt = createShipArt('player', () => palette.friendly);
@@ -80,21 +87,36 @@ export function createRenderer(
   return {
     consumeEvents(events) {
       sparks.consume(events);
-      shards.consume(events);
+      deathFx.consume(events);
+      shards.consume(events, (kind) => deathFx.handles(kind));
     },
     render(world) {
       const { ship: s } = world;
       const { minSpeed, maxSpeed } = world.tuning.flight;
+      const now = performance.now();
+      const frameDt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
       // Camera state comes from core/camera; the visible area is the same on every screen shape.
       const cam = world.camera;
       const view = viewSize(cam.view, cam.aspect);
+      const speedFactor = clamp((s.speed - minSpeed) / (maxSpeed - minSpeed), 0, 1);
+      // Hit-stop is drawing only: the simulation keeps running, the picture is simply not updated.
+      const frozen = screenFx.update(
+        frameDt,
+        { x: cam.x, y: cam.y, width: view.width, height: view.height },
+        speedFactor,
+        now / 1000,
+      );
+      if (frozen) {
+        renderer.render(scene, camera);
+        return;
+      }
       camera.left = -view.width / 2;
       camera.right = view.width / 2;
       camera.top = view.height / 2;
       camera.bottom = -view.height / 2;
       camera.updateProjectionMatrix();
       camera.position.set(cam.x + cam.shakeX, cam.y + cam.shakeY, 0);
-      const speedFactor = clamp((s.speed - minSpeed) / (maxSpeed - minSpeed), 0, 1);
       shipArt.update({
         x: s.x,
         y: s.y,
@@ -110,12 +132,10 @@ export function createRenderer(
       fighters.update(world.fighters);
       wingmen.update(world.squadron.wingmen, world.tuning.squadron.radius);
       pods.update(world.pods, world.tuning.rescue.podRadius);
-      const now = performance.now();
-      const frameDt = Math.min((now - lastTime) / 1000, 0.1);
       missiles.update(world, frameDt);
       sparks.update(frameDt);
       shards.update(frameDt);
-      lastTime = now;
+      deathFx.update(frameDt);
       renderer.render(scene, camera);
     },
     dispose() {
@@ -124,6 +144,8 @@ export function createRenderer(
       bullets.dispose();
       sparks.dispose();
       shards.dispose();
+      deathFx.dispose();
+      screenFx.dispose();
       targets.dispose();
       fighters.dispose();
       wingmen.dispose();

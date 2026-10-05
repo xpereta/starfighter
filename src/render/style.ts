@@ -66,12 +66,21 @@ export interface Theme {
   glow: number;
   /** Colour of the sensor eye / cockpit / core detail of a ship (0xRRGGBB). */
   eyeColor: number;
+  /** Speed lines at high speed, strength 0..1; 0 = off. */
+  speedLines: number;
 }
 
 /** A pack may give only some theme fields; the rest come from the fallback. */
 export type ThemeInput = Partial<Omit<Theme, 'palette'>> & { palette?: Partial<Palette> };
 
-const THEME_SCALARS = ['outlineWidth', 'outlineColor', 'shadowShare', 'glow', 'eyeColor'] as const;
+export const THEME_SCALARS = [
+  'outlineWidth',
+  'outlineColor',
+  'shadowShare',
+  'glow',
+  'eyeColor',
+  'speedLines',
+] as const;
 
 // Ships, deaths, explosions (stubs: the Look track fills them) -----------------------------
 
@@ -107,23 +116,91 @@ export interface ShapeDef {
 /** Every kind has a shape: a pack that lacks one falls back to its parent or `plain`. */
 export type ShipShapes = Partial<Record<ShipKind, ShapeDef>>;
 
-/** How one ship kind dies. Stub: fields are added by the Look track. */
-export interface DeathDef {
-  pieces: number;
-}
-export type DeathDefs = Partial<Record<ShipKind, DeathDef>>;
+/** A min..max range, picked uniformly by the seeded roll. */
+export type Range = readonly [min: number, max: number];
 
 export const EXPLOSION_KINDS = ['hitSpark', 'small', 'large', 'missile', 'heavy'] as const;
 export type ExplosionKind = (typeof EXPLOSION_KINDS)[number];
 
-/** One explosion kind. Stub: fields are added by the Look track. */
+/**
+ * One explosion kind: flat, hard-edged shapes drawn from a colour ramp. Used by death sequences
+ * and by events with no ship (hit sparks, missile hits).
+ */
 export interface ExplosionDef {
-  /** World units (u). */
+  /** Peak radius of the blast when no ship sets it, world units (u). */
   size: number;
-  /** Seconds (s). */
+  /** How long it lasts, seconds (s). */
   duration: number;
+  /** Colours from the hot core out to the smoke (2 to 4 entries, 0xRRGGBB). */
+  ramp: readonly number[];
+  /** Concentric flat discs in the body, 1..3 (inner ones shrink first). */
+  layers: number;
+  /** Shockwave ring strength, 0..1 (0 = no ring). */
+  ring: number;
+  /** Hard-edged smoke puffs around the blast, 0..8. */
+  puffs: number;
+  /** Starburst spikes, 0..16 (0 = none). */
+  spikes: number;
+  /** Cross flare strength, 0..1 (0 = none). */
+  cross: number;
+  /** Frames of full-screen flash (at 60 per second) when this blast is the primary or last of a death, 0..8 (0 = none). */
+  flashFrames: number;
 }
 export type ExplosionDefs = Partial<Record<ExplosionKind, ExplosionDef>>;
+
+/** A group of delayed explosions in a death sequence. */
+export interface SecondaryDef {
+  kind: ExplosionKind;
+  /** How many go off, a whole number. */
+  count: Range;
+  /** Blast size in ship radii. */
+  size: Range;
+  /** Seconds after the death. */
+  delay: Range;
+  /** On a flying piece, or on the wreck (the spot where the ship died). */
+  attach: 'piece' | 'wreck';
+  /** Chance 0..1 that a blast on a piece destroys it (else it keeps drifting as debris). */
+  consume: number;
+  /** Chance 0..1 that the blast kicks a neighbouring piece into an early blast of its own. */
+  chain: number;
+}
+
+/** What the pieces of a broken ship do. */
+export interface DebrisDef {
+  /** How long a piece lingers, seconds (s). */
+  life: Range;
+  /** Drift speed away from the centre, u/s. */
+  drift: Range;
+  /** Largest spin, rad/s. */
+  spin: number;
+  /** Share of its life a piece spends fading out, 0..1. */
+  fade: number;
+  /** Smoke puffs per second each piece trails, 0 = none. */
+  trail: number;
+}
+
+/**
+ * How one ship kind dies (see the spec, section 4). The sequence is rolled per death from this
+ * definition with its own seeded stream, so every death differs and replays repeat.
+ */
+export interface DeathDef {
+  /** How many pieces the silhouette is cut into along seeded fracture lines. */
+  pieces: Range;
+  /** The first blast; `size` in ship radii. */
+  primary: { kind: ExplosionKind; size: number };
+  /** Delayed blasts (secondary explosions). */
+  secondary: readonly SecondaryDef[];
+  debris: DebrisDef;
+  /** How much the direction of the killing blow shapes the break-up, 0..1. */
+  blow: number;
+  /** Share 0..1 of the ship's own velocity the pieces keep. */
+  momentum: number;
+  /** An optional last big blast, `size` in ship radii, `delay` seconds after the death. */
+  finalBlast?: { kind: ExplosionKind; size: number; delay: number };
+  /** Drawing-only freeze when the ship dies, seconds (s); 0 = none. */
+  hitStop: number;
+}
+export type DeathDefs = Partial<Record<ShipKind, DeathDef>>;
 
 // Sounds ----------------------------------------------------------------------------------
 
@@ -253,6 +330,8 @@ export function validateTheme(t: ThemeInput): string[] {
   if (t.shadowShare !== undefined && !isNum(t.shadowShare, 0, 1))
     errors.push('theme.shadowShare must be 0..1');
   if (t.glow !== undefined && !isNum(t.glow, 0, 1)) errors.push('theme.glow must be 0..1');
+  if (t.speedLines !== undefined && !isNum(t.speedLines, 0, 1))
+    errors.push('theme.speedLines must be 0..1');
   if (t.eyeColor !== undefined && !isColor(t.eyeColor))
     errors.push('theme.eyeColor must be a colour 0..0xffffff');
   return errors;
@@ -305,11 +384,73 @@ export function validateShips(ships: ShipShapes): string[] {
   return errors;
 }
 
+/** Hard limits that keep a death sequence bounded (the quality presets cap it further). */
+export const MAX_PIECES = 24;
+export const MAX_SECONDARY_BLASTS = 24;
+export const MAX_DEATH_SECONDS = 8;
+
+const isRange = (v: unknown, min: number, max: number, whole = false): boolean =>
+  Array.isArray(v) &&
+  v.length === 2 &&
+  isNum(v[0], min, max) &&
+  isNum(v[1], min, max) &&
+  (v[0] as number) <= (v[1] as number) &&
+  (!whole || (Number.isInteger(v[0]) && Number.isInteger(v[1])));
+
 export function validateDeaths(deaths: DeathDefs): string[] {
   const errors: string[] = [];
   for (const [kind, def] of Object.entries(deaths)) {
-    if (!isKind(SHIP_KINDS, kind)) errors.push(`deaths.${kind} is not a ship kind`);
-    else if (!isNum(def.pieces, 1, 64)) errors.push(`deaths.${kind}.pieces must be 1..64`);
+    const at = `deaths.${kind}`;
+    if (!isKind(SHIP_KINDS, kind)) {
+      errors.push(`${at} is not a ship kind`);
+      continue;
+    }
+    if (!isRange(def.pieces, 1, MAX_PIECES, true))
+      errors.push(`${at}.pieces must be a whole range min..max within 1..${MAX_PIECES}`);
+    if (!isKind(EXPLOSION_KINDS, String(def.primary?.kind)))
+      errors.push(`${at}.primary.kind is not an explosion kind`);
+    if (!isNum(def.primary?.size, 0.1, 20)) errors.push(`${at}.primary.size must be 0.1..20 radii`);
+    if (!Array.isArray(def.secondary) || def.secondary.length > 8)
+      errors.push(`${at}.secondary must be a list of at most 8 groups`);
+    else {
+      let most = 0;
+      def.secondary.forEach((s, i) => {
+        const sa = `${at}.secondary[${i}]`;
+        if (!isKind(EXPLOSION_KINDS, String(s.kind))) errors.push(`${sa}.kind is unknown`);
+        if (!isRange(s.count, 0, MAX_SECONDARY_BLASTS, true))
+          errors.push(`${sa}.count must be a whole range within 0..${MAX_SECONDARY_BLASTS}`);
+        if (!isRange(s.size, 0.05, 20)) errors.push(`${sa}.size must be a range within 0.05..20`);
+        if (!isRange(s.delay, 0, MAX_DEATH_SECONDS))
+          errors.push(`${sa}.delay must be a range within 0..${MAX_DEATH_SECONDS} s`);
+        if (s.attach !== 'piece' && s.attach !== 'wreck')
+          errors.push(`${sa}.attach must be 'piece' or 'wreck'`);
+        if (!isNum(s.consume, 0, 1)) errors.push(`${sa}.consume must be 0..1`);
+        if (!isNum(s.chain, 0, 1)) errors.push(`${sa}.chain must be 0..1`);
+        if (isRange(s.count, 0, MAX_SECONDARY_BLASTS)) most += s.count[1];
+      });
+      if (most > MAX_SECONDARY_BLASTS)
+        errors.push(`${at}.secondary has more than ${MAX_SECONDARY_BLASTS} blasts in total`);
+    }
+    const d = def.debris;
+    if (!d) errors.push(`${at}.debris is missing`);
+    else {
+      if (!isRange(d.life, 0.1, MAX_DEATH_SECONDS))
+        errors.push(`${at}.debris.life must be a range within 0.1..${MAX_DEATH_SECONDS} s`);
+      if (!isRange(d.drift, 0, 2000)) errors.push(`${at}.debris.drift must be within 0..2000 u/s`);
+      if (!isNum(d.spin, 0, 30)) errors.push(`${at}.debris.spin must be 0..30 rad/s`);
+      if (!isNum(d.fade, 0, 1)) errors.push(`${at}.debris.fade must be 0..1`);
+      if (!isNum(d.trail, 0, 30)) errors.push(`${at}.debris.trail must be 0..30 per second`);
+    }
+    if (!isNum(def.blow, 0, 1)) errors.push(`${at}.blow must be 0..1`);
+    if (!isNum(def.momentum, 0, 1)) errors.push(`${at}.momentum must be 0..1`);
+    if (def.finalBlast) {
+      const f = def.finalBlast;
+      if (!isKind(EXPLOSION_KINDS, String(f.kind))) errors.push(`${at}.finalBlast.kind is unknown`);
+      if (!isNum(f.size, 0.1, 20)) errors.push(`${at}.finalBlast.size must be 0.1..20 radii`);
+      if (!isNum(f.delay, 0, MAX_DEATH_SECONDS))
+        errors.push(`${at}.finalBlast.delay must be 0..${MAX_DEATH_SECONDS} s`);
+    }
+    if (!isNum(def.hitStop, 0, 0.5)) errors.push(`${at}.hitStop must be 0..0.5 s`);
   }
   return errors;
 }
@@ -317,13 +458,26 @@ export function validateDeaths(deaths: DeathDefs): string[] {
 export function validateExplosions(explosions: ExplosionDefs): string[] {
   const errors: string[] = [];
   for (const [kind, def] of Object.entries(explosions)) {
+    const at = `explosions.${kind}`;
     if (!isKind(EXPLOSION_KINDS, kind)) {
-      errors.push(`explosions.${kind} is not an explosion kind`);
+      errors.push(`${at} is not an explosion kind`);
       continue;
     }
-    if (!isNum(def.size, 0.1, 10000)) errors.push(`explosions.${kind}.size must be 0.1..10000 u`);
-    if (!isNum(def.duration, 0.01, 30))
-      errors.push(`explosions.${kind}.duration must be 0.01..30 s`);
+    if (!isNum(def.size, 0.1, 10000)) errors.push(`${at}.size must be 0.1..10000 u`);
+    if (!isNum(def.duration, 0.01, 30)) errors.push(`${at}.duration must be 0.01..30 s`);
+    if (!Array.isArray(def.ramp) || def.ramp.length < 2 || def.ramp.length > 4)
+      errors.push(`${at}.ramp must have 2 to 4 colours`);
+    else if (!def.ramp.every(isColor)) errors.push(`${at}.ramp colours must be 0..0xffffff`);
+    if (!isNum(def.layers, 1, 3) || !Number.isInteger(def.layers))
+      errors.push(`${at}.layers must be a whole number 1..3`);
+    if (!isNum(def.ring, 0, 1)) errors.push(`${at}.ring must be 0..1`);
+    if (!isNum(def.puffs, 0, 8) || !Number.isInteger(def.puffs))
+      errors.push(`${at}.puffs must be a whole number 0..8`);
+    if (!isNum(def.spikes, 0, 16) || !Number.isInteger(def.spikes))
+      errors.push(`${at}.spikes must be a whole number 0..16`);
+    if (!isNum(def.cross, 0, 1)) errors.push(`${at}.cross must be 0..1`);
+    if (!isNum(def.flashFrames, 0, 8) || !Number.isInteger(def.flashFrames))
+      errors.push(`${at}.flashFrames must be a whole number 0..8`);
   }
   return errors;
 }
