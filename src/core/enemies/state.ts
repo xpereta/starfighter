@@ -45,6 +45,8 @@ export interface WingState {
   members: number[];
   /** True once the wing has broken formation (its fighters then act as ordinary fighters). */
   broken: boolean;
+  /** `world.time` when the wing arrived (the WING INBOUND cue is up for a few seconds after). */
+  born: number;
 }
 
 // Capital ship (track C) -----------------------------------------------------------------
@@ -104,6 +106,7 @@ export function mixEnemies(mix: (n: number) => void, state: EnemyState): void {
       mix(WING_SHAPES.indexOf(w.shape));
       mix(w.leader);
       mix(w.broken ? 1 : 0);
+      mix(w.born);
       mix(w.members.length);
       for (const i of w.members) mix(i);
     }

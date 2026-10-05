@@ -93,11 +93,13 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   rescue: {},
   chatter: {},
   gunship: {},
-  wings: {},
+  wings: { shape: ['mixed', 'v', 'line', 'box'] },
 };
 
 /** Plain-language tooltip for each toggle, keyed `group.name` (what it does, and what each option means). */
 export const tuningToggleNotes: Record<string, string> = {
+  'wings.shape':
+    'Formation every wing flies. Mixed = each wing gets a V, a line abreast or a box at random; or force one to compare. A V trails behind the leader, a line is abreast of it, a box wraps the leader.',
   'run.ramp':
     "Where each battle's enemies come from. Authored = the battle table (data/content/battles.ts: fighters, formation wings, gunships and so on); Classic = the old ramp of fighter-only waves from the wave and size numbers above (useful to compare, and for tests).",
   'flight.steering':

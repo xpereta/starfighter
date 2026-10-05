@@ -5,6 +5,7 @@ import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
 import { createFighter, NO_HIT, placeFighter, SHIP_GUNSHIP } from './fighter';
 import { spawnGunship } from './gunship';
+import { spawnWings } from './wings';
 import { deriveFlight } from './steering';
 
 /** Marks fighters at 0 hp as destroyed and emits `Killed`. Returns how many died. */
@@ -68,13 +69,14 @@ export function spawnWave(world: World, size = world.tuning.fighter.waveSize): v
 }
 
 /**
- * Spawns one group of a battle wave (`count` ships of a kind). Fighters arrive exactly as a
- * classic wave does (`spawnWave`). A kind that has no spawner yet (lancer: track B; capital: track
+ * Spawns one group of a battle wave (`count` ships of a kind, or `count` wings). Fighters arrive
+ * exactly as a classic wave does (`spawnWave`). A kind that has no spawner yet (lancer: track B; capital: track
  * C) is skipped, so a table can already name it.
  */
 export function spawnGroup(world: World, group: BattleGroup): void {
   if (group.kind === 'fighter') spawnWave(world, group.count);
   else if (group.kind === 'gunship') spawnGunships(world, group.count);
+  else if (group.kind === 'wing') spawnWings(world, group.count);
 }
 
 /** `count` gunships spread around the arena edge, heading inward (like a fighter wave, but they cross the arena slowly). */

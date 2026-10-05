@@ -23,6 +23,7 @@ const ENEMY_KINDS: Record<Exclude<EntityKind, 'wingman'>, true> = {
 
 const countOf = (w: ReturnType<typeof createWorld>, kind: SpawnKind): number => {
   if (kind === 'pod') return w.pods.length;
+  if (kind === 'wing') return w.enemies.wings.length;
   if (kind === 'fighter')
     return w.fighters.filter((f) => f.alive && f.shipType === SHIP_FIGHTER).length;
   if (kind === 'gunship')
@@ -34,6 +35,7 @@ describe('spawn registry', () => {
   it('has an entry for every enemy kind in the world, and the rescue pod', () => {
     const kinds = SPAWN_REGISTRY.map((e) => e.kind);
     for (const kind of Object.keys(ENEMY_KINDS)) expect(kinds).toContain(kind);
+    expect(kinds).toContain('wing');
     expect(kinds).toContain('pod');
   });
 

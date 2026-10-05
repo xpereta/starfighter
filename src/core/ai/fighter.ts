@@ -50,6 +50,10 @@ export interface Fighter extends Collider {
   missileTrigger: number;
   /** Which kind of ship this is (`SHIP_FIGHTER`, `SHIP_GUNSHIP`); decides the AI that drives it. */
   shipType: number;
+  /** Index of the wing this fighter flies in (`world.enemies.wings`), or -1 for none. Once the wing is broken it is only history. */
+  wingId: number;
+  /** A wing follower's slot (index into the wing's `members`), -1 for the leader or a loner. */
+  wingSlot: number;
   /** Weapon mounts with their state (gunship turrets); empty for a plain fighter, which has its one fixed gun. */
   mounts: MountState[];
   /** world.time when it died (NO_HIT while alive); the next wave waits `waveDelay` after the last one. */
@@ -97,6 +101,8 @@ export function createFighter(
     missilePlan: 0,
     missileTrigger: 0,
     shipType: SHIP_FIGHTER,
+    wingId: -1,
+    wingSlot: -1,
     mounts: [],
     diedAt: NO_HIT,
     lastHitBy: 0,
@@ -146,6 +152,8 @@ export function mixFighters(mix: (n: number) => void, fighters: readonly Fighter
     mix(f.missilePlan);
     mix(f.missileTrigger);
     mix(f.shipType);
+    mix(f.wingId);
+    mix(f.wingSlot);
     mix(f.mounts.length);
     for (const m of f.mounts) {
       mix(m.aim);

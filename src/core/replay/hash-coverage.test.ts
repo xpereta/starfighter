@@ -76,7 +76,7 @@ function busyWorld(): World {
   });
   // Prototype 5 stubs: an enemy missile, a wing and a capital ship with two parts (all inert).
   w.enemies.missiles.spawn();
-  w.enemies.wings.push({ shape: 'v', leader: 0, members: [1], broken: false });
+  w.enemies.wings.push({ shape: 'v', leader: 0, members: [1], broken: false, born: 3 });
   w.enemies.capital = {
     x: 10,
     y: 20,

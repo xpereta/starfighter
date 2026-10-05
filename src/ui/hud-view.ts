@@ -1,6 +1,7 @@
 import type { World } from '../core/world/world';
 import { PAD } from '../render/hud/hud';
 import { clearChatter, createChatter, feedChatter, lineAlpha, stepChatter } from './chatter';
+import { cueText } from './cues';
 import { menuVisible } from './menu-model';
 import { objectiveText, rosterRows, type RosterRow } from './roster';
 
@@ -17,6 +18,8 @@ import { objectiveText, rosterRows, type RosterRow } from './roster';
  */
 export const ROSTER_TOP = PAD + 58;
 export const OBJECTIVE_TOP = PAD + 16;
+/** Enemy cues (WING INBOUND) sit under the centre warning line, clear of the objective. */
+export const CUE_TOP = PAD + 80;
 
 export const HUD_CSS = `
 #run-hud { position: fixed; inset: 0; z-index: 5; pointer-events: none; font: 600 14px/1.3 ui-monospace, Menlo, Consolas, monospace; color: #f2f6ff; }
@@ -27,6 +30,8 @@ export const HUD_CSS = `
 #run-hud .roster .trait { color: #aab4c8; font-weight: 400; }
 #run-hud .roster .pips { letter-spacing: 0.1em; color: #6cf0a0; }
 #run-hud .objective { position: absolute; left: 50%; top: ${OBJECTIVE_TOP}px; transform: translateX(-50%); max-width: 90vw; text-align: center; color: #ffd24a; letter-spacing: 0.05em; }
+#run-hud .cue { position: absolute; left: 50%; top: ${CUE_TOP}px; transform: translateX(-50%); max-width: 90vw; text-align: center; color: #ff8a5a; letter-spacing: 0.15em; font-size: 18px; }
+#run-hud .cue[hidden] { display: none; }
 #run-hud .chatter { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); width: min(560px, 90vw); display: grid; gap: 4px; text-align: center; }
 #run-hud .chatter .line { padding: 3px 10px; border-radius: 4px; background: rgba(5, 6, 13, 0.7); overflow-wrap: anywhere; }
 `;
@@ -50,9 +55,12 @@ export function createHudView(container: HTMLElement, seed: number): HudView {
   roster.className = 'roster';
   const objective = document.createElement('div');
   objective.className = 'objective';
+  const cue = document.createElement('div');
+  cue.className = 'cue';
+  cue.hidden = true;
   const feed = document.createElement('div');
   feed.className = 'chatter';
-  root.append(roster, objective, feed);
+  root.append(roster, objective, cue, feed);
   container.append(style, root);
 
   let chatter = createChatter(seed);
@@ -73,6 +81,9 @@ export function createHudView(container: HTMLElement, seed: number): HudView {
       root.hidden = text === null;
       if (text === null) return;
       objective.textContent = text;
+      const cueLine = cueText(world);
+      cue.hidden = cueLine === null;
+      if (cueLine !== null && cue.textContent !== cueLine) cue.textContent = cueLine;
 
       const rows = rosterRows(world);
       const rosterKey = rows.map(rowKey).join('\n');

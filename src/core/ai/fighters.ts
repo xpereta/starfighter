@@ -1,12 +1,15 @@
 import type { FighterConfig } from '../../../data/tuning/fighter';
 import { createFlightConfig } from '../../../data/tuning/flight';
 import { stepFlight } from '../flight/flight';
-import { DEG, wrapAngle } from '../math';
+import { clamp, DEG, wrapAngle } from '../math';
+import { boostFlight, catchUpFactor } from '../squadron/formation';
+import type { WingState } from '../enemies/state';
 import { stepSeconds } from '../world/clock';
 import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
 import { NO_HIT, SHIP_GUNSHIP, type Fighter } from './fighter';
 import { gunshipFlight, thinkGunship } from './gunship';
+import { inFormation, isLeader, slotOffset, slotWorld, stepWings } from './wings';
 import {
   awarenessChance,
   PLAN_DONE,
@@ -24,6 +27,16 @@ export { stepWaves } from './waves';
 // Scratch objects, fully overwritten before each use, so stepping allocates nothing.
 const flightScratch = createFlightConfig();
 const gunshipScratch = createFlightConfig();
+const followerScratch = createFlightConfig();
+const slotOffsetScratch = { x: 0, y: 0 };
+const slotScratch = { x: 0, y: 0 };
+
+/** Speed error (u/s) at which a wing follower uses full throttle or brake to hold its slot. */
+const SPEED_BAND = 100;
+/** Angle off the slot direction (rad) beyond which a follower limits itself to corner speed to turn. */
+const TURN_FIRST_ANGLE = 60 * DEG;
+/** How quickly a speed mismatch with the leader (as a fraction of the speed range) turns on the catch-up boost. */
+const SPEED_MISMATCH_BOOST_GAIN = 4;
 const leadScratch: Point = { x: 0, y: 0 };
 
 interface Mover {
@@ -196,7 +209,10 @@ function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: 
   a.evade = false;
   if (f.breakTimer <= 0 && f.breakCooldown <= 0) {
     const hitTwice = f.hitTimeA > NO_HIT / 2 && f.hitTimeB - f.hitTimeA <= cfg.breakHitWindow;
-    if (hitTwice || world.lockon.locks.includes(FIGHTER_ID_BASE + index)) startBreak(world, f, cfg);
+    // A wing leader keeps its course while its formation holds (a lock does not scare it off).
+    const locked =
+      !isLeader(world, f, index) && world.lockon.locks.includes(FIGHTER_ID_BASE + index);
+    if (hitTwice || locked) startBreak(world, f, cfg);
   }
 
   if (cfg.enemiesEvadeMissiles) evadeMissiles(world, f, index, cfg, flightScratch);
@@ -242,6 +258,77 @@ function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: 
 }
 
 /**
+ * A wing follower's decisions for this step (spec section 2): fly to its slot on the leader (the
+ * squadron's slot logic: hold radius, lead time, catch-up boost), match the leader's speed, and
+ * shoot the leader's target when it is under the nose. Returns the catch-up factor for the flight
+ * model (0 in the slot, up to 1 when far or going the wrong speed).
+ */
+function thinkFollower(
+  world: World,
+  f: Fighter,
+  wing: WingState,
+  leader: Fighter,
+  cfg: FighterConfig,
+  dt: number,
+): number {
+  f.lastHp = f.hp;
+  f.fireCooldown = Math.max(0, f.fireCooldown - dt);
+  f.targetIndex = leader.targetIndex;
+  const target = targetOf(world, f.targetIndex) ?? world.ship;
+
+  const sq = world.tuning.squadron;
+  const ship = f.ship;
+  const lship = leader.ship;
+  slotWorld(
+    slotScratch,
+    lship,
+    slotOffset(slotOffsetScratch, wing.shape, f.wingSlot, world.tuning.wings.slotRadius),
+  );
+  const sx = slotScratch.x - ship.x;
+  const sy = slotScratch.y - ship.y;
+  const slotDist = Math.hypot(sx, sy);
+  const toTarget = Math.hypot(target.x - ship.x, target.y - ship.y);
+  leadPoint(leadScratch, ship, target, cfg.bulletSpeed, cfg.leadTimeMax);
+  const aim = Math.atan2(leadScratch.y - ship.y, leadScratch.x - ship.x);
+  // At the slot: point at the target once it is in range (so the whole wing fires together, the
+  // slot hold keeps the shape), else match the leader's heading. Otherwise fly to the slot, aiming a little ahead of it.
+  const desired =
+    slotDist < sq.slotHoldRadius
+      ? toTarget <= cfg.fireRange
+        ? aim
+        : lship.heading
+      : Math.atan2(sy + lship.vy * sq.slotLeadTime, sx + lship.vx * sq.slotLeadTime);
+  const along = sx * Math.cos(ship.heading) + sy * Math.sin(ship.heading);
+  const range = flightScratch.maxSpeed - flightScratch.minSpeed;
+  const speedGap = (lship.speed - ship.speed) / Math.max(range, 1e-6);
+  const catchUp = Math.max(
+    catchUpFactor(slotDist, sq),
+    clamp(Math.abs(speedGap) * SPEED_MISMATCH_BOOST_GAIN, 0, 1),
+  );
+  let targetSpeed = lship.speed + along * sq.slotSpeedGain;
+  const off = Math.abs(wrapAngle(desired - ship.heading));
+  const straight = clamp(1 - off / TURN_FIRST_ANGLE, 0, 1);
+  targetSpeed = Math.min(
+    targetSpeed,
+    flightScratch.cornerSpeed + (targetSpeed - flightScratch.cornerSpeed) * straight,
+  );
+  const a = f.actions;
+  a.evade = false;
+  a.steerX = Math.cos(desired);
+  a.steerY = Math.sin(desired);
+  a.throttle = clamp((targetSpeed - ship.speed) / SPEED_BAND, -1, 1);
+
+  if (
+    f.fireCooldown <= 0 &&
+    toTarget <= cfg.fireRange &&
+    Math.abs(wrapAngle(aim - ship.heading)) <= cfg.fireCone * DEG
+  ) {
+    shoot(world, f, cfg);
+  }
+  return catchUp;
+}
+
+/**
  * Enemy fighters (spec section 3): each picks a target, flies at a lead point on the same flight
  * model as the player (with its own derived config), shoots, and breaks away when hit or locked.
  * Runs after the player's flight each step.
@@ -260,12 +347,19 @@ export function stepFighters(world: World): void {
   const cfg = world.tuning.fighter;
   deriveFlight(flightScratch, world.tuning.flight, cfg);
   gunshipFlight(gunshipScratch, world);
+  stepWings(world);
   for (let i = 0; i < world.fighters.length; i++) {
     const f = world.fighters[i]!;
     if (!f.alive) continue;
     if (f.shipType === SHIP_GUNSHIP) {
       thinkGunship(world, f, i, dt);
       stepFlight(f.ship, f.actions, gunshipScratch, noEvents, dt);
+    } else if (inFormation(world, f) && !isLeader(world, f, i)) {
+      const wing = world.enemies.wings[f.wingId]!;
+      const leader = world.fighters[wing.leader]!; // alive, or stepWings would have broken the wing
+      const catchUp = thinkFollower(world, f, wing, leader, cfg, dt);
+      boostFlight(followerScratch, flightScratch, world.tuning.squadron, catchUp);
+      stepFlight(f.ship, f.actions, followerScratch, noEvents, dt);
     } else {
       think(world, f, i, cfg, dt);
       stepFlight(f.ship, f.actions, flightScratch, noEvents, dt);

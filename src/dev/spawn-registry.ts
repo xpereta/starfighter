@@ -1,4 +1,5 @@
 import { spawnGunship } from '../core/ai/gunship';
+import { spawnWing } from '../core/ai/wings';
 import { spawnFighter } from '../core/ai/waves';
 import { createTargetAt } from '../core/world/arena';
 import { spawnPodAt } from '../core/world/pods';
@@ -6,7 +7,7 @@ import type { EntityKind } from '../core/world/target';
 import type { World } from '../core/world/world';
 
 /** What a spawn entry stands for: an enemy kind of the world (`EntityKind` without wingmen) or a rescue pod. */
-export type SpawnKind = Exclude<EntityKind, 'wingman'> | 'pod';
+export type SpawnKind = Exclude<EntityKind, 'wingman'> | 'wing' | 'pod';
 
 export interface SpawnEntry {
   id: string;
@@ -35,6 +36,13 @@ export const SPAWN_REGISTRY: readonly SpawnEntry[] = [
     kind: 'gunship',
     // Faces the player and starts at its standoff-ish side of the arena, like a wave gunship.
     spawn: (world, x, y, heading) => void spawnGunship(world, x, y, heading + Math.PI),
+  },
+  {
+    id: 'wing',
+    label: 'Formation wing',
+    kind: 'wing',
+    // A whole wing (leader and followers in formation) flying at the player.
+    spawn: (world, x, y, heading) => void spawnWing(world, x, y, heading + Math.PI),
   },
   {
     id: 'drone',
