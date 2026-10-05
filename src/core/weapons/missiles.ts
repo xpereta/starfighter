@@ -166,7 +166,17 @@ function launchOne(world: World, cfg: MissilesConfig, targetId: number, pilot: n
 const effective = createEffectiveConfig(); // scratch for the shooter's trait lookup
 
 /** Closest enemy a missile touches this step (reusable state, so the scan allocates nothing). */
-const hit = { x: 0, y: 0, radius: 0, bestId: -1, bestDist: Infinity };
+const hit = {
+  x: 0,
+  y: 0,
+  radius: 0,
+  bestId: -1,
+  bestDist: Infinity,
+  /** The id this missile homes on, and whether it overlapped that target while it was immune. */
+  homingId: -1,
+  passedHoming: false,
+  world: null as World | null,
+};
 
 function considerHit(
   id: number,
@@ -178,7 +188,13 @@ function considerHit(
 ): void {
   const reach = radius + hit.radius;
   const d2 = (x - hit.x) * (x - hit.x) + (y - hit.y) * (y - hit.y);
-  if (d2 <= reach * reach && d2 < hit.bestDist) {
+  if (d2 > reach * reach) return;
+  // An immune body (a fighter in its evade roll) is passed through, as for bullets.
+  if (getLockable(hit.world!, id)?.immune) {
+    if (id === hit.homingId) hit.passedHoming = true;
+    return;
+  }
+  if (d2 < hit.bestDist) {
     hit.bestDist = d2;
     hit.bestId = id;
   }
@@ -264,7 +280,14 @@ export function stepMissiles(world: World): void {
     hit.radius = cfg.missileRadius;
     hit.bestId = -1;
     hit.bestDist = Infinity;
+    hit.homingId = d.targetId[i]!;
+    hit.passedHoming = false;
+    hit.world = world;
     forEachLockable(world, considerHit);
+    if (hit.bestId < 0 && hit.passedHoming) {
+      // It flew through its target while that was immune: the lock is lost, it flies on straight.
+      d.targetId[i] = -1;
+    }
     if (hit.bestId >= 0) {
       const body = getLockable(world, hit.bestId)!;
       body.hp -= cfg.missileDamage * d.damageScale[i]!;
