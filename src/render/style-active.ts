@@ -34,6 +34,7 @@ export function completeFallback(input: StyleInput): StylePack {
     deaths: input.deaths ?? {},
     explosions: input.explosions ?? {},
     sounds: input.sounds as StylePack['sounds'],
+    music: input.music ?? null,
   };
 }
 

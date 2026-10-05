@@ -375,6 +375,44 @@ for (const style of [...Object.keys(styles), 'no-such-style']) {
   });
 }
 
+test('the Sound section has the mix, a mute row and a sound test that plays without errors', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?dev&practice');
+  await page.getByRole('button', { name: /Sound/ }).click();
+  for (const p of ['master', 'effects', 'music'])
+    await expect(row(page, `sound.${p}`)).toBeVisible();
+  await expect(row(page, 'sound.mute')).toBeVisible();
+  await expect(page.locator('#tuning-panel [data-sound-test]')).toHaveCount(22);
+  await page.locator('#tuning-panel [data-sound-test="ShotFired"]').click();
+  await page.locator('#tuning-panel [data-sound-test="Killed"]').click();
+  await row(page, 'sound.edit').click(); // next sound
+  await row(page, 'sound.mute').click();
+  await expect(page.locator('html')).toHaveAttribute('data-audio-muted', 'true');
+  await page.getByRole('button', { name: /Restart music/ }).click();
+  await page.waitForTimeout(500);
+  expect(errors).toEqual([]);
+});
+
+test('M mutes and unmutes the sound, remembered across reloads, with no console errors', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?practice');
+  const html = page.locator('html');
+  await expect(html).toHaveAttribute('data-audio-muted', 'false');
+  await page.keyboard.press('m');
+  await expect(html).toHaveAttribute('data-audio-muted', 'true');
+  await page.reload();
+  await expect(html).toHaveAttribute('data-audio-muted', 'true');
+  await page.keyboard.press('m');
+  await expect(html).toHaveAttribute('data-audio-muted', 'false');
+  await page.keyboard.press('Space'); // fire: the audio engine runs without errors
+  await page.waitForTimeout(300);
+  expect(errors).toEqual([]);
+});
+
 test('the panel has Look and Sound sections with a Style picker showing plain', async ({
   page,
 }) => {

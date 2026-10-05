@@ -61,7 +61,10 @@ const death: DeathDef = {
   hitStop: 0.05,
 };
 const beep: SoundEntry = {
-  source: { kind: 'synth', waveform: 'sine' },
+  source: {
+    kind: 'synth',
+    layers: [{ waveform: 'sine', freq: 440, attack: 0.01, decay: 0.1, gain: 0.5 }],
+  },
   pitch: 1,
   pitchRandom: 0.1,
   volume: 0.5,
@@ -185,7 +188,7 @@ describe('style validation', () => {
     ['bad voices', good({ sounds: { Hit: { ...beep, maxVoices: 0 } } }), 'sounds.Hit.maxVoices'],
     [
       'sample without file',
-      good({ sounds: { Hit: { ...beep, source: { kind: 'sample', file: '' } } } }),
+      good({ sounds: { Hit: { ...beep, source: { kind: 'sample', file: '', duration: 1 } } } }),
       'source.file',
     ],
   ])('rejects %s', (_name, pack, fragment) => {
@@ -224,7 +227,7 @@ describe('fallback to plain', () => {
     expect(pack.theme.palette.enemy).toBe(0x123456);
     expect(pack.theme.palette.friendly).toBe(base.theme.palette.friendly);
     expect(pack.sounds.Hit).toBe(beep);
-    expect(pack.sounds.Killed).toBe('silent');
+    expect(pack.sounds.Killed).toBe(base.sounds.Killed);
   });
 
   it('an invalid part falls back whole, with a warning that says why', () => {

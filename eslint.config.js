@@ -60,6 +60,10 @@ export default tseslint.config(
               message: 'src/core must not import src/render.',
             },
             {
+              group: ['**/audio', '**/audio/**'],
+              message: 'src/core must not import src/audio.',
+            },
+            {
               group: ['**/app', '**/app/**', '**/input', '**/input/**', '**/dev', '**/dev/**'],
               message: 'src/core must not import app, input or dev code.',
             },

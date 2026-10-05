@@ -30,6 +30,7 @@ import {
 import { DEFAULT_PANEL_OPACITY, MIN_PANEL_OPACITY } from './panel-style';
 import { activeStyle, activeWarnings, rememberStyle, styleIds } from '../render/style-active';
 import { addLookRows } from './panel-look';
+import { buildSoundSection } from './panel-sound';
 import { createReplayControls, type ReplayControls } from './replay-controls';
 
 const PRESETS_KEY = 'starfighter.presets';
@@ -258,9 +259,7 @@ export function createPanel(world: World): Panel {
   );
   look.add(styleStatus);
   const disposeLook = addLookRows(ctx, look, track);
-  const soundStatus = statusLine();
-  soundStatus.set('No sounds yet: every event is silent in this style.');
-  sound.add(soundStatus);
+  buildSoundSection(ctx, sound, track, refresh);
 
   // Presets.
   const presets = section('Presets', false);
