@@ -375,6 +375,26 @@ for (const style of [...Object.keys(styles), 'no-such-style']) {
   });
 }
 
+test('?style=realistic: every sound in the test list and every loop preview plays without errors', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?dev&practice&style=realistic');
+  await page.getByRole('button', { name: /Sound/ }).click();
+  const buttons = page.locator('#tuning-panel [data-sound-test]');
+  const count = await buttons.count();
+  expect(count).toBe(36);
+  for (let i = 0; i < count; i++) await buttons.nth(i).click();
+  await row(page, 'sound.loopPreview').click();
+  for (let i = 0; i < 8; i++) {
+    await row(page, 'sound.loop').click(); // next loop, previewed
+    await page.waitForTimeout(80);
+  }
+  await row(page, 'sound.loopPreview').click();
+  await page.waitForTimeout(300);
+  expect(errors).toEqual([]);
+});
+
 test('the Sound section has the mix, a mute row and a sound test that plays without errors', async ({
   page,
 }) => {
