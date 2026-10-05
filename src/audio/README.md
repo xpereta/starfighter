@@ -8,5 +8,6 @@
   - `index.ts`: browser wiring (`startAudio()`): the unlock on the first key or pointer press, the **M** mute key (remembered in this browser), `<html data-audio-muted>` for e2e.
   - `samples.ts`: finds sample files in `data/styles/<id>/assets/` or `data/audio/`.
 - **Mix parameters:** `data/audio/mix.ts` (master, effects, music: default, range, unit, note), edited live in the panel.
+- **Recipes:** a pack's `sounds.ts` is a table event -> sound. A synthesised sound is a list of layers (oscillator or noise, start and end frequency, attack and decay, loudness, optional filter with its own sweep); `data/audio/recipes.ts` has tiny helpers (`tone`, `noise`, `sfx`) that build those plain objects. `plain` has simple distinct beeps and bursts; `anime-80s` a richer set (layered explosions with delayed crackles, radar lock beeps, brass-stab fanfares). A sound can instead be `{ kind: 'sample', file, duration }` pointing at a file in the pack's `assets/` or `data/audio/`.
 - **Events in:** every `GameEvent` (by its type) plus the app's `Paused` and `Resumed`; each has a sound or an explicit `'silent'` in every pack.
 - **Test:** `engine.test.ts` (fake backend: bounds, gaps, voices, pan, size, duck, pause, mute), `tests/sim/audio.sim.test.ts`, e2e (M key).

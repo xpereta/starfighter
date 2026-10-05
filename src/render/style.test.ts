@@ -167,7 +167,7 @@ describe('fallback to plain', () => {
     expect(pack.theme.palette.enemy).toBe(0x123456);
     expect(pack.theme.palette.friendly).toBe(base.theme.palette.friendly);
     expect(pack.sounds.Hit).toBe(beep);
-    expect(pack.sounds.Killed).toBe('silent');
+    expect(pack.sounds.Killed).toBe(base.sounds.Killed);
   });
 
   it('an invalid part falls back whole, with a warning that says why', () => {
