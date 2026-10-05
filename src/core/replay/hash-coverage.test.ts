@@ -56,6 +56,7 @@ function busyWorld(): World {
     battles: 1,
     status: 'active',
     veteran: false,
+    veteranId: 3,
   });
   w.pods.push({ x: 100, y: 200, vx: 1, vy: 0, hp: 3, alive: true, progress: 0.2, pilotId: 2 });
   w.run.battle = 2;

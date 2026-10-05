@@ -21,6 +21,8 @@ export interface Pilot {
   /** `lost` pilots stay in the list (struck through on the HUD). */
   status: 'active' | 'lost';
   veteran: boolean;
+  /** The id of this pilot's veteran in the save data (0 or absent: not a saved veteran). Meta uses it to update or delete the veteran at run end. */
+  veteranId?: number;
 }
 
 export interface Pilots {
@@ -37,6 +39,8 @@ export interface PilotTemplate {
   trait: TraitId;
   kills?: number;
   veteran?: boolean;
+  /** Set for a saved veteran brought into the run (see `Pilot.veteranId`). */
+  veteranId?: number;
 }
 
 export function createPilots(): Pilots {
@@ -56,6 +60,7 @@ export function mixPilots(mix: (n: number) => void, pilots: Pilots): void {
     mix(p.battles);
     mix(p.status === 'active' ? 1 : 0);
     mix(p.veteran ? 1 : 0);
+    mix(p.veteranId ?? 0);
   }
 }
 
@@ -142,6 +147,7 @@ export function addPilot(
     battles: 0,
     status: 'active',
     veteran: template.veteran ?? how === 'veteran',
+    veteranId: template.veteranId ?? 0,
   };
   pilots.roster.push(pilot);
   world.events.emit({ type: 'PilotJoined', pilotId: pilot.id, how });

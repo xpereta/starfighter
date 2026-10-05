@@ -30,6 +30,13 @@ export const pilotsParams = {
     unit: 'pilots',
     note: 'How many saved veterans you may bring into a new run from the Start screen. Higher = a stronger opening squad; 0 = every run starts with a fresh squad.',
   },
+  veteranCap: {
+    default: 8,
+    min: 1,
+    max: 16,
+    unit: 'veterans',
+    note: 'The most veterans the save keeps. When a run ends with more, the fewest-kills veteran who did not fly in that run is dropped (veterans who flew are safe). Higher = a bigger bench to choose from; lower = veterans are rarer and more precious.',
+  },
 } as const satisfies Record<string, ParamDef>;
 
 export type PilotsConfig = { -readonly [K in keyof typeof pilotsParams]: number };

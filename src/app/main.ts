@@ -4,7 +4,7 @@ import { createInput } from '../input/input';
 import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
 import { createFixedLoop } from './loop';
-import { loadSave, SAVE_VERSION, storeSave } from './save';
+import { loadSave, storeSave } from './save';
 
 const save = loadSave();
 
@@ -37,7 +37,7 @@ const loop = createFixedLoop((dt) => {
   renderer.consumeEvents(world.events.events);
   if (world.trial.best !== save.bestTrialTime) {
     save.bestTrialTime = world.trial.best;
-    storeSave({ version: SAVE_VERSION, bestTrialTime: save.bestTrialTime });
+    storeSave(save);
   }
 });
 
