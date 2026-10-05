@@ -13,6 +13,7 @@ import {
   rescueRingRadius,
 } from '../../render/hud/pods';
 import type { UiColors } from './presentation';
+import { spectacle } from './settings';
 import {
   armLength,
   beaconRing,
@@ -46,6 +47,10 @@ export interface WorldLayerInput {
 
 const FONT = '700 11px ui-monospace, Menlo, Consolas, monospace';
 const INK = 'rgba(4, 6, 20, 0.75)';
+/** Line width factor for the lock markers: thinner when subdued (strength 1 = the original widths). */
+const lw = (): number => 0.3 + 0.7 * Math.min(1, spectacle.markerStrength);
+/** Opacity of the lock markers. */
+const markerAlpha = (): number => Math.min(1, spectacle.markerStrength);
 
 const ring: LockRing = createLockRing();
 const p = { x: 0, y: 0 };
@@ -110,6 +115,7 @@ function drawAcquiring(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
   const { world } = i;
   const { lockon } = world;
   if (lockon.acquiringId < 0) return;
+  g.globalAlpha = markerAlpha();
   const body = getLockable(world, lockon.acquiringId);
   if (!body || !lockRingAt(ring, body, i.center, i.view, i.screen)) return;
   const prog = Math.max(0, Math.min(1, lockon.progress / world.tuning.lockon.lockTime));
@@ -119,11 +125,10 @@ function drawAcquiring(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
   g.lineJoin = 'miter';
 
   g.strokeStyle = INK;
-  g.lineWidth = 6;
+  g.lineWidth = 6 * lw();
   brackets(g, ring.x, ring.y, dist, Math.PI / 4 - prog * (Math.PI / 4));
-  glow(g, gold, 10);
   g.strokeStyle = prog > 0.9 ? '#ffffff' : gold;
-  g.lineWidth = 3;
+  g.lineWidth = 3 * lw();
   brackets(g, ring.x, ring.y, dist, Math.PI / 4 - prog * (Math.PI / 4));
 
   // The ring itself: a faint spinning dashed circle and the filling sweep.
@@ -131,15 +136,14 @@ function drawAcquiring(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
   g.setLineDash([6, 10]);
   g.lineDashOffset = -reticleSpin(i.time, false) * 40;
   g.strokeStyle = 'rgba(255, 210, 63, 0.5)';
-  g.lineWidth = 1.5;
+  g.lineWidth = 1.5 * lw();
   arc(g, ring, ring.radius * 1.12, 0, Math.PI * 2);
   g.restore();
   g.strokeStyle = INK;
-  g.lineWidth = 7;
+  g.lineWidth = 7 * lw();
   arc(g, ring, ring.radius, -Math.PI / 2, sweepEnd(lockon.progress, world.tuning.lockon.lockTime));
-  glow(g, gold, 14);
   g.strokeStyle = gold;
-  g.lineWidth = 4;
+  g.lineWidth = 4 * lw();
   arc(g, ring, ring.radius, -Math.PI / 2, sweepEnd(lockon.progress, world.tuning.lockon.lockTime));
   noGlow(g);
 
@@ -157,6 +161,7 @@ function drawLocked(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
   worldToScreen(p, world.ship.x, world.ship.y, i.center, i.view, i.screen);
   const shipX = p.x;
   const shipY = p.y;
+  g.globalAlpha = markerAlpha();
   world.lockon.locks.forEach((id, n) => {
     const body = getLockable(world, id);
     if (!body || !lockRingAt(ring, body, i.center, i.view, i.screen)) return;
@@ -166,7 +171,7 @@ function drawLocked(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
     g.setLineDash([4, 8]);
     g.lineDashOffset = -i.time * 30;
     g.strokeStyle = 'rgba(255, 210, 63, 0.28)';
-    g.lineWidth = 1.5;
+    g.lineWidth = 1.5 * lw();
     g.beginPath();
     g.moveTo(shipX, shipY);
     g.lineTo(ring.x, ring.y);
@@ -177,34 +182,33 @@ function drawLocked(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
     const age = i.pulses.get(id);
     if (age !== undefined && age < PULSE_SECONDS) {
       const pulse = lockPulse(age);
-      g.globalAlpha = pulse.alpha;
+      g.globalAlpha = pulse.alpha * markerAlpha();
       g.strokeStyle = '#ffffff';
-      g.lineWidth = 3;
+      g.lineWidth = 3 * lw();
       arc(g, ring, ring.radius * pulse.scale, 0, Math.PI * 2);
-      g.globalAlpha = 1;
+      g.globalAlpha = markerAlpha();
     }
 
     // Solid ring, a slow spinning outer dash, and snapped diamond brackets.
     g.strokeStyle = INK;
-    g.lineWidth = 8;
+    g.lineWidth = 8 * lw();
     arc(g, ring, ring.radius, 0, Math.PI * 2);
-    glow(g, gold, 12);
     g.strokeStyle = gold;
-    g.lineWidth = 3.5;
+    g.lineWidth = 3.5 * lw();
     arc(g, ring, ring.radius, 0, Math.PI * 2);
     noGlow(g);
     g.save();
     g.setLineDash([10, 12]);
     g.lineDashOffset = -reticleSpin(i.time, true) * 40;
     g.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    g.lineWidth = 1.5;
+    g.lineWidth = 1.5 * lw();
     arc(g, ring, ring.radius * 1.22, 0, Math.PI * 2);
     g.restore();
     g.strokeStyle = INK;
-    g.lineWidth = 6;
+    g.lineWidth = 6 * lw();
     brackets(g, ring.x, ring.y, ring.radius * 1.5, Math.PI / 4);
     g.strokeStyle = '#ffffff';
-    g.lineWidth = 2.5;
+    g.lineWidth = 2.5 * lw();
     brackets(g, ring.x, ring.y, ring.radius * 1.5, Math.PI / 4);
 
     // The lock order on a slanted plate at the upper right.
@@ -213,7 +217,7 @@ function drawLocked(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
     plate(g, px, py, 26, 20, 4);
     g.fillStyle = gold;
     g.fill();
-    g.lineWidth = 2;
+    g.lineWidth = 2 * lw();
     g.strokeStyle = INK;
     g.stroke();
     g.font = '800 14px ui-monospace, Menlo, Consolas, monospace';
@@ -316,8 +320,10 @@ function drawPods(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
 /** Draws the world-anchored layer. The caller clears the canvas first. */
 export function drawWorldLayer(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
   if (i.dramatic) {
+    g.save();
     drawAcquiring(g, i);
     drawLocked(g, i);
+    g.restore();
     drawPods(g, i);
   } else {
     g.font = '600 14px ui-monospace, Menlo, Consolas, monospace';

@@ -11,6 +11,10 @@ export const MIN_HUD_SCALE = 0.4;
 export const MAX_HUD_SCALE = 1.2;
 /** The default HUD size: compact, so the interface leaves the fight visible. */
 export const DEFAULT_HUD_SCALE = 0.7;
+/** The lock marker strength range and default (subdued: enemies must stay visible). */
+export const MIN_MARKER_STRENGTH = 0.2;
+export const MAX_MARKER_STRENGTH = 1.2;
+export const DEFAULT_MARKER_STRENGTH = 0.4;
 
 export interface SpectacleSettings {
   /** Master switch: off = the classic HUD and menus, no effects (the style pack's flag still has to be on). */
@@ -35,6 +39,8 @@ export interface SpectacleSettings {
   speedFlash: number;
   /** Size of the HUD panels (0.4 to 1.2; 1 is the full designed size). */
   hudScale: number;
+  /** How strong the lock markers over enemies are (0.2 to 1.2; lower = thinner and fainter so the enemies stay visible). */
+  markerStrength: number;
 }
 
 export const LAYER_KEYS = [
@@ -88,7 +94,13 @@ const intensities = (v: number): Record<IntensityKey, number> => ({
 
 /** The presets. `calm` keeps the whole anime interface but almost none of the motion (for comfort). */
 export const PRESETS: Record<PresetName, SpectacleSettings> = {
-  full: { enabled: true, ...allLayers(true), ...intensities(1), hudScale: DEFAULT_HUD_SCALE },
+  full: {
+    enabled: true,
+    ...allLayers(true),
+    ...intensities(1),
+    hudScale: DEFAULT_HUD_SCALE,
+    markerStrength: DEFAULT_MARKER_STRENGTH,
+  },
   calm: {
     enabled: true,
     ...allLayers(true),
@@ -100,9 +112,16 @@ export const PRESETS: Record<PresetName, SpectacleSettings> = {
     vignette: 0.5,
     speedFlash: 0,
     hudScale: 0.6,
+    markerStrength: 0.3,
   },
-  overdrive: { enabled: true, ...allLayers(true), ...intensities(MAX_INTENSITY), hudScale: 1 },
-  off: { enabled: false, ...allLayers(false), ...intensities(0), hudScale: 1 },
+  overdrive: {
+    enabled: true,
+    ...allLayers(true),
+    ...intensities(MAX_INTENSITY),
+    hudScale: 1,
+    markerStrength: 1,
+  },
+  off: { enabled: false, ...allLayers(false), ...intensities(0), hudScale: 1, markerStrength: 1 },
 };
 
 export function isPresetName(s: string | null | undefined): s is PresetName {
@@ -125,6 +144,9 @@ export function sanitize(
   const h = input.hudScale;
   if (typeof h === 'number' && Number.isFinite(h))
     out.hudScale = Math.min(MAX_HUD_SCALE, Math.max(MIN_HUD_SCALE, h));
+  const m = input.markerStrength;
+  if (typeof m === 'number' && Number.isFinite(m))
+    out.markerStrength = Math.min(MAX_MARKER_STRENGTH, Math.max(MIN_MARKER_STRENGTH, m));
   return out;
 }
 
@@ -136,6 +158,7 @@ export function matchingPreset(s: SpectacleSettings): PresetName | 'custom' {
     if (LAYER_KEYS.some((k) => p[k] !== s[k])) continue;
     if (INTENSITY_KEYS.some((k) => Math.abs(p[k] - s[k]) > 1e-6)) continue;
     if (Math.abs(p.hudScale - s.hudScale) > 1e-6) continue;
+    if (Math.abs(p.markerStrength - s.markerStrength) > 1e-6) continue;
     return name;
   }
   return 'custom';

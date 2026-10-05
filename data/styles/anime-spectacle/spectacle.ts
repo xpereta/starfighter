@@ -22,7 +22,8 @@ export const spectacle: SpectacleDef = {
     trails: { life: 0.9, width: 5, alpha: 0.8, from: 0.55 },
     rollStreak: { length: 320, alpha: 0.85 },
     missiles: { spirals: 2, amplitude: 16, smokeLife: 1.6, flash: 60 },
-    brackets: { size: 1.6, color: 0xffd23f },
+    // Off: the presentation layer already marks locks, and two sets of brackets hid the enemies.
+    brackets: { size: 0, color: 0xffd23f },
   },
   // Multi-stage anime blasts over the pack's own explosions: flash frame, shock rings, banded fireball,
   // sparks, ink-blot smoke, glinting debris, chain reactions. A turret is capital-scale (Yamato).
