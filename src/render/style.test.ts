@@ -25,8 +25,8 @@ const manifest: StyleManifest = {
 const good = (over: Partial<StyleInput> = {}): StyleInput => ({ manifest, ...over });
 const triangle = [
   [0, 0],
-  [10, 0],
-  [0, 10],
+  [1, 0],
+  [0, 1],
 ] as const;
 const beep: SoundEntry = {
   source: { kind: 'synth', waveform: 'sine' },
@@ -179,7 +179,6 @@ describe('fallback to plain', () => {
 
   it('lists what a pack misses', () => {
     expect(missingParts(plain)).toEqual([
-      expect.stringContaining('ships'),
       expect.stringContaining('deaths'),
       expect.stringContaining('explosions'),
     ]);

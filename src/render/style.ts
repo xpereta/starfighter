@@ -56,37 +56,55 @@ export type Palette = Record<PaletteKey, number>;
 
 export interface Theme {
   palette: Palette;
-  /** Reserved for the Look track. Outline width in world units (u); 0 = no outline. */
+  /** Outline width in world units (u), drawn outside the silhouette; 0 = no outline. */
   outlineWidth: number;
-  /** Reserved for the Look track. Outline colour (0xRRGGBB). */
+  /** Outline colour (0xRRGGBB). */
   outlineColor: number;
-  /** Reserved for the Look track. Share of a shape drawn in the hard shadow tone, 0..1. */
+  /** How much of each ship's authored shadow shape is shown (the terminator slides across it), 0..1; 0 = no shadow. */
   shadowShare: number;
-  /** Reserved for the Look track. Glow strength, 0..1. */
+  /** Engine glow strength, 0..1; 0 = no glow. */
   glow: number;
+  /** Colour of the sensor eye / cockpit / core detail of a ship (0xRRGGBB). */
+  eyeColor: number;
 }
 
 /** A pack may give only some theme fields; the rest come from the fallback. */
 export type ThemeInput = Partial<Omit<Theme, 'palette'>> & { palette?: Partial<Palette> };
 
-const THEME_SCALARS = ['outlineWidth', 'outlineColor', 'shadowShare', 'glow'] as const;
+const THEME_SCALARS = ['outlineWidth', 'outlineColor', 'shadowShare', 'glow', 'eyeColor'] as const;
 
 // Ships, deaths, explosions (stubs: the Look track fills them) -----------------------------
 
-export const SHIP_KINDS = ['player', 'wingman', 'fighter', 'drone', 'turret', 'pod'] as const;
+export const SHIP_KINDS = [
+  'player',
+  'wingman',
+  'fighter',
+  'drone',
+  'turret',
+  'pod',
+  'static',
+] as const;
 export type ShipKind = (typeof SHIP_KINDS)[number];
 
-type Point = readonly [number, number];
+export type Point = readonly [number, number];
 
-/** Shape of one ship kind, in local units (u), nose along +x. Closed polygon, implicit last edge. */
+/**
+ * Shape of one ship kind. Coordinates are in units of the ship's radius (1 = its hit radius; the
+ * renderer scales by the real radius), nose along +x, wings along y. Polygons are closed
+ * implicitly (the last edge is not repeated).
+ */
 export interface ShapeDef {
   polygon: readonly Point[];
-  /** One hard shadow polygon. */
+  /** A hole in the silhouette (the background shows through), e.g. the ring of a pod. */
+  hole?: readonly Point[];
+  /** One hard shadow polygon, inside the silhouette (the share of it shown is `theme.shadowShare`). */
   shadow?: readonly Point[];
-  /** Engine glow points. */
+  /** The bright detail: a sensor eye, a cockpit, a core (drawn in `theme.eyeColor`). */
+  eye?: readonly Point[];
+  /** Engine glow points (where the flame starts), drawn with `theme.glow`. */
   glow?: readonly Point[];
 }
-/** A kind without an entry is drawn by the renderer's built-in shape (today's look). */
+/** Every kind has a shape: a pack that lacks one falls back to its parent or `plain`. */
 export type ShipShapes = Partial<Record<ShipKind, ShapeDef>>;
 
 /** How one ship kind dies. Stub: fields are added by the Look track. */
@@ -201,8 +219,8 @@ const isNum = (v: unknown, min: number, max: number): boolean =>
 const isText = (v: unknown): boolean => typeof v === 'string' && v.trim().length > 0;
 const isKind = (list: readonly string[], v: string): boolean => list.includes(v);
 
-/** Largest allowed coordinate in a ship shape, local units (u). */
-export const MAX_SHAPE_EXTENT = 200;
+/** Largest allowed coordinate in a ship shape, in radius units (a shape stays near its hit circle). */
+export const MAX_SHAPE_EXTENT = 4;
 
 export function validateManifest(m: StyleManifest): string[] {
   const errors: string[] = [];
@@ -235,7 +253,23 @@ export function validateTheme(t: ThemeInput): string[] {
   if (t.shadowShare !== undefined && !isNum(t.shadowShare, 0, 1))
     errors.push('theme.shadowShare must be 0..1');
   if (t.glow !== undefined && !isNum(t.glow, 0, 1)) errors.push('theme.glow must be 0..1');
+  if (t.eyeColor !== undefined && !isColor(t.eyeColor))
+    errors.push('theme.eyeColor must be a colour 0..0xffffff');
   return errors;
+}
+
+/** Smallest area a closed shape may have (radius units squared), so it is never a line. */
+export const MIN_SHAPE_AREA = 1e-4;
+
+/** Absolute area of a polygon (shoelace). */
+export function polygonArea(p: readonly Point[]): number {
+  let a = 0;
+  for (let i = 0; i < p.length; i++) {
+    const [x1, y1] = p[i]!;
+    const [x2, y2] = p[(i + 1) % p.length]!;
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) / 2;
 }
 
 function validatePolygon(name: string, p: readonly Point[] | undefined, min: number): string[] {
@@ -244,8 +278,10 @@ function validatePolygon(name: string, p: readonly Point[] | undefined, min: num
   const limit = MAX_SHAPE_EXTENT;
   p.forEach((pt, i) => {
     if (!Array.isArray(pt) || !isNum(pt[0], -limit, limit) || !isNum(pt[1], -limit, limit))
-      errors.push(`${name}[${i}] must be two numbers within +/-${limit} u`);
+      errors.push(`${name}[${i}] must be two numbers within +/-${limit} radii`);
   });
+  if (errors.length === 0 && min > 2 && polygonArea(p) < MIN_SHAPE_AREA)
+    errors.push(`${name} is degenerate (no area)`);
   const first = p[0];
   const last = p[p.length - 1];
   if (min > 1 && first && last && first[0] === last[0] && first[1] === last[1])
@@ -261,7 +297,9 @@ export function validateShips(ships: ShipShapes): string[] {
       continue;
     }
     errors.push(...validatePolygon(`ships.${kind}.polygon`, def.polygon, 3));
+    if (def.hole) errors.push(...validatePolygon(`ships.${kind}.hole`, def.hole, 3));
     if (def.shadow) errors.push(...validatePolygon(`ships.${kind}.shadow`, def.shadow, 3));
+    if (def.eye) errors.push(...validatePolygon(`ships.${kind}.eye`, def.eye, 3));
     if (def.glow) errors.push(...validatePolygon(`ships.${kind}.glow`, def.glow, 1));
   }
   return errors;

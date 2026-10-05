@@ -18,9 +18,10 @@ export const theme: Theme = {
     star: 0x9fb4d9,
     dust: 0xcfe0ff,
   },
-  // Reserved for the Look track; plain has no outline, shadow or glow.
+  // Plain has no outline, shadow or glow.
   outlineWidth: 0,
   outlineColor: 0x000000,
   shadowShare: 0,
   glow: 0,
+  eyeColor: 0xffffff,
 };

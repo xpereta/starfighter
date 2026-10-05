@@ -95,6 +95,20 @@ export function chooseStyleId(
 
 let packs: Record<string, ResolvedStyle> | null = null;
 let active = FALLBACK_STYLE;
+let revision = 0;
+
+/**
+ * Bumped whenever the active pack is edited live (the panel's Look section), so render code that
+ * caches meshes built from it knows to rebuild.
+ */
+export function styleRevision(): number {
+  return revision;
+}
+
+/** Call after editing the active pack in place. */
+export function touchStyle(): void {
+  revision++;
+}
 
 const all = (): Record<string, ResolvedStyle> => (packs ??= buildStyles(registry));
 
