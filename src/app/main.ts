@@ -7,6 +7,7 @@ import { startAudio } from '../audio';
 import { loopStateOf } from '../audio/state';
 import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
+import { initFxLevel } from '../render/spectacle/settings';
 import { initStyle } from '../render/style-active';
 import { menuVisible } from '../ui/menu-model';
 import { maskFlightActions } from '../ui/menu-nav';
@@ -20,6 +21,8 @@ import { loadSave, saveIsFromNewerVersion, storeSave } from './save';
 const save = loadSave();
 // The look: `?style=<id>` or the remembered choice, `plain` otherwise. Render and audio read it; core never does.
 initStyle(window.location.search);
+// Eye-candy quality: `?fx=low|medium|high` (high by default); `low` is the fallback for weak devices.
+const fxLevel = initFxLevel(window.location.search);
 
 /**
  * Dev tools (tuning panel, debug overlay) are a separate lazy chunk: on with `?dev` (always in
@@ -32,7 +35,7 @@ const devToolsEnabled =
 const world = createWorld(Date.now() >>> 0, createTuning(), save.bestTrialTime);
 // Sound: starts on the first key press or click; reads the same events as the renderer.
 const audio = startAudio();
-const renderer = createRenderer(document.body, world);
+const renderer = createRenderer(document.body, world, fxLevel);
 const hud = createHud(document.body);
 const input = createInput();
 const menus = createMenuView(document.body, () => save.meta.bestRun);

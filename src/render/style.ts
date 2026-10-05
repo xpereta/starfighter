@@ -1,4 +1,5 @@
 import type { GameEvent } from '../core/events/events';
+import { mergeSpectacle, validateSpectacle, type SpectacleDef } from './spectacle-contract';
 
 /**
  * The style contract: everything a style pack (data/styles/<id>/) can provide. Pure types and
@@ -489,6 +490,8 @@ export interface StylePack {
   loops: LoopTable;
   /** The music track, or null for none. */
   music: MusicDef | null;
+  /** Render-only extras (post-processing, backdrop, ship and combat effects, cards), or null for none. Additive: see `spectacle-contract.ts`. */
+  spectacle: SpectacleDef | null;
 }
 
 /** What a pack folder exports: a manifest and any parts it has. Missing parts fall back. */
@@ -501,6 +504,7 @@ export interface StyleInput {
   sounds?: Partial<SoundTable>;
   loops?: Partial<LoopTable>;
   music?: MusicDef | null;
+  spectacle?: SpectacleDef | null;
 }
 
 export type StyleRegistry = Readonly<Record<string, StyleInput>>;
@@ -928,6 +932,7 @@ export function checkStyle(input: StyleInput): string[] {
     ...validateSounds(input.sounds ?? {}),
     ...validateLoops(input.loops ?? {}),
     ...validateMusic(input.music),
+    ...(input.spectacle ? validateSpectacle(input.spectacle) : []),
   ];
 }
 
@@ -982,6 +987,11 @@ export function resolveStyle(input: StyleInput, base: StylePack): ResolvedStyle 
       `style "${id}": music is invalid (${musicErrors.join('; ')}), using ${base.manifest.id}`,
     );
   const validMusic = musicErrors.length === 0 ? input.music : undefined;
+  const spectacleErrors = input.spectacle ? validateSpectacle(input.spectacle) : [];
+  if (spectacleErrors.length)
+    warnings.push(
+      `style "${id}": spectacle is invalid (${spectacleErrors.join('; ')}), using ${base.manifest.id}`,
+    );
   const pack: StylePack = {
     manifest: input.manifest,
     theme: { ...base.theme, ...theme, palette: { ...base.theme.palette, ...theme.palette } },
@@ -994,6 +1004,7 @@ export function resolveStyle(input: StyleInput, base: StylePack): ResolvedStyle 
     sounds: { ...base.sounds, ...valid('sounds', input.sounds, validateSounds) },
     loops: { ...base.loops, ...valid('loops', input.loops, validateLoops) },
     music: input.music === null ? null : (validMusic ?? base.music),
+    spectacle: mergeSpectacle(spectacleErrors.length ? undefined : input.spectacle, base.spectacle),
   };
   if (id !== base.manifest.id) {
     const missing = missingParts(input);

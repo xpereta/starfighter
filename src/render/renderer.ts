@@ -18,6 +18,7 @@ import { createTargetRenderer } from './targets';
 import { palette } from './palette';
 import { styleRevision } from './style-active';
 import { createShipArt, rollSquash } from './ship-art';
+import { createSpectacle } from './spectacle';
 
 /** The player's shape is authored in radius units; this is its drawn size (about 100 u long). */
 const PLAYER_SCALE = 60;
@@ -72,6 +73,8 @@ export function createRenderer(
   scene.add(screenFx.speedLines);
   const deathFx = createDeathFx(qualityPresets[quality], world, screenFx.hooks);
   scene.add(deathFx.object);
+  // Render-only extras of spectacle packs (post-processing and more); inert for every other style.
+  const spectacle = createSpectacle(renderer, scene, camera);
   let lastTime = performance.now();
   let seenRevision = styleRevision();
 
@@ -82,6 +85,7 @@ export function createRenderer(
     const w = window.innerWidth;
     const h = window.innerHeight;
     renderer.setSize(w, h);
+    spectacle.resize(w, h);
   }
   window.addEventListener('resize', resize);
   resize();
@@ -91,6 +95,7 @@ export function createRenderer(
       sparks.consume(events);
       deathFx.consume(events);
       shards.consume(events, (kind) => deathFx.handles(kind));
+      spectacle.consume(events);
     },
     render(world) {
       const { ship: s } = world;
@@ -115,7 +120,7 @@ export function createRenderer(
         now / 1000,
       );
       if (frozen) {
-        renderer.render(scene, camera);
+        spectacle.render(frameDt, now / 1000);
         return;
       }
       camera.left = -view.width / 2;
@@ -143,7 +148,8 @@ export function createRenderer(
       sparks.update(frameDt);
       shards.update(frameDt);
       deathFx.update(frameDt);
-      renderer.render(scene, camera);
+      spectacle.update({ dt: frameDt, time: now / 1000 });
+      spectacle.render(frameDt, now / 1000);
     },
     dispose() {
       window.removeEventListener('resize', resize);
@@ -153,6 +159,7 @@ export function createRenderer(
       shards.dispose();
       deathFx.dispose();
       screenFx.dispose();
+      spectacle.dispose();
       targets.dispose();
       fighters.dispose();
       wingmen.dispose();
