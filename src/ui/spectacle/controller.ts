@@ -1,7 +1,8 @@
 import type { GameEvent } from '../../core/events/events';
 import { viewSize } from '../../core/camera/view';
 import type { World } from '../../core/world/world';
-import { menuVisible } from '../menu-model';
+import type { ChatterLine } from '../chatter';
+import { buildScreen, menuDataFromWorld, menuVisible } from '../menu-model';
 import { spectacleOn } from './active';
 import {
   createFeel,
@@ -13,11 +14,19 @@ import {
   type FeelOutput,
   type FeelState,
 } from './feel';
+import { clearBanners, createBanners, feedBanners, stepBanners, type Banners } from './banners';
+import { createCombo, feedCombo, stepCombo, type Combo } from './combo';
+import { commWindows } from './comm';
+import { createSpectacleHud } from './hud-dom';
+import { buildHudModel } from './hud-model';
+import { buildMenuLayout } from './menu-layout';
+import { createSpectacleMenu } from './menu-dom';
+import { SX_CSS } from './ui-css';
 import { collectIndicators, type Indicator } from './indicators';
 import type { PresentationDef } from './presentation';
 import { setPreviewTarget } from './preview';
 import { drawScreenLayer } from './screen-layer';
-import { spectacle } from './settings';
+import { matchingPreset, spectacle } from './settings';
 import { drawWorldLayer } from './world-layer';
 
 /**
@@ -31,6 +40,9 @@ import { drawWorldLayer } from './world-layer';
 
 export interface Spectacle {
   readonly feel: FeelState;
+  /** UI-only streak, score and kill feed, and the banner queue. */
+  readonly combo: Combo;
+  readonly banners: Banners;
   /** Feeds synthetic events to the effects only (never to the world): the dev panel's previews and the tests. */
   inject(events: readonly GameEvent[]): void;
   /** Once per simulation step, after the world step (reads this step's events). */
@@ -39,12 +51,26 @@ export interface Spectacle {
   update(world: World, frameDt: number, now: number): { frozen: boolean };
   /** Once per frame, after the world was drawn. */
   draw(world: World, now: number): void;
+  /** Once per frame: the DOM parts (HUD, comm windows, banners, menus). `chatter` is the classic feed's visible lines. */
+  drawUi(world: World, chatter: readonly ChatterLine[]): void;
   dispose(): void;
 }
 
 const pulseLife = 1;
 
-export function createSpectacle(container: HTMLElement, def: PresentationDef): Spectacle {
+export interface SpectacleOptions {
+  /** The best run saved so far (the Start screen shows it). */
+  getBestRun: () => number | null;
+}
+
+export function createSpectacle(
+  container: HTMLElement,
+  def: PresentationDef,
+  options: SpectacleOptions,
+): Spectacle {
+  const style = document.createElement('style');
+  style.textContent = SX_CSS;
+  document.head.append(style);
   const worldCanvas = document.createElement('canvas');
   worldCanvas.id = 'spectacle-world';
   const screenCanvas = document.createElement('canvas');
@@ -75,6 +101,17 @@ export function createSpectacle(container: HTMLElement, def: PresentationDef): S
   resize();
 
   const feel = createFeel();
+  const combo = createCombo();
+  const banners = createBanners();
+  const hud = createSpectacleHud(container, def, def.commSlide);
+  const menu = createSpectacleMenu(container, def);
+  const pilotName = (world: World | null) => (id: number) =>
+    world?.pilots.roster.find((p) => p.id === id)?.name;
+  const bannerContext = (world: World | null) => ({
+    waveTotal: world?.run.waveTotal ?? 1,
+    battles: world?.tuning.run.battleCount ?? 1,
+    pilotName: pilotName(world),
+  });
   const pulses = new Map<number, number>();
   const indicators: Indicator[] = [];
   let out: FeelOutput = feelOutput(feel, def, spectacle, 0, 1.6);
@@ -106,22 +143,32 @@ export function createSpectacle(container: HTMLElement, def: PresentationDef): S
     hide(true);
   }
 
+  // The latest world the controller saw, so synthetic events can name pilots and know the wave count.
+  let latest: World | null = null;
   const inject = (events: readonly GameEvent[]): void => {
-    if (spectacleOn()) feedFeel(feel, events, def, spectacle);
+    if (!spectacleOn()) return;
+    feedFeel(feel, events, def, spectacle);
+    feedCombo(combo, events, pilotName(latest), def);
+    feedBanners(banners, events, bannerContext(latest), def);
   };
   setPreviewTarget(inject);
 
   return {
     feel,
+    combo,
+    banners,
     inject,
     step(world, dt) {
       if (!spectacleOn()) return off();
       wasOn = true;
+      const events = world.events.events;
+      feedCombo(combo, events, pilotName(world), def);
       if (world.run.mode === 'run' && menuVisible(world.run)) {
         resetFeel(feel); // nothing in flight behind a menu
+        clearBanners(banners);
         return;
       }
-      const events = world.events.events;
+      feedBanners(banners, events, bannerContext(world), def);
       feedFeel(feel, events, def, spectacle);
       observeTurn(feel, world.ship.heading, dt, def);
       for (const e of events) {
@@ -130,6 +177,7 @@ export function createSpectacle(container: HTMLElement, def: PresentationDef): S
       }
     },
     update(world, frameDt, now) {
+      latest = world;
       if (!spectacleOn()) {
         off();
         return { frozen: false };
@@ -141,6 +189,8 @@ export function createSpectacle(container: HTMLElement, def: PresentationDef): S
           ? world.run.hull / Math.max(1, world.tuning.run.playerHull)
           : null;
       stepFeel(feel, frameDt, def, spectacle, hull);
+      stepCombo(combo, frameDt, def);
+      stepBanners(banners, frameDt);
       for (const [id, age] of pulses) {
         if (age + frameDt > pulseLife) pulses.delete(id);
         else pulses.set(id, age + frameDt);
@@ -190,7 +240,55 @@ export function createSpectacle(container: HTMLElement, def: PresentationDef): S
         colors: def.colors,
       });
     },
+    drawUi(world, chatter) {
+      const on = spectacleOn();
+      const menuUp = world.run.mode === 'run' && menuVisible(world.run);
+      const cl = document.body.classList;
+      cl.toggle('sxb-hud', on && spectacle.hud);
+      cl.toggle('sxb-comms', on && spectacle.comms);
+      cl.toggle('sxb-menus', on && spectacle.menus);
+      cl.toggle('sxb-calm', on && matchingPreset(spectacle) === 'calm');
+      hud.root.hidden = !on || menuUp;
+      if (on && !menuUp) {
+        hud.draw({
+          model: buildHudModel(world, combo, def),
+          combo,
+          banner: banners.current,
+          comms: commWindows(chatter, world.pilots.roster),
+          chatterLife: world.tuning.chatter.chatterLife,
+          flags: {
+            hud: spectacle.hud,
+            portraits: spectacle.portraits,
+            comms: spectacle.comms,
+            banners: spectacle.banners,
+            feed: spectacle.feed,
+            combo: spectacle.combo,
+          },
+        });
+      }
+      if (on && spectacle.menus && menuUp) {
+        const screen = buildScreen(menuDataFromWorld(world, options.getBestRun()));
+        menu.draw(
+          screen === null
+            ? null
+            : buildMenuLayout(
+                screen,
+                menuDataFromWorld(world, options.getBestRun()),
+                {
+                  battleKills: world.run.battleKills,
+                  battleLost: world.run.battleLost,
+                  score: combo.score,
+                  bestStreak: combo.best,
+                },
+                def,
+              ),
+        );
+      } else menu.draw(null);
+    },
     dispose() {
+      hud.dispose();
+      menu.dispose();
+      style.remove();
       window.removeEventListener('resize', resize);
       setPreviewTarget(null);
       setTransform('');

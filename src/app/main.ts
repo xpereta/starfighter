@@ -41,10 +41,16 @@ const renderer = createRenderer(document.body, world);
 const hud = createHud(document.body, {
   skipArrows: () => spectacleOn() && spectacleSettings.indicators,
   skipWorld: () => spectacleOn(),
+  skipText: () => spectacleOn() && spectacleSettings.hud,
 });
-const fx = presentation ? createSpectacle(document.body, presentation) : null;
+const fx = presentation
+  ? createSpectacle(document.body, presentation, { getBestRun: () => save.meta.bestRun })
+  : null;
 // Dev builds only: the effects' event entry point, so tests and screenshots can stage a moment.
-if (fx && devToolsEnabled) (window as unknown as { __spectacle: unknown }).__spectacle = fx;
+if (devToolsEnabled) {
+  (window as unknown as { __sf: unknown }).__sf = { world };
+  if (fx) (window as unknown as { __spectacle: unknown }).__spectacle = fx;
+}
 const input = createInput();
 const menus = createMenuView(document.body, () => save.meta.bestRun);
 const pauseView = createPauseView(document.body);
@@ -127,6 +133,7 @@ function frame(now: number): void {
   menus.draw(world);
   pauseView.draw(world, pause.paused);
   runHud.draw(world);
+  fx?.drawUi(world, runHud.chatterLines());
   devTools?.draw(world, (now - previous) / 1000);
   requestAnimationFrame(frame);
 }

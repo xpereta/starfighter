@@ -29,9 +29,9 @@ test.describe('anime-spectacle: camera feel and readability layer', () => {
     await page.goto('/?style=anime-spectacle&dev');
     await expect(page.locator('canvas#spectacle-world')).toBeAttached();
     await expect(page.locator('canvas#spectacle-screen')).toBeVisible();
-    await expect(page.locator('#run-menu')).toBeVisible(); // the Start screen
+    await expect(page.locator('#sx-menu')).toBeVisible(); // the Start screen
     await page.keyboard.press('Enter'); // START RUN
-    await expect(page.locator('#run-menu')).toBeHidden();
+    await expect(page.locator('#sx-menu')).toBeHidden();
     await page.waitForTimeout(800);
     expect(errors).toEqual([]);
   });

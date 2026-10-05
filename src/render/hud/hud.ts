@@ -50,6 +50,8 @@ export interface Hud {
 export interface HudOptions {
   skipArrows?: () => boolean;
   skipWorld?: () => boolean;
+  /** The text readouts: flight, status lines, trial (the lock panel counts as one). */
+  skipText?: () => boolean;
 }
 
 /** 2D canvas overlay. All placement math lives in layout.ts; this file only draws. */
@@ -291,10 +293,13 @@ export function createHud(container: HTMLElement, options: HudOptions = {}): Hud
       g.font = FONT;
       g.textBaseline = 'alphabetic';
       if (!options.skipArrows?.()) drawEdgeArrows(world);
+      const text = !options.skipText?.();
       if (!options.skipWorld?.()) drawLocks(world);
-      else drawLockPanelOnly(world);
-      drawFlight(world);
-      drawStatus(world);
+      else if (text) drawLockPanelOnly(world);
+      if (text) {
+        drawFlight(world);
+        drawStatus(world);
+      }
     },
     dispose() {
       window.removeEventListener('resize', resize);

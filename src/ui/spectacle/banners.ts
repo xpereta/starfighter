@@ -19,6 +19,8 @@ export interface Banner {
   age: number;
   /** Seconds it takes in all. */
   total: number;
+  /** The pilot a banner is about (the portrait to show), or an empty string. */
+  who: string;
   /** Full-width cards (battle start, victory, defeat) against small corner banners. */
   big: boolean;
 }
@@ -54,9 +56,10 @@ function make(
   title: string,
   sub: string,
   big: boolean,
+  who = '',
 ): Banner {
   const { in: inT, hold, out } = def.banner;
-  return { kind, title, sub, age: 0, total: inT + hold * (big ? BIG_HOLD : 1) + out, big };
+  return { kind, title, sub, who, age: 0, total: inT + hold * (big ? BIG_HOLD : 1) + out, big };
 }
 
 /** Turns this step's events into banners. */
@@ -95,9 +98,11 @@ export function feedBanners(
     } else if (e.type === 'BattleCleared') {
       add(make(def, 'cleared', w.cleared, `${e.battle} / ${ctx.battles}`, true));
     } else if (e.type === 'PilotLost') {
-      add(make(def, 'lost', w.pilotLost, (ctx.pilotName(e.pilotId) ?? '').toUpperCase(), false));
+      const name = ctx.pilotName(e.pilotId) ?? '';
+      add(make(def, 'lost', w.pilotLost, name.toUpperCase(), false, name));
     } else if (e.type === 'PodRescued') {
-      add(make(def, 'rescued', w.rescued, (ctx.pilotName(e.pilotId) ?? '').toUpperCase(), false));
+      const name = ctx.pilotName(e.pilotId) ?? '';
+      add(make(def, 'rescued', w.rescued, name.toUpperCase(), false, name));
     } else if (e.type === 'RunEnded') {
       add(
         e.result === 'victory'
