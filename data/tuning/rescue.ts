@@ -24,14 +24,14 @@ export const rescueParams = {
     note: 'The wave of the battle during which the pod appears, far out in the arena. Higher = the pod comes later in the fight; lower = it shows up sooner.',
   },
   podHealth: {
-    default: 3,
+    default: 8,
     min: 1,
     max: 10,
     unit: 'hp',
     note: 'Hit points of a pod. Each enemy bullet that hits takes one; at zero the pod and its pilot are lost for good. Higher = easier to protect; lower = you must hurry or clear the enemies near it.',
   },
   podRadius: {
-    default: 30,
+    default: 22,
     min: 10,
     max: 80,
     unit: 'u',
@@ -73,7 +73,7 @@ export const rescueParams = {
     note: 'How fast rescue progress drains while you are away, compared with how fast it fills. 0 = progress is kept; 1 = it drains as fast as it fills. Higher = you must commit; lower = you can dodge in and out.',
   },
   podThreatRange: {
-    default: 1200,
+    default: 700,
     min: 200,
     max: 4000,
     unit: 'u',

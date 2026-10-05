@@ -1,25 +1,19 @@
 import { TRAITS } from '../../data/content/traits';
+import { maxHpOf } from '../core/pilots/effective';
 import type { Pilot } from '../core/pilots/pilots';
 import type { World } from '../core/world/world';
-
-/** Used until the run module defines the waves of each battle (issue A2): the spec's `battleWaves`. */
-const DEFAULT_BATTLE_WAVES: readonly number[] = [2, 3, 3, 4];
 
 export interface Hull {
   hp: number;
   max: number;
 }
 
-/**
- * The hull of an active pilot. Integration point: until Track A links pilots to wingmen, the i-th
- * active pilot in the roster is the i-th wingman (each active pilot is one wingman in run mode).
- */
+/** The hull of an active pilot: its wingman's hit points against the pilot's maximum (the trait counts). */
 export function pilotHull(world: World, pilot: Pilot): Hull | null {
   if (pilot.status !== 'active') return null;
-  const active = world.pilots.roster.filter((p) => p.status === 'active');
-  const wingman = world.squadron.wingmen[active.indexOf(pilot)];
+  const wingman = world.squadron.wingmen.find((w) => w.pilotId === pilot.id);
   if (!wingman) return null;
-  const max = Math.max(world.tuning.squadron.health, wingman.hp);
+  const max = Math.max(maxHpOf(world, pilot.id), wingman.hp);
   return { hp: wingman.alive ? Math.max(0, wingman.hp) : 0, max };
 }
 
@@ -60,8 +54,7 @@ export function hostileCount(world: World): number {
 export function objectiveText(world: World): string | null {
   const run = world.run;
   if (run.mode !== 'run' || run.phase !== 'battle') return null;
-  const tuning = world.tuning as unknown as { run?: { battleCount?: number } };
-  const battles = tuning.run?.battleCount ?? DEFAULT_BATTLE_WAVES.length;
-  const waves = DEFAULT_BATTLE_WAVES[run.battle - 1] ?? DEFAULT_BATTLE_WAVES.at(-1) ?? 1;
+  const battles = world.tuning.run.battleCount;
+  const waves = Math.max(1, run.waveTotal);
   return `BATTLE ${run.battle}/${battles} · WAVE ${Math.max(1, run.wave)}/${waves} · HOSTILES ${hostileCount(world)}`;
 }

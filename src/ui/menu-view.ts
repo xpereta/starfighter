@@ -1,11 +1,5 @@
 import type { World } from '../core/world/world';
-import {
-  buildScreen,
-  menuDataFromWorld,
-  menuVisible,
-  type MenuExtras,
-  type MenuScreen,
-} from './menu-model';
+import { buildScreen, menuDataFromWorld, menuVisible, type MenuScreen } from './menu-model';
 
 /**
  * Draws the run menus as a DOM overlay. Display only: it never changes the world, the game moves
@@ -65,7 +59,7 @@ export interface MenuView {
   dispose(): void;
 }
 
-export function createMenuView(container: HTMLElement, getExtras: () => MenuExtras): MenuView {
+export function createMenuView(container: HTMLElement, getBestRun: () => number | null): MenuView {
   const style = document.createElement('style');
   style.textContent = MENU_CSS;
   const root = document.createElement('div');
@@ -114,7 +108,7 @@ export function createMenuView(container: HTMLElement, getExtras: () => MenuExtr
   return {
     draw(world) {
       const screen = menuVisible(world.run)
-        ? buildScreen(menuDataFromWorld(world, getExtras()))
+        ? buildScreen(menuDataFromWorld(world, getBestRun()))
         : null;
       const key = screenKey(screen);
       if (key === shown) return;

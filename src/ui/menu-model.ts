@@ -1,5 +1,4 @@
 import { TRAITS, type TraitId } from '../../data/content/traits';
-import type { Veteran } from '../core/meta/meta';
 import type { Pilot } from '../core/pilots/pilots';
 import type { Run, RunPhase, RunResult } from '../core/run/run';
 import type { World } from '../core/world/world';
@@ -32,6 +31,14 @@ export interface MenuScreen {
   cursor: number;
 }
 
+/** A saved veteran as the Start screen lists it (what `run.available` holds). */
+export interface VeteranOption {
+  id: number;
+  name: string;
+  trait: TraitId;
+  kills: number;
+}
+
 /** A generated pilot offered in the debrief pick. */
 export interface Candidate {
   name: string;
@@ -49,7 +56,7 @@ export interface MenuData {
   cursor: number;
   /** All the run's pilots, lost ones included. */
   roster: readonly Pilot[];
-  veterans: readonly Veteran[];
+  veterans: readonly VeteranOption[];
   /** Ids of the veterans ticked to join the squad. */
   selectedVeterans: readonly number[];
   /** How many veterans may be brought. */
@@ -60,58 +67,34 @@ export interface MenuData {
   squadFull: boolean;
 }
 
-/** What the app supplies besides the world: persistent data and the pick state. */
-export interface MenuExtras {
-  veterans: readonly Veteran[];
-  selectedVeterans: readonly number[];
-  candidates: readonly Candidate[];
-  bestRun: number | null;
-}
-
-/** Used until the run and pilot modules define their own values (issues A1 and A2). */
-const DEFAULT_BATTLES = 4;
-const DEFAULT_SQUAD_MAX = 4;
-const DEFAULT_VETERANS_PER_RUN = 2;
-
 /** True while a menu screen is up: only in run mode, outside the battle phase. */
 export function menuVisible(run: Pick<Run, 'mode' | 'phase'>): boolean {
   return run.mode === 'run' && run.phase !== 'battle';
 }
 
-/**
- * Builds the menu data from the world and the app's extras. Track A's run state adds `candidates`
- * (the debrief picks) and `selectedVeterans` (the Start-screen ticks) to `world.run`; they are used when
- * present, otherwise the `extras` ones. The limits come from the tuning groups the same way
- * (`run.battleCount`, `pilots.squadMax`, `pilots.veteransPerRun`), with the spec defaults until then.
- */
-export function menuDataFromWorld(world: World, extras: MenuExtras): MenuData {
-  const run = world.run as Run & {
-    candidates?: readonly Candidate[];
-    selectedVeterans?: readonly number[];
-  };
-  const tuning = world.tuning as unknown as {
-    run?: { battleCount?: number };
-    pilots?: { squadMax?: number; veteransPerRun?: number };
-  };
-  const squadMax = tuning.pilots?.squadMax ?? DEFAULT_SQUAD_MAX;
+/** Builds the menu data from the world (the run, the roster, the tuning) and the saved best run. */
+export function menuDataFromWorld(world: World, bestRun: number | null): MenuData {
+  const { run, tuning } = world;
   const active = world.pilots.roster.filter((p) => p.status === 'active').length;
   return {
     phase: run.phase,
     battle: run.battle,
-    battles: tuning.run?.battleCount ?? DEFAULT_BATTLES,
+    battles: tuning.run.battleCount,
     result: run.result,
     cursor: run.cursor,
     roster: world.pilots.roster,
-    veterans: extras.veterans,
-    selectedVeterans: run.selectedVeterans ?? extras.selectedVeterans,
-    maxVeterans: tuning.pilots?.veteransPerRun ?? DEFAULT_VETERANS_PER_RUN,
-    bestRun: extras.bestRun,
-    // Only name and trait are shown, so a full `Pilot` from Track A works as a candidate.
-    candidates: (run.candidates ?? extras.candidates).map((c) => ({
-      name: c.name,
-      trait: c.trait,
+    veterans: run.available.map((v) => ({
+      id: v.id,
+      name: v.name,
+      trait: v.trait,
+      kills: v.kills ?? 0,
     })),
-    squadFull: active >= squadMax,
+    selectedVeterans: run.selectedVeterans,
+    maxVeterans: tuning.pilots.veteransPerRun,
+    bestRun,
+    // Only name and trait are shown.
+    candidates: run.candidates.map((c) => ({ name: c.name, trait: c.trait })),
+    squadFull: active >= tuning.pilots.squadMax,
   };
 }
 
@@ -134,7 +117,7 @@ export function startScreen(d: MenuData): MenuScreen {
   const items: MenuItem[] = d.veterans.map((v) => ({
     id: `veteran:${v.id}`,
     label: pilotLine(v),
-    detail: `${v.kills} kill${v.kills === 1 ? '' : 's'} · ${v.runs} run${v.runs === 1 ? '' : 's'} survived`,
+    detail: `${v.kills} kill${v.kills === 1 ? '' : 's'}`,
     checked: d.selectedVeterans.includes(v.id),
   }));
   items.push({ id: 'start', label: 'START RUN' });

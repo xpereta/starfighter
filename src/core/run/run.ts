@@ -49,6 +49,8 @@ export interface Run {
   hull: number;
   /** Waves in the current battle (the objective: clear the last one). 0 outside a battle. */
   waveTotal: number;
+  /** The `world.tick` at which the current wave started (things that happen "when a wave starts", like rescue pods, use it). */
+  waveStartTick: number;
   /** `stats.hitsTaken` already charged to the hull. */
   hitsSeen: number;
   /** Enemies destroyed and pilots lost in the current battle (what the debrief reports). */
@@ -72,6 +74,7 @@ export function createRun(): Run {
     cursor: 0,
     hull: 0,
     waveTotal: 0,
+    waveStartTick: 0,
     hitsSeen: 0,
     battleKills: 0,
     battleLost: 0,
@@ -301,6 +304,7 @@ export function stepRunBattle(world: World): void {
   }
   if (world.fighters.length > 0 && world.time - lastDeath < world.tuning.fighter.waveDelay) return;
   run.wave++;
+  run.waveStartTick = world.tick;
   spawnWave(world, waveSizeIn(world.tuning.run, run.battle));
   world.events.emit({ type: 'WaveStarted', battle: run.battle, wave: run.wave });
 }
@@ -326,6 +330,7 @@ export function mixRun(mix: (n: number) => void, run: Run): void {
   mix(run.cursor);
   mix(run.hull);
   mix(run.waveTotal);
+  mix(run.waveStartTick);
   mix(run.hitsSeen);
   mix(run.battleKills);
   mix(run.battleLost);

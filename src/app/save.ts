@@ -67,3 +67,18 @@ export function storeSave(save: SaveData): void {
     // Private mode or blocked storage: the best time and the veterans just will not persist.
   }
 }
+
+/** True when storage holds a save from a newer version of the game: it must not be overwritten. */
+export function saveIsFromNewerVersion(): boolean {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
+    return (
+      typeof raw === 'object' &&
+      raw !== null &&
+      typeof (raw as { version?: unknown }).version === 'number' &&
+      (raw as { version: number }).version > SAVE_VERSION
+    );
+  } catch {
+    return false;
+  }
+}
