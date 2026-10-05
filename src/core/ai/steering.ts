@@ -13,7 +13,7 @@ export const noEvents: EventQueue = { events: [], emit: () => {}, clear: () => {
 export function deriveFlight(
   out: FlightConfig,
   flight: FlightConfig,
-  cfg: FighterConfig,
+  cfg: Pick<FighterConfig, 'speedScale' | 'turnRateScale'>,
 ): FlightConfig {
   Object.assign(out, flight);
   out.steering = 'point';

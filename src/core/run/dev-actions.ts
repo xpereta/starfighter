@@ -1,3 +1,4 @@
+import { SHIP_GUNSHIP } from '../ai/fighter';
 import { spawnWave } from '../ai/waves';
 import { createLockOn } from '../lockon/lockon';
 import { activeCount, addPilot, generatePilots } from '../pilots/pilots';
@@ -118,13 +119,22 @@ export function nextBattleTarget(world: World): JumpTarget | null {
   return next <= world.tuning.run.battleCount ? { kind: 'battle', n: next } : null;
 }
 
-/** Number of enemies and targets alive (what a dev wants to read after a spawn or a clear). */
-export function enemyCounts(world: World): { fighters: number; targets: number } {
+/** Number of enemies and targets alive (`fighters` counts every flying enemy, `gunships` the gunships among them) (what a dev wants to read after a spawn or a clear). */
+export function enemyCounts(world: World): {
+  fighters: number;
+  gunships: number;
+  targets: number;
+} {
   let fighters = 0;
-  for (const f of world.fighters) if (f.alive) fighters++;
+  let gunships = 0;
+  for (const f of world.fighters) {
+    if (!f.alive) continue;
+    fighters++;
+    if (f.shipType === SHIP_GUNSHIP) gunships++;
+  }
   let targets = 0;
   for (const t of world.targets) if (t.alive) targets++;
-  return { fighters, targets };
+  return { fighters, gunships, targets };
 }
 
 /**

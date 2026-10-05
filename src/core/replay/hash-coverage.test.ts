@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
 import { clearEnemyState } from '../enemies/state';
+import { SHIP_GUNSHIP, type Fighter } from '../ai/fighter';
+import { spawnGunship } from '../ai/gunship';
 import { spawnFighter } from '../ai/waves';
 import { createWorld, stepWorld, type World } from '../world/world';
 import { hashWorld } from './hash';
@@ -30,6 +32,7 @@ function busyWorld(): World {
   stepWorld(w, dt); // creates the wingmen
   spawnFighter(w, 900, 200, Math.PI);
   spawnFighter(w, -700, -300, 0);
+  spawnGunship(w, -1500, 900, 0); // a gunship, with mounts
   for (let i = 0; i < 40; i++) {
     w.actions.fire = i % 2 === 0;
     stepWorld(w, dt);
@@ -92,6 +95,8 @@ function busyWorld(): World {
   w.squadron.cueTimer = 0.5;
   return w;
 }
+
+const gunshipOf = (w: World): Fighter => w.fighters.find((f) => f.shipType === SHIP_GUNSHIP)!;
 
 /** Changes one value and says how to put it back, or null when it cannot be perturbed. */
 function perturb(obj: Record<string, unknown>, key: string): (() => void) | null {
@@ -170,6 +175,8 @@ describe('every gameplay field is in the replay hash', () => {
       ),
       ...missing(w, 'fighter', w.fighters[0] as unknown as Record<string, unknown>),
       ...missing(w, 'fighter.ship', w.fighters[0]!.ship as unknown as Record<string, unknown>),
+      ...missing(w, 'gunship', gunshipOf(w) as unknown as Record<string, unknown>),
+      ...missing(w, 'mount', gunshipOf(w).mounts[0] as unknown as Record<string, unknown>),
       ...missing(w, 'wing', w.enemies.wings[0] as unknown as Record<string, unknown>),
       ...missing(w, 'capital', w.enemies.capital as unknown as Record<string, unknown>),
       ...missing(w, 'part', w.enemies.capital!.parts[1] as unknown as Record<string, unknown>),
@@ -202,6 +209,10 @@ describe('every gameplay field is in the replay hash', () => {
   it('the enemy state arrays (wing members, the part list) and an empty state adds nothing', () => {
     const w = busyWorld();
     const a = hashWorld(w);
+    const gs = gunshipOf(w);
+    const g0 = hashWorld(w);
+    gs.mounts.pop();
+    expect(hashWorld(w), 'a mount list').not.toBe(g0);
     w.enemies.wings[0]!.members.push(2);
     expect(hashWorld(w)).not.toBe(a);
     const b = hashWorld(w);

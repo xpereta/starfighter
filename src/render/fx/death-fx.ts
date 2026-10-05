@@ -83,6 +83,7 @@ export interface DeathFx {
 
 const KIND_COLOR: Record<EntityKind, () => number> = {
   fighter: () => palette.fighter,
+  gunship: () => palette.fighter,
   wingman: () => palette.wingman,
   static: () => palette.enemyStatic,
   drone: () => palette.enemy,
@@ -417,7 +418,7 @@ export function createDeathFx(
   ): { vx: number; vy: number; heading: number } {
     const near = (ex: number, ey: number): boolean =>
       Math.abs(ex - x) < MATCH_DIST && Math.abs(ey - y) < MATCH_DIST;
-    if (kind === 'fighter') {
+    if (kind === 'fighter' || kind === 'gunship') {
       for (const f of world.fighters)
         if (near(f.x, f.y)) return { vx: f.ship.vx, vy: f.ship.vy, heading: f.ship.heading };
     } else if (kind === 'wingman') {

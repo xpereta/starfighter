@@ -243,7 +243,7 @@ describe('waves and clearing', () => {
     devClearEnemies(w);
     stepWorld(w, DT);
     expect(w.targets).toHaveLength(0);
-    expect(enemyCounts(w)).toEqual({ fighters: 0, targets: 0 });
+    expect(enemyCounts(w)).toEqual({ fighters: 0, gunships: 0, targets: 0 });
     expect(w.enemyShots.count).toBe(0);
     expect(w.lockon.locks).toHaveLength(0);
   });

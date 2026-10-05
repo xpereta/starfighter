@@ -88,6 +88,7 @@ export const SHIP_KINDS = [
   'player',
   'wingman',
   'fighter',
+  'gunship',
   'drone',
   'turret',
   'pod',

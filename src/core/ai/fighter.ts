@@ -2,9 +2,14 @@ import type { FlightConfig } from '../../../data/tuning/flight';
 import { createShip, type Ship } from '../flight/flight';
 import { createActions, type Actions } from '../world/actions';
 import type { Collider } from '../world/target';
+import type { MountState } from './mount-aim';
 
 /** Sentinel for "no hit yet" in the hit memory (far enough in the past that no window reaches it). */
 export const NO_HIT = -1e9;
+
+/** What a `Fighter` entry is: every flying enemy lives in `world.fighters` (ids, locks, kills and waves come for free). */
+export const SHIP_FIGHTER = 0;
+export const SHIP_GUNSHIP = 1;
 
 /**
  * Enemy fighter (spec section 3). It flies with the same flight model as the player: the AI only
@@ -43,6 +48,10 @@ export interface Fighter extends Collider {
   missilePlan: number;
   /** Time to impact (s) at or below which it reacts to the tracked missile (reaction error included). */
   missileTrigger: number;
+  /** Which kind of ship this is (`SHIP_FIGHTER`, `SHIP_GUNSHIP`); decides the AI that drives it. */
+  shipType: number;
+  /** Weapon mounts with their state (gunship turrets); empty for a plain fighter, which has its one fixed gun. */
+  mounts: MountState[];
   /** world.time when it died (NO_HIT while alive); the next wave waits `waveDelay` after the last one. */
   diedAt: number;
 }
@@ -87,9 +96,22 @@ export function createFighter(
     missileUid: -1,
     missilePlan: 0,
     missileTrigger: 0,
+    shipType: SHIP_FIGHTER,
+    mounts: [],
     diedAt: NO_HIT,
     lastHitBy: 0,
   };
+}
+
+/** Puts a fighter in the first dead slot of the list (so the array stays small and ids stay stable), or at the end. Returns its index. */
+export function placeFighter(fighters: Fighter[], fighter: Fighter): number {
+  const dead = fighters.findIndex((f) => !f.alive);
+  if (dead >= 0) {
+    fighters[dead] = fighter;
+    return dead;
+  }
+  fighters.push(fighter);
+  return fighters.length - 1;
 }
 
 /** Feeds fighter state into the replay hash. Add every field you add to `Fighter`. */
@@ -123,6 +145,14 @@ export function mixFighters(mix: (n: number) => void, fighters: readonly Fighter
     mix(f.missileUid);
     mix(f.missilePlan);
     mix(f.missileTrigger);
+    mix(f.shipType);
+    mix(f.mounts.length);
+    for (const m of f.mounts) {
+      mix(m.aim);
+      mix(m.cooldown);
+      mix(m.burstLeft);
+      mix(m.pause);
+    }
     mix(f.diedAt);
     mix(f.lastHitBy ?? 0);
   }

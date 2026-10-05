@@ -1,3 +1,4 @@
+import { spawnGunship } from '../core/ai/gunship';
 import { spawnFighter } from '../core/ai/waves';
 import { createTargetAt } from '../core/world/arena';
 import { spawnPodAt } from '../core/world/pods';
@@ -27,6 +28,13 @@ export const SPAWN_REGISTRY: readonly SpawnEntry[] = [
     kind: 'fighter',
     // Faces the player, so it comes straight at them like a wave fighter would.
     spawn: (world, x, y, heading) => void spawnFighter(world, x, y, heading + Math.PI),
+  },
+  {
+    id: 'gunship',
+    label: 'Gunship',
+    kind: 'gunship',
+    // Faces the player and starts at its standoff-ish side of the arena, like a wave gunship.
+    spawn: (world, x, y, heading) => void spawnGunship(world, x, y, heading + Math.PI),
   },
   {
     id: 'drone',

@@ -5,7 +5,8 @@ import { DEG, wrapAngle } from '../math';
 import { stepSeconds } from '../world/clock';
 import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
-import { NO_HIT, type Fighter } from './fighter';
+import { NO_HIT, SHIP_GUNSHIP, type Fighter } from './fighter';
+import { gunshipFlight, thinkGunship } from './gunship';
 import {
   awarenessChance,
   PLAN_DONE,
@@ -22,6 +23,7 @@ export { stepWaves } from './waves';
 
 // Scratch objects, fully overwritten before each use, so stepping allocates nothing.
 const flightScratch = createFlightConfig();
+const gunshipScratch = createFlightConfig();
 const leadScratch: Point = { x: 0, y: 0 };
 
 interface Mover {
@@ -257,11 +259,17 @@ export function stepFighters(world: World): void {
   }
   const cfg = world.tuning.fighter;
   deriveFlight(flightScratch, world.tuning.flight, cfg);
+  gunshipFlight(gunshipScratch, world);
   for (let i = 0; i < world.fighters.length; i++) {
     const f = world.fighters[i]!;
     if (!f.alive) continue;
-    think(world, f, i, cfg, dt);
-    stepFlight(f.ship, f.actions, flightScratch, noEvents, dt);
+    if (f.shipType === SHIP_GUNSHIP) {
+      thinkGunship(world, f, i, dt);
+      stepFlight(f.ship, f.actions, gunshipScratch, noEvents, dt);
+    } else {
+      think(world, f, i, cfg, dt);
+      stepFlight(f.ship, f.actions, flightScratch, noEvents, dt);
+    }
     f.x = f.ship.x;
     f.y = f.ship.y;
     f.vx = f.ship.vx;

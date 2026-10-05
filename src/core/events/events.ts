@@ -37,7 +37,13 @@ export type GameEvent =
   | { type: 'PodLost' }
   // Sound-only additions (prototype 4). Events are not state: nothing reads them to change the world or the hash.
   // Enemy and wingman guns, kept apart from `ShotFired` (the player's) because the camera shakes on that one.
-  | { type: 'EnemyShotFired'; x: number; y: number; angle: number; from: 'turret' | 'fighter' }
+  | {
+      type: 'EnemyShotFired';
+      x: number;
+      y: number;
+      angle: number;
+      from: 'turret' | 'fighter' | 'gunship';
+    }
   | { type: 'WingmanShotFired'; x: number; y: number; angle: number }
   // An enemy bullet reached the player (`Hit` is emitted too, for sparks and shake), the player's hull is `hull` after it.
   | { type: 'PlayerDamaged'; x: number; y: number; hull: number }

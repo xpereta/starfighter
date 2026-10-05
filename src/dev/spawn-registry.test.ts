@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../data/tuning';
+import { SHIP_FIGHTER, SHIP_GUNSHIP } from '../core/ai/fighter';
 import { createWorld } from '../core/world/world';
 import type { EntityKind } from '../core/world/target';
 import {
@@ -14,6 +15,7 @@ import {
 /** Every enemy kind of the world. Typed as a full record so adding a kind to `EntityKind` breaks the build until it is listed here (and so needs a registry entry). */
 const ENEMY_KINDS: Record<Exclude<EntityKind, 'wingman'>, true> = {
   fighter: true,
+  gunship: true,
   drone: true,
   turret: true,
   static: true,
@@ -21,7 +23,10 @@ const ENEMY_KINDS: Record<Exclude<EntityKind, 'wingman'>, true> = {
 
 const countOf = (w: ReturnType<typeof createWorld>, kind: SpawnKind): number => {
   if (kind === 'pod') return w.pods.length;
-  if (kind === 'fighter') return w.fighters.filter((f) => f.alive).length;
+  if (kind === 'fighter')
+    return w.fighters.filter((f) => f.alive && f.shipType === SHIP_FIGHTER).length;
+  if (kind === 'gunship')
+    return w.fighters.filter((f) => f.alive && f.shipType === SHIP_GUNSHIP).length;
   return w.targets.filter((t) => t.kind === kind).length;
 };
 

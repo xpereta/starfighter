@@ -43,6 +43,7 @@ test.describe('dev panel: run phase and spawn', () => {
     await open(page, 'Spawn').click();
     for (const name of [
       'Spawn Fighter',
+      'Spawn Gunship',
       'Spawn Drone',
       'Spawn Turret',
       'Spawn Static dummy',
@@ -90,6 +91,25 @@ test.describe('dev panel: run phase and spawn', () => {
     await button(page, 'Spawn Fighter').click();
     await expect(status(page, /enemies alive: 4 fighters/)).toBeVisible();
     await page.waitForTimeout(500);
+    expect(errors).toEqual([]);
+  });
+
+  test('a spawned gunship appears, shoots, and the page has no console errors', async ({
+    page,
+  }) => {
+    const errors = errorsOf(page);
+    await open(page, 'Run phase').click();
+    await button(page, 'Jump: Battle 2').click();
+    await open(page, 'Debug').click();
+    await panel(page).locator('[data-param="arena.enemiesFrozen"]').click();
+    await open(page, 'Spawn').click();
+    await button(page, 'Clear all enemies (X)').click();
+    await button(page, 'Spawn Gunship').click();
+    await expect(status(page, /enemies alive: 1 fighters \(1 gunships\)/)).toBeVisible();
+    // Unfreeze: its turrets open fire on the player (the page must keep running without errors).
+    await panel(page).locator('[data-param="arena.enemiesFrozen"]').click();
+    await page.waitForTimeout(3000);
+    await expect(status(page, /\(1 gunships\)/)).toBeVisible();
     expect(errors).toEqual([]);
   });
 

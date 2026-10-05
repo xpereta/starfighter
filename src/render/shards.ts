@@ -12,6 +12,7 @@ const SHARD_SIZE = 0.45; // fraction of the dead target's radius
 
 const KIND_COLOR: Record<EntityKind, number> = {
   fighter: palette.fighter,
+  gunship: palette.fighter,
   wingman: palette.wingman,
   static: palette.enemyStatic,
   drone: palette.enemy,

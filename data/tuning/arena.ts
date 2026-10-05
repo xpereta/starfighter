@@ -182,7 +182,7 @@ export const arenaParams = {
     note: 'Size of a turret shot hit circle. Higher = harder to slip past; lower = tight dodges succeed.',
   },
   enemyShotCap: {
-    default: 60,
+    default: 200,
     min: 5,
     max: 400,
     unit: 'shots',

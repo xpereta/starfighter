@@ -54,6 +54,30 @@ export const ships: ShipShapes = {
       [0.35, 0.28],
     ],
   },
+  // Placeholder gunship (prototype 5): a broad armoured hull with two turret blisters; a proper pass comes through the style packs.
+  gunship: {
+    polygon: [
+      [1.2, 0],
+      [0.75, -0.4],
+      [0.6, -0.95],
+      [0.15, -1.0],
+      [-0.35, -0.9],
+      [-0.75, -0.65],
+      [-1.0, -0.4],
+      [-1.0, 0.4],
+      [-0.75, 0.65],
+      [-0.35, 0.9],
+      [0.15, 1.0],
+      [0.6, 0.95],
+      [0.75, 0.4],
+    ],
+    eye: [
+      [0.5, -0.15],
+      [0.25, 0],
+      [0.5, 0.15],
+      [0.7, 0],
+    ],
+  },
   drone: {
     polygon: [
       [1.15, 0],
