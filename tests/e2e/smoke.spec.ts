@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { styles } from '../../data/styles';
 import { tuningParams } from '../../data/tuning';
 
 const GRIP = tuningParams.flight.grip.default;
@@ -359,12 +360,17 @@ test.describe('run menus', () => {
   });
 });
 
-for (const style of ['plain', 'no-such-style']) {
+// Every shipped style (data/styles), plus an unknown one that only warns.
+for (const style of [...Object.keys(styles), 'no-such-style']) {
   test(`?style=${style} loads without console errors`, async ({ page }) => {
     const errors = errorsOf(page);
-    await page.goto(`/?style=${style}`);
+    await page.goto(`/?style=${style}&practice`);
     await expect(page.locator('canvas').first()).toBeVisible();
-    await page.waitForTimeout(500);
+    await page.keyboard.down('w');
+    await page.keyboard.down('Space');
+    await page.waitForTimeout(1500);
+    await page.keyboard.up('Space');
+    await page.keyboard.up('w');
     expect(errors).toEqual([]); // the unknown style only warns
   });
 }
