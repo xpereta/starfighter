@@ -291,3 +291,26 @@ test.describe('prototype 2 panel sections and overlay', () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe('run menus', () => {
+  test('practice mode shows no menu, and the flight keys still work', async ({ page }) => {
+    const errors = errorsOf(page);
+    await page.goto('/');
+    await expect(page.locator('canvas#hud')).toBeVisible();
+    await page.keyboard.press('Enter'); // a menu key does nothing in practice
+    await page.keyboard.down('w');
+    await page.waitForTimeout(500);
+    await page.keyboard.up('w');
+    await expect(page.locator('#run-menu')).toBeHidden();
+    await expect(page.locator('#run-hud')).toBeHidden(); // no roster, objective or chatter in practice
+    expect(errors).toEqual([]);
+  });
+
+  // Needs the run transitions (Track A, issue A2) and the boot into run mode (integration, issue I1).
+  test.fixme('start a run from the Start screen and reach battle 1', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#run-menu')).toContainText('START RUN');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#run-menu')).toBeHidden();
+  });
+});
