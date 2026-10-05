@@ -1,4 +1,4 @@
-import type { SoundEntry, SoundEventKey } from '../render/style';
+import type { MusicDef, SoundEntry, SoundEventKey } from '../render/style';
 
 /** One sound ready to play: everything is decided (pitch, volume, pan); the backend only makes noise. */
 export interface PlayRequest {
@@ -30,6 +30,8 @@ export interface AudioBackend {
   setMix(mix: MixLevels): void;
   /** Suspends (true) or resumes (false) all sound; sounds already playing are cut after a short tail. */
   setSuspended(suspended: boolean): void;
+  /** Starts looping this music track (replacing the current one), or stops the music with null. */
+  setMusic(music: MusicDef | null): void;
   /** Dips the music by `amount` (0..1) for `time` seconds. */
   duck(amount: number, time: number): void;
 }

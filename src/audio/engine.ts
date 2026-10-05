@@ -1,6 +1,6 @@
 import type { MixConfig } from '../../data/audio/mix';
 import type { GameEvent } from '../core/events/events';
-import type { SoundEventKey, SoundTable } from '../render/style';
+import type { MusicDef, SoundEventKey, SoundTable } from '../render/style';
 import type { AudioBackend } from './backend';
 import { createPlanner, type Listener } from './planner';
 
@@ -18,6 +18,8 @@ export interface AudioEngine {
   update(): void;
   /** The panel's sound test: plays one sound now, ignoring gaps and voice limits. */
   playTest(key: SoundEventKey, listener?: Listener): void;
+  /** Restarts the music from the active style (after the style or the track changed). */
+  refreshMusic(): void;
   /** Forget gaps and voices (a style switch or a restart). */
   reset(): void;
 }
@@ -26,6 +28,8 @@ export interface EngineOptions {
   backend: AudioBackend;
   /** The active style's table, read at every event so style switches and panel edits are live. */
   table: () => SoundTable;
+  /** The active style's music track, or null. */
+  music?: () => MusicDef | null;
   mix: MixConfig;
   /** Audio's own random stream (pitch spread). Never the simulation's. */
   rng?: () => number;
@@ -53,6 +57,7 @@ export function createAudioEngine(o: EngineOptions): AudioEngine {
       if (unlocked) return;
       backend.start();
       unlocked = true;
+      engine.refreshMusic();
       engine.update();
     },
     get unlocked() {
@@ -99,6 +104,9 @@ export function createAudioEngine(o: EngineOptions): AudioEngine {
     playTest(key, listener = ORIGIN) {
       if (!unlocked) engine.unlock();
       play(key, null, listener, true);
+    },
+    refreshMusic() {
+      if (unlocked) backend.setMusic(o.music?.() ?? null);
     },
     reset() {
       planner.reset();

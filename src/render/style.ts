@@ -223,6 +223,26 @@ export function silentSoundTable(): SoundTable {
   return table;
 }
 
+/** The music slot: one optional looping track per pack (a file, or a simple synthesised loop). */
+export interface MusicDef {
+  /** Level of the track itself, 0..1, before the music volume in the mix. */
+  volume: number;
+  source:
+    | { kind: 'sample'; file: string }
+    | {
+        kind: 'loop';
+        /** Beats per minute; one step is an eighth note. */
+        bpm: number;
+        /** Frequency of step 0, Hz. */
+        root: number;
+        waveform: Exclude<(typeof WAVEFORMS)[number], 'noise'>;
+        /** The melody, one entry per eighth note: semitones above `root`, or null for a rest. The loop repeats after the last step. */
+        steps: readonly (number | null)[];
+        /** An optional bass line (same length, played two octaves below with a soft sine). */
+        bass?: readonly (number | null)[];
+      };
+}
+
 // Packs -----------------------------------------------------------------------------------
 
 /** A fully resolved style: every part present. This is what render and audio read. */
@@ -233,6 +253,8 @@ export interface StylePack {
   deaths: DeathDefs;
   explosions: ExplosionDefs;
   sounds: SoundTable;
+  /** The music track, or null for none. */
+  music: MusicDef | null;
 }
 
 /** What a pack folder exports: a manifest and any parts it has. Missing parts fall back. */
@@ -243,6 +265,7 @@ export interface StyleInput {
   deaths?: DeathDefs;
   explosions?: ExplosionDefs;
   sounds?: Partial<SoundTable>;
+  music?: MusicDef | null;
 }
 
 export type StyleRegistry = Readonly<Record<string, StyleInput>>;
@@ -416,6 +439,34 @@ export function validateSounds(sounds: Partial<SoundTable>): string[] {
   return errors;
 }
 
+export function validateMusic(music: MusicDef | null | undefined): string[] {
+  if (music === null || music === undefined) return [];
+  const errors: string[] = [];
+  if (!isNum(music.volume, 0, 1)) errors.push('music.volume must be 0..1');
+  const src = music.source;
+  if (src?.kind === 'sample') {
+    if (!isText(src.file)) errors.push('music.source.file is empty');
+  } else if (src?.kind === 'loop') {
+    if (!isNum(src.bpm, 40, 240)) errors.push('music.source.bpm must be 40..240');
+    if (!isNum(src.root, 20, 2000)) errors.push('music.source.root must be 20..2000 Hz');
+    if (!isKind(WAVEFORMS, src.waveform) || (src.waveform as string) === 'noise')
+      errors.push('music.source.waveform must be sine, square, sawtooth or triangle');
+    const line = (name: string, steps: readonly (number | null)[] | undefined): void => {
+      if (!Array.isArray(steps) || steps.length < 1 || steps.length > 64)
+        errors.push(`music.source.${name} must have 1..64 steps`);
+      else if (!steps.every((n) => n === null || (Number.isInteger(n) && isNum(n, -48, 48))))
+        errors.push(`music.source.${name} steps must be null or whole semitones -48..48`);
+    };
+    line('steps', src.steps);
+    if (src.bass !== undefined) {
+      line('bass', src.bass);
+      if (Array.isArray(src.bass) && src.bass.length !== src.steps?.length)
+        errors.push('music.source.bass must be as long as steps');
+    }
+  } else errors.push('music.source must be sample or loop');
+  return errors;
+}
+
 /**
  * The style checks for one pack: the manifest and every part it has validate. Missing parts are
  * not errors (they fall back, see `missingParts`); wrong ones are.
@@ -428,6 +479,7 @@ export function checkStyle(input: StyleInput): string[] {
     ...validateDeaths(input.deaths ?? {}),
     ...validateExplosions(input.explosions ?? {}),
     ...validateSounds(input.sounds ?? {}),
+    ...validateMusic(input.music),
   ];
 }
 
@@ -474,6 +526,12 @@ export function resolveStyle(input: StyleInput, base: StylePack): ResolvedStyle 
     return {};
   };
   const theme = valid<ThemeInput>('theme', input.theme, validateTheme);
+  const musicErrors = validateMusic(input.music);
+  if (musicErrors.length)
+    warnings.push(
+      `style "${id}": music is invalid (${musicErrors.join('; ')}), using ${base.manifest.id}`,
+    );
+  const validMusic = musicErrors.length === 0 ? input.music : undefined;
   const pack: StylePack = {
     manifest: input.manifest,
     theme: { ...base.theme, ...theme, palette: { ...base.theme.palette, ...theme.palette } },
@@ -484,6 +542,7 @@ export function resolveStyle(input: StyleInput, base: StylePack): ResolvedStyle 
       ...valid('explosions', input.explosions, validateExplosions),
     },
     sounds: { ...base.sounds, ...valid('sounds', input.sounds, validateSounds) },
+    music: input.music === null ? null : (validMusic ?? base.music),
   };
   if (id !== base.manifest.id) {
     const missing = missingParts(input);

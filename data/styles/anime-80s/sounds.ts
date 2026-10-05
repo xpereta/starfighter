@@ -1,5 +1,5 @@
 import { AROUND, noise, sfx, tone } from '../../audio/recipes';
-import type { SoundTable, SynthLayer } from '../../../src/render/style';
+import type { MusicDef, SoundTable, SynthLayer } from '../../../src/render/style';
 
 /**
  * 80s anime OVA sounds: bright analogue-synth lasers, big layered explosions with crackling
@@ -125,7 +125,7 @@ export const sounds: SoundTable = {
       tone('square', 1320, 1320, 0.05, 0.3, { delay: 0.05, filter: lowpass(3000) }),
       tone('square', 1760, 1760, 0.07, 0.3, { delay: 0.12, filter: lowpass(3000) }),
     ],
-    { volume: 0.22, maxVoices: 1, minGap: 0.2 },
+    { volume: 0.22, maxVoices: 1, minGap: 0.2, duck: { amount: 0.3, time: 0.7 } },
   ),
   // Battle start: a brass stab chord (A minor, then up a step).
   BattleStarted: sfx(
@@ -172,7 +172,7 @@ export const sounds: SoundTable = {
       tone('square', 880, 880, 0.08, 0.35, { filter: lowpass(4000) }),
       tone('square', 1320, 1320, 0.2, 0.35, { delay: 0.08, filter: lowpass(4000) }),
     ],
-    { volume: 0.28, maxVoices: 2 },
+    { volume: 0.28, maxVoices: 2, duck: { amount: 0.3, time: 0.7 } },
   ),
   // A pilot is gone: a slow falling minor pair with a low thud.
   PilotLost: sfx(
@@ -195,7 +195,7 @@ export const sounds: SoundTable = {
       tone('triangle', 1047, 1047, 0.12, 0.5, { delay: 0.1 }),
       tone('triangle', 1568, 1568, 0.45, 0.5, { delay: 0.2 }),
     ],
-    { volume: 0.38, maxVoices: 2 },
+    { volume: 0.38, maxVoices: 2, duck: { amount: 0.3, time: 0.7 } },
   ),
   PodLost: sfx(
     [
@@ -214,4 +214,20 @@ export const sounds: SoundTable = {
     maxVoices: 1,
     minGap: 0.2,
   }),
+};
+
+/**
+ * The music slot: a moody minor arpeggio over a pulsing bass (a synthesised loop; swap in a file
+ * with `source: { kind: 'sample', file }`). The pack's index passes it on as `music`.
+ */
+export const music: MusicDef = {
+  volume: 0.3,
+  source: {
+    kind: 'loop',
+    bpm: 112,
+    root: 220,
+    waveform: 'sawtooth',
+    steps: [0, 3, 7, 12, 7, 3, 0, 3, -2, 2, 5, 10, 5, 2, -2, 2],
+    bass: [0, null, 0, null, 0, null, 0, null, -2, null, -2, null, -2, null, -2, null],
+  },
 };

@@ -46,6 +46,7 @@ export function startAudio(): Audio {
   const engine = createAudioEngine({
     backend: createWebAudioBackend((file) => sampleUrl(activeStyle().manifest.id, file)),
     table: () => activeStyle().sounds,
+    music: () => activeStyle().music,
     mix,
   });
   const setMuted = (muted: boolean): void => {
@@ -64,13 +65,23 @@ export function startAudio(): Audio {
   };
   window.addEventListener('keydown', onKey);
   window.addEventListener('pointerdown', unlock);
-  return {
+  const audio: Audio = {
     engine,
     mix,
     setMuted,
     dispose() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pointerdown', unlock);
+      if (current === audio) current = null;
     },
   };
+  current = audio;
+  return audio;
+}
+
+let current: Audio | null = null;
+
+/** The running audio (for the dev panel), or null before `startAudio` ran. */
+export function activeAudio(): Audio | null {
+  return current;
 }

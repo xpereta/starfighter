@@ -1,5 +1,5 @@
 import { AROUND, noise, sfx, tone } from '../../audio/recipes';
-import type { SoundTable } from '../../../src/render/style';
+import type { MusicDef, SoundTable } from '../../../src/render/style';
 
 /**
  * Plain sounds: simple, audible and distinct (beeps, sweeps and noise bursts), so the engine and
@@ -69,7 +69,7 @@ export const sounds: SoundTable = {
   ),
   OrderGiven: sfx(
     [tone('triangle', 660, 660, 0.07, 0.6), tone('triangle', 880, 880, 0.09, 0.6, { delay: 0.09 })],
-    { volume: 0.25, maxVoices: 1, minGap: 0.2 },
+    { volume: 0.25, maxVoices: 1, minGap: 0.2, duck: { amount: 0.3, time: 0.7 } },
   ),
   BattleStarted: sfx(
     [
@@ -106,7 +106,11 @@ export const sounds: SoundTable = {
     ],
     { volume: 0.4, maxVoices: 1, minGap: 2 },
   ),
-  PilotJoined: sfx([tone('triangle', 600, 900, 0.18, 0.6)], { volume: 0.3, maxVoices: 2 }),
+  PilotJoined: sfx([tone('triangle', 600, 900, 0.18, 0.6)], {
+    volume: 0.3,
+    maxVoices: 2,
+    duck: { amount: 0.3, time: 0.7 },
+  }),
   PilotLost: sfx(
     [tone('sine', 440, 220, 0.5, 0.6), tone('sine', 330, 165, 0.5, 0.5, { delay: 0.12 })],
     { volume: 0.4, maxVoices: 2, duck: { amount: 0.4, time: 1 } },
@@ -118,7 +122,7 @@ export const sounds: SoundTable = {
   ),
   PodRescued: sfx(
     [tone('triangle', 784, 784, 0.12, 0.6), tone('triangle', 1175, 1175, 0.3, 0.6, { delay: 0.1 })],
-    { volume: 0.4, maxVoices: 2 },
+    { volume: 0.4, maxVoices: 2, duck: { amount: 0.3, time: 0.7 } },
   ),
   PodLost: sfx(
     [tone('sawtooth', 300, 80, 0.5, 0.6, { filter: { type: 'lowpass', freq: 900, q: 1 } })],
@@ -129,4 +133,34 @@ export const sounds: SoundTable = {
   ),
   Paused: sfx([tone('sine', 500, 250, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
   Resumed: sfx([tone('sine', 250, 500, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
+};
+
+/** A sparse, quiet pulse so the music slot can be heard; set the Music volume to 0 to remove it. */
+export const music: MusicDef = {
+  volume: 0.25,
+  source: {
+    kind: 'loop',
+    bpm: 90,
+    root: 220,
+    waveform: 'triangle',
+    steps: [0, null, null, null, 7, null, null, null, 3, null, null, null, 7, null, 5, null],
+    bass: [
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      -4,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ],
+  },
 };

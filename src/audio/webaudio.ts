@@ -1,11 +1,15 @@
-import type { SynthLayer } from '../render/style';
+import type { MusicDef, SynthLayer } from '../render/style';
 import type { AudioBackend, MixLevels, PlayRequest } from './backend';
+import { loopLength, loopNotes, type LoopSource } from './music';
 
 /** Seconds of tail before a paused context is really suspended, so the pause blip is heard. */
 const SUSPEND_DELAY_MS = 400;
 /** Silence floor for exponential ramps (they cannot reach 0). */
 const FLOOR = 0.0001;
 const MIX_SMOOTH = 0.02;
+/** The music scheduler wakes this often and plans this far ahead (ms, s). */
+const MUSIC_TICK_MS = 250;
+const MUSIC_AHEAD = 1;
 
 /**
  * The Web Audio backend: synthesises each layer with an oscillator or looped noise, an envelope
@@ -19,6 +23,8 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
   let duckGain!: GainNode;
   let noise: AudioBuffer | null = null;
   let suspendTimer: ReturnType<typeof setTimeout> | undefined;
+  let musicTimer: ReturnType<typeof setInterval> | undefined;
+  let musicStop: (() => void) | null = null;
   const samples = new Map<string, Promise<AudioBuffer | null>>();
 
   function noiseBuffer(c: AudioContext): AudioBuffer {
@@ -84,6 +90,46 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
     }
   }
 
+  function stopMusic(): void {
+    clearInterval(musicTimer);
+    musicStop?.();
+    musicStop = null;
+  }
+
+  function playLoop(c: AudioContext, loop: LoopSource, out: AudioNode): void {
+    const length = loopLength(loop);
+    const notes = loopNotes(loop);
+    let next = c.currentTime + 0.05;
+    const schedule = (): void => {
+      while (next < c.currentTime + MUSIC_AHEAD) {
+        for (const n of notes) {
+          const t0 = next + n.at;
+          const env = c.createGain();
+          env.gain.setValueAtTime(FLOOR, t0);
+          env.gain.linearRampToValueAtTime(n.gain, t0 + 0.01);
+          env.gain.exponentialRampToValueAtTime(FLOOR, t0 + n.length);
+          const osc = c.createOscillator();
+          osc.type = n.bass ? 'sine' : loop.waveform;
+          osc.frequency.value = n.freq;
+          if (n.bass) {
+            osc.connect(env);
+          } else {
+            const f = c.createBiquadFilter();
+            f.type = 'lowpass';
+            f.frequency.value = Math.min(8000, n.freq * 6);
+            osc.connect(f).connect(env);
+          }
+          env.connect(out);
+          osc.start(t0);
+          osc.stop(t0 + n.length + 0.05);
+        }
+        next += length;
+      }
+    };
+    schedule();
+    musicTimer = setInterval(schedule, MUSIC_TICK_MS);
+  }
+
   return {
     get now() {
       return ctx ? ctx.currentTime : 0;
@@ -145,6 +191,34 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
         const c = ctx;
         suspendTimer = setTimeout(() => void c.suspend(), SUSPEND_DELAY_MS);
       } else void ctx.resume();
+    },
+    setMusic(def: MusicDef | null) {
+      stopMusic();
+      const c = ctx;
+      if (!c || !def) return;
+      const track = c.createGain();
+      track.gain.value = def.volume;
+      track.connect(music);
+      musicStop = () => track.disconnect();
+      if (def.source.kind === 'loop') {
+        playLoop(c, def.source, track);
+      } else {
+        let live = true;
+        let src: AudioBufferSourceNode | null = null;
+        musicStop = () => {
+          live = false;
+          src?.stop();
+          track.disconnect();
+        };
+        void sample(c, def.source.file).then((buf) => {
+          if (!buf || !live) return;
+          src = c.createBufferSource();
+          src.buffer = buf;
+          src.loop = true;
+          src.connect(track);
+          src.start();
+        });
+      }
     },
     duck(amount, time) {
       if (!ctx) return;
