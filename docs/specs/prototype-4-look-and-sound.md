@@ -9,10 +9,10 @@ The second question is the main one: this prototype builds **the plumbing to ite
 
 ## Decisions taken (Xavi, 2026-10-05)
 - **References:** 80s and 90s anime: spaceship design, kinds of explosions, art style (cel look, hard shadows, bold outlines, speed lines, flash frames).
-- **Approach:** a minimal, swappable first pass, then one considered pass at a time (explosions and ship silhouettes first).
+- **Approach:** a minimal, swappable first pass, then one considered pass at a time (death sequences and ship silhouettes first). Every explosion is unique: ships break into parts, each with secondary explosions and lingering debris (as already written in the concept).
 
 ## Scope
-In: art direction doc · theme data and panel presets · ship/enemy silhouettes redrawn in the reference style · explosion kinds · screen flash/shake/hit-stop style · sound system driven by events with a data table · synthesised placeholder sounds · volume/mute · music slot (one looping track, optional).
+In: art direction doc · theme data and panel presets · ship/enemy silhouettes redrawn in the reference style · unique death sequences (ships break into parts, secondary explosions, lingering debris) · explosion kinds · screen flash/shake/hit-stop style · sound system driven by events with a data table · synthesised placeholder sounds · volume/mute · music slot (one looping track, optional).
 Out: final art and music assets · voice acting · cutscenes or portraits · 3D models · localisation · per-level backdrops beyond one background.
 
 ## 1. Art direction doc (`docs/art-direction.md`)
@@ -26,14 +26,16 @@ One page, written first and kept short: mood, palette families (3 to 4 named pal
 ## 3. Silhouettes (`render/ships`)
 Ships are drawn from **data shape definitions** (polygons, outline, one shadow shape, engine glow points) rather than code: `data/theme/ships.ts` with a shape per kind (player, wingman, fighter, drone, turret, pod). First pass: player and fighter in the anime style; the rest get matching quick versions. Shapes are validated (closed, bounded). Engine glow and a thin speed trail follow speed.
 
-## 4. Explosions and impact style (`render/fx`)
-A small set of **explosion kinds** as data (shape, colour ramp, size, duration, flash frames, debris count), chosen by event and entity:
-- **Hit spark:** short sharp starburst (bullets hitting).
-- **Small kill:** quick round flash, white then colour, with ring and a few shards.
-- **Big kill / turret:** large layered burst, shockwave ring, hard-edged smoke puffs, lingering debris.
-- **Missile hit:** bright flash with cross flare.
-- **Player or pilot loss:** bigger, slower, with a screen flash frame and a short hit-stop (render-only freeze of drawing, never of the simulation).
-- Screen effects (render-only): flash frame on big kills, chromatic edge on player hit, optional speed lines at high speed. All parameters, all off-able.
+## 4. Death sequences, explosions and debris (`render/fx`)
+This builds on what the concept already asks for (`concept.md` "Craft & detail"; decision 2026-10-02): **an enemy death is not one explosion; the ship breaks apart into pieces, with explosions of different sizes, some at once and some delayed; every death is different; debris lingers for a while.** Today only the first step exists (random shards, `render/shards.ts`).
+- **Each ship kind has a death sequence definition (data):** how many pieces it breaks into (cut from its own silhouette along seeded fracture lines, so the pieces match the ship), the primary explosion (kind, size), and a list of **secondary explosions** (count, size range, delay range, attached to a piece or to the wreck), plus debris (lifetime, drift, spin, fade) and an optional last big blast.
+- **Every death is unique:** the sequence is *rolled* from the definition with a seeded random stream tied to the world seed and the event, so the same replay shows the same deaths, and two kills never look the same (different fracture lines, piece count, delays, sizes, directions). The hit direction and impulse and the ship's speed shape the break-up (pieces fly along the blow; a fast ship's wreck keeps its momentum).
+- **Pieces keep going:** each piece drifts and spins, can trail smoke or flame, and **explodes again on its own timer** (small secondary bursts, occasionally a chain: one piece's blast pushes a neighbour). Bigger ships get longer, heavier sequences (a turret or later a capital ship: many pieces, long chain, a final blast).
+- **Debris lingers** (fades and stays low-contrast so it never hides ships or bullets), within hard pool caps and the Low/Medium/High quality presets from the architecture rules.
+- **Explosion kinds** (data: shape, colour ramp, size, duration, flash frames) used by sequences and by other events, in the anime vocabulary: hit spark (sharp starburst), small round flash with ring, large layered burst with shockwave ring and hard-edged smoke puffs, missile hit with cross flare, and a bigger slower one for the player or a pilot.
+- **Wingman and player deaths** use the same system with a heavier, more dramatic sequence (and the screen flash frame below).
+- **Screen effects** (render-only, all parameters, all off-able): flash frame on big blasts, a short hit-stop in drawing only (never the simulation), chromatic edge on a player hit, optional speed lines at high speed.
+- **Performance and determinism:** pieces and explosions live in pooled flat arrays; the roll uses its own seeded stream (never the simulation's), so it cannot change replays or the hash.
 
 ## 5. Sound (`src/audio`)
 - **Listens to events** (`ShotFired`, `Hit`, `Killed`, `LockAcquiring/Acquired/Lost`, `MissileLaunched`, `SalvoFired`, `EvadeStarted`, `OrderGiven`, `BattleStarted/Cleared`, `PodSpawned/Rescued/Lost`, `PilotLost`, `RunEnded`, plus pause) and plays sounds from a **data table** `data/audio/sounds.ts`: event → sound (kind, base pitch, pitch randomness, volume, minimum gap, max voices, optional position for stereo pan and distance fade).
@@ -54,9 +56,9 @@ Look and Sound panel sections as above; presets for both; a "screenshot-friendly
 
 ## 8. Issues and tracks
 Contract first (small PR): theme types and loader, the event→sound table type, panel sections skeleton, `docs/art-direction.md` outline. Then two parallel tracks:
-- **Track Look:** theme reader, ships, explosions and screen effects, presets.
+- **Track Look:** theme reader, ships, death sequences (fracture, secondary explosions, debris), explosion kinds, screen effects, presets.
 - **Track Sound:** audio engine, synthesised recipes, event table, mix, music slot, sound test.
 Then one integration issue (everything together, tuning pass, e2e).
 
 ## 9. Feel questions for Xavi
-Does the anime look read clearly at speed? Are explosions satisfying without hiding the fight? Is the sound busy or sparse, and is anything annoying after ten minutes? Which reference titles should the next pass lean on more?
+Does the anime look read clearly at speed? Is every death different enough, and are the break-ups and secondary explosions satisfying without hiding the fight? Is the sound busy or sparse, and is anything annoying after ten minutes? Which reference titles should the next pass lean on more?
