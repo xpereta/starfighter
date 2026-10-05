@@ -183,7 +183,7 @@ export const spectacle: SpectacleDef = {
     nebula: { layers: 3, strength: 0.42, scale: 2600, drift: 12 },
     stars: { extraLayers: 3, twinkle: 0.55 },
     debris: { count: 40, size: [14, 70], depth: 0.8 },
-    flashes: { rate: 1.2, size: 260 },
+    flashes: { rate: 0.15, size: 150 },
     shift: 3,
   },
 };

@@ -657,17 +657,17 @@ export function createBackdrop(quality: SpectacleQuality, worldSeed: number): Ba
         inner[0] = glowRgb[0]! * 1.6;
         inner[1] = glowRgb[1]! * 1.6;
         inner[2] = glowRgb[2]! * 1.6;
-        inner[3] = 0.85 * k * k;
+        inner[3] = 0.35 * k * k;
         outer[0] = glowRgb[0]!;
         outer[1] = glowRgb[1]!;
         outer[2] = glowRgb[2]!;
         outer[3] = 0;
         flashBatch.disc(x, y, size, 12, 0, inner, outer);
-        inner[3] = 0.5 * k;
-        outer[3] = 0.5 * k;
+        inner[3] = 0.2 * k;
+        outer[3] = 0.2 * k;
         flashBatch.ring(x, y, size * (0.8 + t), size * 0.08 * k, 28, inner, outer);
         if (t < 0.4) {
-          inner[3] = 0.9 * (1 - t / 0.4);
+          inner[3] = 0.35 * (1 - t / 0.4);
           outer[3] = 0;
           flashBatch.star(x, y, size * 1.7, size * 0.06, fl.spin[i]!, inner, outer);
         }
