@@ -1,6 +1,6 @@
 import { inputTuning } from '../../data/tuning/input';
 import type { Actions } from '../core/world/actions';
-import { mapGamepad, mapKeyboard, mergeActions, type GamepadSnapshot } from './mapping';
+import { mapGamepad, mapKeyboard, mapPause, mergeActions, type GamepadSnapshot } from './mapping';
 
 const HANDLED = new Set([
   'KeyW',
@@ -16,6 +16,7 @@ const HANDLED = new Set([
   'KeyE',
   'KeyF',
   'KeyQ',
+  'KeyP',
   'Enter',
   'Escape',
   'Backspace',
@@ -31,6 +32,8 @@ function isTyping(target: EventTarget | null): boolean {
 export interface Input {
   /** Samples keyboard + first connected standard gamepad into `out`. Call once per frame. */
   poll(out: Actions): void;
+  /** True when a pause button (P, Escape, pad Start) is held as of the last poll. Not an action. */
+  readonly pause: boolean;
   dispose(): void;
 }
 
@@ -67,7 +70,11 @@ export function createInput(): Input {
     return null;
   }
 
+  let pause = false;
   return {
+    get pause() {
+      return pause;
+    },
     poll(out) {
       sampled.clear();
       for (const code of held) sampled.add(code);
@@ -75,6 +82,7 @@ export function createInput(): Input {
       tapped.clear();
       const keys = mapKeyboard(sampled);
       const pad = firstPad();
+      pause = mapPause(sampled, pad);
       Object.assign(
         out,
         pad ? mergeActions(keys, mapGamepad(pad, inputTuning.stickDeadzone)) : keys,

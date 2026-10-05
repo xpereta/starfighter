@@ -292,6 +292,45 @@ test.describe('prototype 2 panel sections and overlay', () => {
   });
 });
 
+test.describe('pause', () => {
+  test('P pauses the game with an overlay, the world stands still, and P resumes', async ({
+    page,
+  }) => {
+    const errors = errorsOf(page);
+    await page.goto('/?practice');
+    await expect(page.locator('canvas#hud')).toBeVisible();
+    const overlay = page.locator('#pause-overlay');
+    await expect(overlay).toBeHidden();
+    const tick = async (): Promise<number> => Number(await overlay.getAttribute('data-tick'));
+    await expect.poll(tick).toBeGreaterThan(5); // the world is running
+
+    await page.keyboard.press('p');
+    await expect(overlay).toBeVisible();
+    await expect(overlay).toContainText('PAUSED');
+    await expect(overlay).toContainText('resume');
+    const frozen = await tick();
+    await page.keyboard.down('w'); // flight keys while paused do nothing
+    await page.waitForTimeout(500);
+    await page.keyboard.up('w');
+    expect(await tick()).toBe(frozen);
+
+    await page.keyboard.press('p');
+    await expect(overlay).toBeHidden();
+    await expect.poll(tick).toBeGreaterThan(frozen);
+
+    await page.keyboard.press('Escape'); // Esc pauses too
+    await expect(overlay).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('the Start menu is not pausable', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#run-menu')).toContainText('START RUN');
+    await page.keyboard.press('p');
+    await expect(page.locator('#pause-overlay')).toBeHidden();
+  });
+});
+
 test.describe('run menus', () => {
   test('practice mode shows no menu, and the flight keys still work', async ({ page }) => {
     const errors = errorsOf(page);

@@ -9,7 +9,9 @@ import { menuVisible } from '../ui/menu-model';
 import { maskFlightActions } from '../ui/menu-nav';
 import { createHudView } from '../ui/hud-view';
 import { createMenuView } from '../ui/menu-view';
+import { createPauseView } from '../ui/pause-view';
 import { createFixedLoop } from './loop';
+import { canPause, createPause } from './pause';
 import { loadSave, saveIsFromNewerVersion, storeSave } from './save';
 
 const save = loadSave();
@@ -27,6 +29,8 @@ const renderer = createRenderer(document.body, world);
 const hud = createHud(document.body);
 const input = createInput();
 const menus = createMenuView(document.body, () => save.meta.bestRun);
+const pauseView = createPauseView(document.body);
+const pause = createPause();
 const runHud = createHudView(document.body, world.seed);
 // The game starts on the Start screen (a run); `?practice` opens the practice field instead.
 const practice = new URLSearchParams(window.location.search).has('practice');
@@ -81,6 +85,10 @@ const loop = createFixedLoop((dt) => {
 let last = performance.now();
 function frame(now: number): void {
   input.poll(world.actions);
+  pause.update(input.pause, canPause(world));
+  loop.setPaused(pause.paused);
+  // The pause buttons (pad Start is also the time trial) never act as flight controls.
+  if (input.pause) maskFlightActions(world.actions);
   if (menuVisible(world.run)) maskFlightActions(world.actions); // the keys that fly never act behind a menu
   world.camera.aspect = window.innerWidth / window.innerHeight || 1;
   const previous = last;
@@ -89,6 +97,7 @@ function frame(now: number): void {
   renderer.render(world);
   hud.draw(world);
   menus.draw(world);
+  pauseView.draw(world, pause.paused);
   runHud.draw(world);
   devTools?.draw(world, (now - previous) / 1000);
   requestAnimationFrame(frame);
