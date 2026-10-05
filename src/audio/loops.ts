@@ -55,14 +55,16 @@ export interface LoopFrame {
 
 /**
  * The state the panel's loop preview uses: everything quiet, except the value the loop follows,
- * which is set to `value` (0..1; for `throttle` it spans -1..1 and the on/off values are 0 or 1).
+ * which is set to `value` (0..1; the on/off values `edge` and `always` are 0 or 1 at 0.5, and `hull`
+ * counts damage: 1 = almost destroyed).
  */
 export function previewLoopState(entry: LoopEntry, value: number): LoopState {
   const s = zeroLoopState();
   s.always = 1;
   const v = clamp(value, 0, 1);
   const key = entry.gain.state;
-  s[key] = key === 'throttle' ? v : key === 'edge' || key === 'always' ? (v >= 0.5 ? 1 : 0) : v;
+  // `hull` is inverted so that more preview means more alarm (the hull alarm runs when the hull is low).
+  s[key] = key === 'hull' ? 1 - v : key === 'edge' || key === 'always' ? (v >= 0.5 ? 1 : 0) : v;
   if (entry.pitch && entry.pitch.state !== key) s[entry.pitch.state] = v;
   if (entry.cutoff && entry.cutoff.state !== key) s[entry.cutoff.state] = v;
   return s;
@@ -100,7 +102,8 @@ export function createLoopPlanner(table: () => LoopTable): LoopPlanner {
           levels.delete(key);
           continue;
         }
-        const target = clamp(sampleLoopCurve(entry.gain, state), 0, 1);
+        // `always` is also the master gate: 0 in menus, so no loop (an idle engine, say) runs there.
+        const target = clamp(sampleLoopCurve(entry.gain, state), 0, 1) * clamp(state.always, 0, 1);
         const level = levels.get(key) ?? 0;
         const fade = target > level ? entry.fadeIn : entry.fadeOut;
         const tau = Math.max(1e-3, fade / FADE_TAU_DIVISOR);

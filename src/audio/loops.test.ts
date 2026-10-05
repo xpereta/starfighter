@@ -35,7 +35,11 @@ const hum = (over: Partial<LoopEntry> = {}): LoopEntry => ({
   ...over,
 });
 const table = (over: Partial<LoopTable>): LoopTable => ({ ...silentLoopTable(), ...over });
-const at = (patch: Partial<ReturnType<typeof zeroLoopState>>) => ({ ...zeroLoopState(), ...patch });
+const at = (patch: Partial<ReturnType<typeof zeroLoopState>>) => ({
+  ...zeroLoopState(),
+  always: 1,
+  ...patch,
+});
 
 describe('loop curves', () => {
   const curve = {
@@ -131,6 +135,21 @@ describe('loop planner', () => {
     expect(p.step(at({ speed: 1 }), 1).every((f) => f.key === 'engine')).toBe(true);
   });
 
+  it('nothing runs in a menu: with `always` at 0 even an idle engine is off', () => {
+    const idle = hum({
+      gain: {
+        state: 'speed',
+        points: [
+          [0, 0.5],
+          [1, 1],
+        ],
+      },
+    });
+    const p = createLoopPlanner(() => table({ engine: idle }));
+    for (let i = 0; i < 60; i++) expect(p.step(at({ speed: 0, always: 0 }), 1 / 60)).toEqual([]);
+    expect(p.step(at({ speed: 0, always: 1 }), 1 / 60)).toHaveLength(1);
+  });
+
   it('reset silences everything again', () => {
     const p = createLoopPlanner(() => table({ engine: hum({ volume: 1 }) }));
     for (let i = 0; i < 100; i++) p.step(at({ speed: 1 }), 1 / 60);
@@ -145,6 +164,18 @@ describe('loop preview state', () => {
     expect(s.speed).toBe(0.5);
     expect(s.always).toBe(1);
     expect(s.rescue).toBe(0);
+    // The hull preview counts damage: more preview, lower hull.
+    const hullAlarm = hum({
+      gain: {
+        state: 'hull',
+        points: [
+          [0, 1],
+          [0.4, 0],
+        ],
+      },
+    });
+    expect(previewLoopState(hullAlarm, 1).hull).toBe(0);
+    expect(previewLoopState(hullAlarm, 0).hull).toBe(1);
     const edge = previewLoopState(
       hum({
         gain: {
