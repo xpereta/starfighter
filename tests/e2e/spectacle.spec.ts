@@ -32,11 +32,13 @@ for (const fx of ['low', 'medium', 'high']) {
   });
 }
 
+// The visuals' title cards are off while the presentation banners are on (see spectacle-combined.spec.ts),
+// so this one turns the presentation off to see them.
 test('a run with the spectacle pack: start a battle and fly without console errors', async ({
   page,
 }) => {
   const errors = errorsOf(page);
-  await page.goto('/?style=anime-spectacle');
+  await page.goto('/?style=anime-spectacle&spectacle=off');
   await page.keyboard.press('Enter');
   await expect(page.locator('#run-hud')).toContainText('BATTLE 1/4');
   await expect(page.locator('#sf-cards')).toHaveClass(/intro/); // the intro title card

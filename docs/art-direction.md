@@ -71,3 +71,16 @@ Xavi supplies or approves the references: swap any title for one you prefer and 
 ## Spectacle (`anime-spectacle`)
 
 A second pack on the same direction, `data/styles/anime-spectacle/` (parent `anime-80s`, view with `?style=anime-spectacle`, quality `&fx=low|medium|high`): the same ships and palette with the lights on. Bloom on emissives, a faint laser-disc colour fringe, vignette and grain; a living backdrop with a new sky each battle (gas clouds, a ringed planet, a colony ring or a carrier, drifting rocks, distant flashes); engine plumes, nav lights, wingtip trails, a helix streak on the roll, spiralling missile smoke; multi-stage blasts (flash frame, shock rings, fireball, ink-blot smoke, glinting debris, chain reactions, capital-scale turret kills) with a zoom punch; title cards. All render-only (contract: `src/render/spectacle-contract.ts`, notes: `src/render/spectacle/README.md`). Screenshots: `docs/reference/spectacle/`.
+
+### Spectacle: how the three tracks combine
+
+`anime-spectacle` is one pack made of three tracks: render visuals (`src/render/spectacle`, the pack's `spectacle.ts`), the UI presentation (`src/ui/spectacle`, `presentation.ts`, read directly by `src/ui/spectacle/active.ts`) and audio (`sounds.ts`, `loops.ts`, `music.ts`: sound set, loops and an adaptive score). The dev panel has two sections, "Spectacle visuals" (row ids `spectacle.*`) and "Spectacle presentation" (row ids `presentation.*`). Debug globals: `__spectacle` (visuals pools and settings), `__presentation` (presentation events, feel), `__sf` (world).
+
+One source of truth per effect, applied in `src/app/main.ts` (`syncSpectacleTracks`, only on change so the panel can still force both back on):
+
+- Title cards: the presentation banners win. While the banners layer is on, the visuals' `#sf-cards` are off (visuals panel: "Title cards").
+- Zoom punch: the presentation's camera punch wins. While its Zoom punch intensity is above 0 the shader zoom punch is off (visuals panel: "Zoom punch (shader)").
+- Not overlapping, both stay on: bloom, colour fringe pulses, grain, scanlines and the static vignette (visuals) vs. roll, extra shake, hit-stop, kill-cam, flashes, speed lines and the low-hull tension vignette (presentation). Hit-stop only holds the drawing, so it freezes the post-processed picture too.
+- With `?spectacle=off` (presentation off) the visuals' cards and punch come back.
+
+Screenshots of the combination: `docs/reference/spectacle-combined/` (`scripts/spectacle-combined-shots.mjs`).

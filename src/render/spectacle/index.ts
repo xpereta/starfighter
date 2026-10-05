@@ -191,7 +191,9 @@ export function createSpectacle(
       parts.dispose();
     }
     parts = createSpectacleParts(world, currentFxLevel(), {
-      punch: (a) => post?.punch(a),
+      punch: (a) => {
+        if (spectacleSettings.zoomPunch) post?.punch(a);
+      },
       hit: (a) => post?.hit(a),
     });
     scene.add(parts.object);

@@ -17,7 +17,7 @@ import {
 } from './panel-ui';
 
 const SWITCHES: readonly {
-  key: 'post' | 'bloom' | 'backdrop' | 'ships' | 'combat' | 'cards';
+  key: 'post' | 'bloom' | 'backdrop' | 'ships' | 'combat' | 'cards' | 'zoomPunch';
   label: string;
   note: string;
 }[] = [
@@ -45,7 +45,12 @@ const SWITCHES: readonly {
   {
     key: 'cards',
     label: 'Title cards',
-    note: 'Battle intro and outro cards, pilot-lost and victory flourishes.',
+    note: 'Battle intro and outro cards, pilot-lost and victory flourishes. Off by default while the presentation banners are on (they say the same things).',
+  },
+  {
+    key: 'zoomPunch',
+    label: 'Zoom punch (shader)',
+    note: 'The post-processing zoom on big kills. Off by default while the presentation layer has its own zoom punch (one punch only).',
   },
 ];
 

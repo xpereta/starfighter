@@ -7,7 +7,7 @@ import { startAudio } from '../audio';
 import { loopStateOf, musicInputOf } from '../audio/state';
 import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
-import { initFxLevel } from '../render/spectacle/settings';
+import { initFxLevel, spectacleSettings as visualSettings } from '../render/spectacle/settings';
 import { initStyle } from '../render/style-active';
 import { initSpectacle, spectacleOn } from '../ui/spectacle/active';
 import { spectacle as spectacleSettings } from '../ui/spectacle/settings';
@@ -54,6 +54,30 @@ if (devToolsEnabled) {
   (window as unknown as { __sf: unknown }).__sf = { world };
   if (fx) (window as unknown as { __presentation: unknown }).__presentation = fx;
 }
+
+/**
+ * One source of truth per effect when both Spectacle tracks are on (see docs/art-direction.md):
+ * the presentation layer owns the title banners and the zoom punch, so the visuals' title cards and
+ * shader zoom punch are switched off while those presentation parts are on, and back on when they
+ * are turned off. Only changes are applied, so the visuals panel can still force both back on.
+ * Everything else is complementary: bloom/fringe/grain/static vignette (visuals) and tension vignette,
+ * roll, shake, hit-stop, kill-cam and flashes (presentation) do not overlap.
+ */
+let ownsBanners: boolean | null = null;
+let ownsPunch: boolean | null = null;
+function syncSpectacleTracks(): void {
+  const banners = spectacleOn() && spectacleSettings.banners;
+  if (banners !== ownsBanners) {
+    ownsBanners = banners;
+    visualSettings.cards = !banners;
+  }
+  const punch = spectacleOn() && spectacleSettings.zoomPunch > 0;
+  if (punch !== ownsPunch) {
+    ownsPunch = punch;
+    visualSettings.zoomPunch = !punch;
+  }
+}
+syncSpectacleTracks();
 const input = createInput();
 const menus = createMenuView(document.body, () => save.meta.bestRun);
 const pauseView = createPauseView(document.body);
@@ -128,6 +152,7 @@ function frame(now: number): void {
   const previous = last;
   loop.advance((now - last) / 1000);
   last = now;
+  syncSpectacleTracks();
   const { frozen } = fx?.update(world, Math.min(0.1, (now - previous) / 1000), now / 1000) ?? {
     frozen: false,
   };

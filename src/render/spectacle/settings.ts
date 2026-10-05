@@ -11,6 +11,8 @@ export const spectacleSettings = {
   ships: true,
   combat: true,
   cards: true,
+  /** The shader zoom punch on big kills; off when the presentation layer's own zoom punch is on (see main.ts). */
+  zoomPunch: true,
   /** Which battle's sky to show: 0 = follow the run, 1..8 = that battle's palette (`?sky=2`, or the panel). */
   sky: 0,
   /** Overall strength of the transient effects (flashes, rings, sparks, punch), 0..1. */
