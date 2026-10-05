@@ -51,6 +51,17 @@ describe('lancerMove', () => {
   });
 });
 
+describe('a band edited the wrong way round', () => {
+  const bad = { rangeMin: 1200, rangeMax: 800, launchCone: 25 };
+  it('collapses to a line at rangeMin: never both pursuing and fleeing', () => {
+    expect(lancerMove(out(), 0, 1199, 1, true, bad).mode).toBe('flee');
+    expect(lancerMove(out(), 0, 1201, 1, true, bad).mode).toBe('pursue');
+    expect(lancerMove(out(), 0, 1200, 1, true, bad).mode).toBe('aim');
+    expect(canLaunch(bad, 1200, 0, false)).toBe(true);
+    expect(canLaunch(bad, 1000, 0, false)).toBe(false);
+  });
+});
+
 describe('canLaunch', () => {
   const mid = (cfg.rangeMin + cfg.rangeMax) / 2;
   it('needs the band, the nose within the cone and no evading', () => {

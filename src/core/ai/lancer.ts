@@ -42,7 +42,9 @@ export function lancerMove(
   ready: boolean,
   cfg: Pick<LancerConfig, 'rangeMin' | 'rangeMax'>,
 ): LancerMove {
-  if (dist > cfg.rangeMax) {
+  // A band edited the wrong way round (max below min) collapses to a line instead of breaking.
+  const rangeMax = Math.max(cfg.rangeMax, cfg.rangeMin);
+  if (dist > rangeMax) {
     out.mode = 'pursue';
     out.desired = bearing;
     out.throttle = 1;
@@ -81,7 +83,7 @@ export function canLaunch(
   return (
     !evading &&
     dist >= cfg.rangeMin &&
-    dist <= cfg.rangeMax &&
+    dist <= Math.max(cfg.rangeMax, cfg.rangeMin) &&
     Math.abs(error) <= cfg.launchCone * DEG
   );
 }
