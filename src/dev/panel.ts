@@ -30,6 +30,7 @@ import {
 import { DEFAULT_PANEL_OPACITY, MIN_PANEL_OPACITY } from './panel-style';
 import { activeStyle, activeWarnings, rememberStyle, styleIds } from '../render/style-active';
 import { addLookRows } from './panel-look';
+import { buildRunSpawnSections, type RunSpawnControls } from './panel-run';
 import { buildSoundSection } from './panel-sound';
 import { createReplayControls, type ReplayControls } from './replay-controls';
 
@@ -73,6 +74,8 @@ export interface Panel {
   readonly soundReadout: { update(world: World): void };
   readonly debug: { overlay: boolean };
   readonly replay: ReplayControls;
+  /** Run phase and Spawn sections: readouts to refresh about ten times a second. */
+  readonly devActions: RunSpawnControls;
   dispose(): void;
 }
 
@@ -119,7 +122,8 @@ export function createPanel(world: World): Panel {
   // Header and global controls.
   const header = document.createElement('div');
   header.className = 'header';
-  header.innerHTML = '<span>Tuning</span><small>H hides · G debug</small>';
+  header.innerHTML =
+    '<span>Tuning</span><small>H hides · G debug · N next battle · X clear</small>';
   root.append(header);
 
   const general = section('Panel', true);
@@ -412,6 +416,19 @@ export function createPanel(world: World): Panel {
     refresh,
   );
 
+  // Run phase and Spawn: world edits for testing (refused while a replay records or plays).
+  const runSection = section('Run phase', false);
+  const spawnSection = section('Spawn', false);
+  root.append(runSection.el, spawnSection.el);
+  const devActions = buildRunSpawnSections(
+    ctx,
+    { run: runSection, spawn: spawnSection },
+    track,
+    world,
+    () => replay.busy(),
+    refresh,
+  );
+
   // Debug overlay toggle.
   const debugSection = section('Debug', false);
   root.append(debugSection.el);
@@ -443,7 +460,7 @@ export function createPanel(world: World): Panel {
   // A hint on the game screen that is still there when the panel is hidden.
   const hint = document.createElement('div');
   hint.className = 'dev-hint';
-  hint.textContent = 'H show panel · G debug overlay';
+  hint.textContent = 'H show panel · G debug overlay · N next battle · X clear enemies';
   hint.hidden = !root.hidden;
   document.body.append(hint);
 
@@ -457,6 +474,10 @@ export function createPanel(world: World): Panel {
     if (e.code === 'KeyG') {
       debug.overlay = !debug.overlay;
       refresh();
+    } else if (e.code === 'KeyN' && !e.repeat) {
+      devActions.nextBattle();
+    } else if (e.code === 'KeyX' && !e.repeat) {
+      devActions.clearEnemies();
     } else if (e.code === 'KeyH') {
       root.hidden = !root.hidden;
       hint.hidden = !root.hidden;
@@ -470,6 +491,7 @@ export function createPanel(world: World): Panel {
     soundReadout,
     debug,
     replay,
+    devActions,
     dispose() {
       window.removeEventListener('keydown', onKey);
       disposeLook();

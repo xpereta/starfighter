@@ -12,3 +12,4 @@
 - **Start:** the ticked veterans join first (`PilotJoined how: 'veteran'`), then generated pilots fill the squad up to `startingSquad`.
 - **Events:** `BattleStarted`, `WaveStarted`, `BattleCleared`, `RunEnded`.
 - **Parameters:** `data/tuning/run.ts`.
+- **Dev edits (`dev-actions.ts`, used only by the dev panel):** `devJumpTo(world, target)` (start screen, battle n, debrief, end victory/defeat), `devNextWave`, `devClearBattle`, `devClearEnemies`, `devRestore`, `nextBattleTarget`. They are built on the real `enterStartScreen` / `startBattle` / `clearBattle` / `endRun` / `addPilot` / `spawnWave`, so a jump lands where the real flow would. Not simulation inputs: a replay cannot reproduce them, so the panel refuses them while a replay records or plays. Tests: `dev-actions.test.ts`, `tests/sim/dev-jump.sim.test.ts`.
