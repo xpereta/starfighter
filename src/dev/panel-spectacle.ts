@@ -80,6 +80,19 @@ export function addSpectacleRows(
     }),
     sec,
   );
+  track(
+    choiceRow<number>(ctx, {
+      id: 'spectacle.sky',
+      label: 'Sky palette',
+      note: "Which battle's sky to show: auto follows the run (the first sky in practice mode); 1 to 4 preview each palette. Also ?sky=2 in the URL.",
+      options: () => [0, 1, 2, 3, 4],
+      get: () => spectacleSettings.sky,
+      set: (v) => (spectacleSettings.sky = v),
+      format: (v) => (v === 0 ? 'auto' : `battle ${v}`),
+      trackChange: false,
+    }),
+    sec,
+  );
   for (const s of SWITCHES)
     track(
       choiceRow<boolean>(ctx, {

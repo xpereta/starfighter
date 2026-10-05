@@ -74,7 +74,7 @@ export function createRenderer(
   const deathFx = createDeathFx(qualityPresets[quality], world, screenFx.hooks);
   scene.add(deathFx.object);
   // Render-only extras of spectacle packs (post-processing and more); inert for every other style.
-  const spectacle = createSpectacle(renderer, scene, camera);
+  const spectacle = createSpectacle(renderer, scene, camera, world);
   let lastTime = performance.now();
   let seenRevision = styleRevision();
 
@@ -148,7 +148,15 @@ export function createRenderer(
       sparks.update(frameDt);
       shards.update(frameDt);
       deathFx.update(frameDt);
-      spectacle.update({ dt: frameDt, time: now / 1000 });
+      spectacle.update({
+        dt: frameDt,
+        time: now / 1000,
+        camX: cam.x,
+        camY: cam.y,
+        viewW: view.width,
+        viewH: view.height,
+        speedFactor,
+      });
       spectacle.render(frameDt, now / 1000);
     },
     dispose() {

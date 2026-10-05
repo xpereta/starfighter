@@ -11,6 +11,8 @@ export const spectacleSettings = {
   ships: true,
   combat: true,
   cards: true,
+  /** Which battle's sky to show: 0 = follow the run, 1..8 = that battle's palette (`?sky=2`, or the panel). */
+  sky: 0,
   /** Overall strength of the transient effects (flashes, rings, sparks, punch), 0..1. */
   intensity: 1,
 };
@@ -65,5 +67,7 @@ export function initFxLevel(search: string): QualityLevel {
   }
   level = chooseFxLevel(search, stored);
   levelRevision++;
+  const sky = Number(new URLSearchParams(search).get('sky'));
+  if (Number.isInteger(sky) && sky >= 1 && sky <= 8) spectacleSettings.sky = sky;
   return level;
 }

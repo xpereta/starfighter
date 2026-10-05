@@ -45,5 +45,14 @@ for (const style of ['anime-80s', 'anime-spectacle']) {
   shots.push(`${style}-flight ${errors.length ? `ERRORS ${errors}` : 'ok'}`);
   await page.close();
 }
+// One shot per battle sky.
+for (const sky of [1, 2, 3, 4]) {
+  const { page, errors } = await open(`style=anime-spectacle&sky=${sky}&practice&dev`);
+  await page.keyboard.press('k');
+  await hold(page, ['KeyW'], 1500);
+  await page.screenshot({ path: `${out}/sky-${sky}.png` });
+  shots.push(`sky-${sky} ${errors.length ? `ERRORS ${errors}` : 'ok'}`);
+  await page.close();
+}
 await browser.close();
 console.log(shots.join('\n'));
