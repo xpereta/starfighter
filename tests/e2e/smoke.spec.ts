@@ -302,6 +302,7 @@ test.describe('run menus', () => {
     await page.waitForTimeout(500);
     await page.keyboard.up('w');
     await expect(page.locator('#run-menu')).toBeHidden();
+    await expect(page.locator('#run-hud')).toBeHidden(); // no roster, objective or chatter in practice
     expect(errors).toEqual([]);
   });
 
