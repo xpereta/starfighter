@@ -92,6 +92,7 @@ export function chooseStyleId(
 let packs: Record<string, ResolvedStyle> | null = null;
 let active = FALLBACK_STYLE;
 let revision = 0;
+let peek: string | null = null;
 
 /**
  * Bumped whenever the active pack is edited live (the panel's Look section), so render code that
@@ -139,9 +140,26 @@ export function initStyle(search: string, stored: string | null = readStored()):
   return all()[active]!.pack;
 }
 
-/** The one accessor: the active style pack (complete). `plain` until `initStyle` runs. */
+/** The one accessor: the active style pack (complete). `plain` until `initStyle` runs. While a peek is on, the peeked pack. */
 export function activeStyle(): StylePack {
-  return all()[active]!.pack;
+  return all()[peek ?? active]!.pack;
+}
+
+/** Id of the style chosen at startup (not the peeked one). */
+export function chosenStyleId(): string {
+  return active;
+}
+
+/**
+ * Shows another registered style until called with `null` (the panel's hold-to-compare key). Bumps
+ * the revision so meshes built from the style rebuild; nothing is reloaded and nothing is saved.
+ */
+export function peekStyle(id: string | null): void {
+  if (id !== null && !(id in all())) return;
+  const next = id === active ? null : id;
+  if (next === peek) return;
+  peek = next;
+  revision++;
 }
 
 /** What the active style leaves to its fallback (shown in the panel). */

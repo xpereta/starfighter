@@ -31,7 +31,7 @@ Anything a pack leaves out falls back to its `parent`, else to `plain`, with a c
 
 1. **Intent and references.** Write the manifest: intent in one line, references with what is taken from each. Xavi approves the references.
 2. **Start the folder.** Copy `data/styles/plain/` (or fork an existing pack: set `parent`) to `data/styles/<id>/` and add one line to `data/styles/index.ts`.
-3. **Edit in this order, checking each in the panel** (`?dev&style=<id>`): theme, then ship shapes, then death sequences and explosions, then sounds.
+3. **Edit in this order, checking each in the panel** (`?dev&style=<id>`): theme (try colours, outline and shadow live in the Look section, then **Save theme.ts**), then ship shapes, then death sequences and explosions, then sounds. Hold **V** to peek at another style and **K** for a screenshot-friendly view, to compare two directions on the same moment.
 4. **Run the style checks** (below).
 5. **Open a PR** from branch `style/<id>`.
 6. **Play, then record notes in the manifest** (`notes`, `status`: `idea | active | shelved`). Xavi decides what is kept.

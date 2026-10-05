@@ -16,6 +16,7 @@ import { createSparks } from './sparks';
 import { createPodRenderer } from './pods';
 import { createTargetRenderer } from './targets';
 import { palette } from './palette';
+import { styleRevision } from './style-active';
 import { createShipArt, rollSquash } from './ship-art';
 
 /** The player's shape is authored in radius units; this is its drawn size (about 100 u long). */
@@ -72,6 +73,7 @@ export function createRenderer(
   const deathFx = createDeathFx(qualityPresets[quality], world, screenFx.hooks);
   scene.add(deathFx.object);
   let lastTime = performance.now();
+  let seenRevision = styleRevision();
 
   const shipArt = createShipArt('player', () => palette.friendly);
   scene.add(shipArt.object);
@@ -93,6 +95,11 @@ export function createRenderer(
     render(world) {
       const { ship: s } = world;
       const { minSpeed, maxSpeed } = world.tuning.flight;
+      // A live style edit or a peek changes the background colour too.
+      if (styleRevision() !== seenRevision) {
+        seenRevision = styleRevision();
+        (scene.background as THREE.Color).setHex(palette.background);
+      }
       const now = performance.now();
       const frameDt = Math.min((now - lastTime) / 1000, 0.1);
       lastTime = now;

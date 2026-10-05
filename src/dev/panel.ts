@@ -29,6 +29,7 @@ import {
 } from './panel-ui';
 import { DEFAULT_PANEL_OPACITY, MIN_PANEL_OPACITY } from './panel-style';
 import { activeStyle, activeWarnings, rememberStyle, styleIds } from '../render/style-active';
+import { addLookRows } from './panel-look';
 import { createReplayControls, type ReplayControls } from './replay-controls';
 
 const PRESETS_KEY = 'starfighter.presets';
@@ -256,6 +257,7 @@ export function createPanel(world: World): Panel {
       : `${activeStyle().manifest.name}: ${activeStyle().manifest.intent}`,
   );
   look.add(styleStatus);
+  const disposeLook = addLookRows(ctx, look, track);
   const soundStatus = statusLine();
   soundStatus.set('No sounds yet: every event is silent in this style.');
   sound.add(soundStatus);
@@ -468,6 +470,7 @@ export function createPanel(world: World): Panel {
     replay,
     dispose() {
       window.removeEventListener('keydown', onKey);
+      disposeLook();
       tip.dispose();
       root.remove();
       hint.remove();
