@@ -29,7 +29,10 @@ const triangle = [
   [0, 10],
 ] as const;
 const beep: SoundEntry = {
-  source: { kind: 'synth', waveform: 'sine' },
+  source: {
+    kind: 'synth',
+    layers: [{ waveform: 'sine', freq: 440, attack: 0.01, decay: 0.1, gain: 0.5 }],
+  },
   pitch: 1,
   pitchRandom: 0.1,
   volume: 0.5,
@@ -125,7 +128,7 @@ describe('style validation', () => {
     ['bad voices', good({ sounds: { Hit: { ...beep, maxVoices: 0 } } }), 'sounds.Hit.maxVoices'],
     [
       'sample without file',
-      good({ sounds: { Hit: { ...beep, source: { kind: 'sample', file: '' } } } }),
+      good({ sounds: { Hit: { ...beep, source: { kind: 'sample', file: '', duration: 1 } } } }),
       'source.file',
     ],
   ])('rejects %s', (_name, pack, fragment) => {

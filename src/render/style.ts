@@ -114,10 +114,40 @@ export type SoundEventKey = GameEvent['type'] | 'Paused' | 'Resumed';
 
 export const WAVEFORMS = ['sine', 'square', 'sawtooth', 'triangle', 'noise'] as const;
 
+export const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass'] as const;
+
+/** One oscillator or noise burst of a synthesised sound, shaped by an envelope, a sweep and a filter. */
+export interface SynthLayer {
+  /** 'noise' ignores `freq` (colour it with the filter). */
+  waveform: (typeof WAVEFORMS)[number];
+  /** Start frequency, Hz. */
+  freq: number;
+  /** Frequency at the end of the sound, Hz (exponential sweep); omit for a steady tone. */
+  freqEnd?: number;
+  /** Start offset inside the sound, seconds (s). */
+  delay?: number;
+  /** Fade-in, seconds (s). */
+  attack: number;
+  /** Fade-out to silence after the attack, seconds (s). */
+  decay: number;
+  /** Layer loudness inside the sound, 0..1. */
+  gain: number;
+  filter?: {
+    type: (typeof FILTER_TYPES)[number];
+    /** Cutoff or centre, Hz. */
+    freq: number;
+    /** Cutoff at the end of the sound, Hz (exponential sweep); omit for a fixed one. */
+    freqEnd?: number;
+    /** Resonance (quality factor), 0.1..30. */
+    q: number;
+  };
+}
+
 export interface SoundEntry {
-  /** Synthesised recipe (waveform; the audio track adds envelope and sweep) or a sample file under data/audio/. */
+  /** A synthesised recipe (layers, edit them freely) or a sample file in the pack's assets/ or data/audio/. */
   source:
-    { kind: 'synth'; waveform: (typeof WAVEFORMS)[number] } | { kind: 'sample'; file: string };
+    | { kind: 'synth'; layers: readonly SynthLayer[] }
+    | { kind: 'sample'; file: string; /** Length of the file, seconds (s). */ duration: number };
   /** Base pitch multiplier, 1 = as synthesised or recorded. */
   pitch: number;
   /** Random pitch spread, +/- fraction of the base pitch. */
@@ -128,6 +158,32 @@ export interface SoundEntry {
   minGap: number;
   /** Most simultaneous voices of this sound. */
   maxVoices: number;
+  /**
+   * Stereo pan and distance fade from the event position relative to the player (events with a
+   * position only; others play centred at full volume). Omit for a flat, centred sound.
+   */
+  spatial?: {
+    /** 0..1: how far left/right the sound goes at `range` (1 = fully to one ear). */
+    pan: number;
+    /** Distance at which the sound is fully panned and as quiet as it gets, world units (u). */
+    range: number;
+    /** Volume multiplier at `range` and beyond, 0..1. */
+    farVolume: number;
+  };
+  /** Killed only: bigger things sound deeper and louder (pitch x (ref / radius)^exponent). */
+  size?: {
+    /** Radius that plays at the base pitch, world units (u). */
+    ref: number;
+    /** 0..2: how strongly size bends the pitch (0 = not at all). */
+    exponent: number;
+  };
+  /** Dips the music while this sound plays. */
+  duck?: {
+    /** 0..1: how much quieter the music gets. */
+    amount: number;
+    /** How long the dip lasts, seconds (s). */
+    time: number;
+  };
 }
 
 /** Every event has a sound or an explicit 'silent'. The compiler enforces completeness. */
@@ -290,6 +346,28 @@ export function validateExplosions(explosions: ExplosionDefs): string[] {
   return errors;
 }
 
+function validateLayer(where: string, l: SynthLayer): string[] {
+  const errors: string[] = [];
+  if (!l || typeof l !== 'object') return [`${where} must be a layer`];
+  if (!isKind(WAVEFORMS, l.waveform)) errors.push(`${where}.waveform is unknown`);
+  if (!isNum(l.freq, 10, 20000)) errors.push(`${where}.freq must be 10..20000 Hz`);
+  if (l.freqEnd !== undefined && !isNum(l.freqEnd, 10, 20000))
+    errors.push(`${where}.freqEnd must be 10..20000 Hz`);
+  if (l.delay !== undefined && !isNum(l.delay, 0, 10))
+    errors.push(`${where}.delay must be 0..10 s`);
+  if (!isNum(l.attack, 0.001, 10)) errors.push(`${where}.attack must be 0.001..10 s`);
+  if (!isNum(l.decay, 0.005, 10)) errors.push(`${where}.decay must be 0.005..10 s`);
+  if (!isNum(l.gain, 0, 1)) errors.push(`${where}.gain must be 0..1`);
+  if (l.filter !== undefined) {
+    if (!isKind(FILTER_TYPES, l.filter.type)) errors.push(`${where}.filter.type is unknown`);
+    if (!isNum(l.filter.freq, 10, 20000)) errors.push(`${where}.filter.freq must be 10..20000 Hz`);
+    if (l.filter.freqEnd !== undefined && !isNum(l.filter.freqEnd, 10, 20000))
+      errors.push(`${where}.filter.freqEnd must be 10..20000 Hz`);
+    if (!isNum(l.filter.q, 0.1, 30)) errors.push(`${where}.filter.q must be 0.1..30`);
+  }
+  return errors;
+}
+
 export function validateSounds(sounds: Partial<SoundTable>): string[] {
   const errors: string[] = [];
   for (const [key, entry] of Object.entries(sounds)) {
@@ -305,9 +383,13 @@ export function validateSounds(sounds: Partial<SoundTable>): string[] {
     }
     if (e.source?.kind === 'sample') {
       if (!isText(e.source.file)) errors.push(`sounds.${key}.source.file is empty`);
+      if (!isNum(e.source.duration, 0.01, 30))
+        errors.push(`sounds.${key}.source.duration must be 0.01..30 s`);
     } else if (e.source?.kind === 'synth') {
-      if (!isKind(WAVEFORMS, e.source.waveform))
-        errors.push(`sounds.${key}.source.waveform is unknown`);
+      const layers = e.source.layers;
+      if (!Array.isArray(layers) || layers.length < 1 || layers.length > 8)
+        errors.push(`sounds.${key}.source.layers must be 1..8 layers`);
+      else layers.forEach((l, i) => errors.push(...validateLayer(`sounds.${key}.layers[${i}]`, l)));
     } else errors.push(`sounds.${key}.source must be synth or sample`);
     if (!isNum(e.pitch, 0.1, 10)) errors.push(`sounds.${key}.pitch must be 0.1..10`);
     if (!isNum(e.pitchRandom, 0, 1)) errors.push(`sounds.${key}.pitchRandom must be 0..1`);
@@ -315,6 +397,21 @@ export function validateSounds(sounds: Partial<SoundTable>): string[] {
     if (!isNum(e.minGap, 0, 10)) errors.push(`sounds.${key}.minGap must be 0..10 s`);
     if (!isNum(e.maxVoices, 1, 32) || !Number.isInteger(e.maxVoices))
       errors.push(`sounds.${key}.maxVoices must be an integer 1..32`);
+    if (e.spatial !== undefined) {
+      if (!isNum(e.spatial.pan, 0, 1)) errors.push(`sounds.${key}.spatial.pan must be 0..1`);
+      if (!isNum(e.spatial.range, 1, 100000))
+        errors.push(`sounds.${key}.spatial.range must be 1..100000 u`);
+      if (!isNum(e.spatial.farVolume, 0, 1))
+        errors.push(`sounds.${key}.spatial.farVolume must be 0..1`);
+    }
+    if (e.size !== undefined) {
+      if (!isNum(e.size.ref, 1, 10000)) errors.push(`sounds.${key}.size.ref must be 1..10000 u`);
+      if (!isNum(e.size.exponent, 0, 2)) errors.push(`sounds.${key}.size.exponent must be 0..2`);
+    }
+    if (e.duck !== undefined) {
+      if (!isNum(e.duck.amount, 0, 1)) errors.push(`sounds.${key}.duck.amount must be 0..1`);
+      if (!isNum(e.duck.time, 0.01, 10)) errors.push(`sounds.${key}.duck.time must be 0.01..10 s`);
+    }
   }
   return errors;
 }

@@ -23,6 +23,7 @@ Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 ```
 src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ squadron/ run/ pilots/ meta/
 src/render/    Three.js renderer (orthographic); reads core state and the active style pack (style.ts contract, style-active.ts accessor)
+src/audio/     Web Audio engine: plays the active style pack's sound table from the events (prototype 4); never imported by core
 src/input/     gamepad + keyboard -> actions
 src/dev/       tuning panel, debug overlays (dev builds only)
 src/ui/        menus, chatter, roster HUD (prototype 3)
@@ -36,7 +37,7 @@ docs/          source of truth for concept, architecture, specs, decisions
 
 ## Architecture rules
 
-- `src/core/**` never imports `three`, `src/render`, `src/app`, `src/input`, `src/dev`, or DOM/browser APIs. Lint enforces this; don't disable the rule.
+- `src/core/**` never imports `three`, `src/render`, `src/audio`, `src/app`, `src/input`, `src/dev`, or DOM/browser APIs. Lint enforces this; don't disable the rule.
 - Core is deterministic: fixed 60 Hz timestep, seeded RNG (`src/core/rng`), no `Math.random`/`Date.now`.
 - Modules talk through shared world state (plain typed data) and typed events, not direct calls into each other's internals.
 - Hot paths (bullets, particles, debris): pooled flat arrays, no per-entity objects or allocation per frame, no per-entity event dispatch.

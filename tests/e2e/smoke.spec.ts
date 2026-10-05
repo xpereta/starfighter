@@ -369,6 +369,24 @@ for (const style of ['plain', 'no-such-style']) {
   });
 }
 
+test('M mutes and unmutes the sound, remembered across reloads, with no console errors', async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.goto('/?practice');
+  const html = page.locator('html');
+  await expect(html).toHaveAttribute('data-audio-muted', 'false');
+  await page.keyboard.press('m');
+  await expect(html).toHaveAttribute('data-audio-muted', 'true');
+  await page.reload();
+  await expect(html).toHaveAttribute('data-audio-muted', 'true');
+  await page.keyboard.press('m');
+  await expect(html).toHaveAttribute('data-audio-muted', 'false');
+  await page.keyboard.press('Space'); // fire: the audio engine runs without errors
+  await page.waitForTimeout(300);
+  expect(errors).toEqual([]);
+});
+
 test('the panel has Look and Sound sections with a Style picker showing plain', async ({
   page,
 }) => {
