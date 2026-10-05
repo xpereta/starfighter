@@ -1,4 +1,5 @@
 import type { GameEvent } from '../core/events/events';
+import { validateScore, type ScoreDef } from '../audio/score';
 
 /**
  * The style contract: everything a style pack (data/styles/<id>/) can provide. Pure types and
@@ -461,6 +462,8 @@ export interface MusicDef {
   volume: number;
   source:
     | { kind: 'sample'; file: string }
+    /** An adaptive, layered score that follows the game (see `src/audio/score.ts`). */
+    | { kind: 'score'; score: ScoreDef }
     | {
         kind: 'loop';
         /** Beats per minute; one step is an eighth note. */
@@ -893,6 +896,17 @@ export function validateMusic(music: MusicDef | null | undefined): string[] {
   const src = music.source;
   if (src?.kind === 'sample') {
     if (!isText(src.file)) errors.push('music.source.file is empty');
+  } else if (src?.kind === 'score') {
+    errors.push(...validateScore(src.score));
+    for (const [id, ins] of Object.entries(src.score?.instruments ?? {})) {
+      if (ins.kind !== 'kit') continue;
+      for (const [name, piece] of Object.entries(ins.pieces ?? {}))
+        (piece.layers ?? []).forEach((l, i) =>
+          errors.push(
+            ...validateLayer(`music.source.score.instruments.${id}.${name}.layers[${i}]`, l),
+          ),
+        );
+    }
   } else if (src?.kind === 'loop') {
     if (!isNum(src.bpm, 40, 240)) errors.push('music.source.bpm must be 40..240');
     if (!isNum(src.root, 20, 2000)) errors.push('music.source.root must be 20..2000 Hz');

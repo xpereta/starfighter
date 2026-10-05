@@ -1,4 +1,5 @@
 import type { MusicDef, SoundEntry, SoundEventKey } from '../render/style';
+import type { BarPlan, StingerPlan } from './conductor';
 import type { LoopFrame } from './loops';
 
 /** One sound ready to play: everything is decided (pitch, volume, pan, space); the backend only makes noise. */
@@ -52,4 +53,13 @@ export interface AudioBackend {
   duck(amount: number, time: number, bus?: DuckBus): void;
   /** Sets the continuous loops for this frame; a loop that is not in the list is switched off. */
   setLoops(frames: readonly LoopFrame[]): void;
+  /**
+   * Starts the adaptive score's buses at this track volume (0..1) and stinger level (a multiplier of
+   * the track volume, 0..4), or stops it with null.
+   */
+  setScore(volume: number | null, stingerLevel?: number): void;
+  /** Schedules one bar of the score (notes at `plan.time`, stems fading to their levels). */
+  playBar(plan: BarPlan): void;
+  /** Schedules a stinger (and dips the cue at its start). */
+  playStinger(plan: StingerPlan): void;
 }

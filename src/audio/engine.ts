@@ -16,7 +16,15 @@ import {
   type LoopFrame,
   type LoopState,
 } from './loops';
+import {
+  createConductor,
+  type Conductor,
+  type MusicForce,
+  type MusicInput,
+  type MusicStatus,
+} from './conductor';
 import { createPlanner, type Listener } from './planner';
+import type { ScoreDef } from './score';
 
 export interface AudioEngine {
   /** Starts the audio context; call from a key press or click. Events before this are dropped. */
@@ -43,6 +51,18 @@ export interface AudioEngine {
   previewLoop(key: LoopKey | null, value?: number): void;
   /** Restarts the music from the active style (after the style or the track changed). */
   refreshMusic(): void;
+  /**
+   * Once per frame: what the game tells an adaptive score (scene, enemies, hull, rescue) and the frame
+   * length. Plans the next bars and stingers and hands them to the backend. Does nothing while paused,
+   * locked, or when the style's music is not a score.
+   */
+  setMusicState(input: MusicInput, dt: number): void;
+  /** What the score is doing right now (for the panel readout), or null when the music is not a score. */
+  readonly musicStatus: MusicStatus | null;
+  /** The panel's override: a fixed scene and/or intensity, or null to follow the game. */
+  forceMusic(force: MusicForce | null): void;
+  /** The panel's stinger test: plays one stinger of the score now (on its own grid). */
+  playStinger(key: string): void;
   /** Forget gaps and voices (a style switch or a restart). */
   reset(): void;
 }
@@ -77,6 +97,27 @@ export function createAudioEngine(o: EngineOptions): AudioEngine {
   let paused = false;
   let muted = false;
   let sent = '';
+  // The adaptive score (when the style's music is one): the conductor plans, the backend plays.
+  let score: ScoreDef | null = null;
+  let scoreLevels = '';
+  let forced: MusicForce | null = null;
+  const conductor: Conductor = createConductor(() => score!);
+  const currentScore = (): { score: ScoreDef; volume: number; sting: number } | null => {
+    const def = o.music?.() ?? null;
+    return def && def.source.kind === 'score'
+      ? { score: def.source.score, volume: def.volume, sting: def.source.score.stingerLevel }
+      : null;
+  };
+  const startScore = (): void => {
+    const cur = currentScore();
+    score = cur?.score ?? null;
+    scoreLevels = cur ? `${cur.volume}|${cur.sting}` : '';
+    backend.setScore(cur ? cur.volume : null, cur?.sting);
+    if (cur) {
+      conductor.reset(backend.now);
+      conductor.force(forced);
+    }
+  };
 
   const play = (key: SoundEventKey, event: GameEvent | null, at: Listener, test = false): void => {
     const planned = planner.plan(key, event, at, backend.now, { test });
@@ -99,7 +140,10 @@ export function createAudioEngine(o: EngineOptions): AudioEngine {
     },
     consumeEvents(events, listener) {
       if (!unlocked || paused) return;
-      for (const e of events) play(e.type, e, listener);
+      for (const e of events) {
+        play(e.type, e, listener);
+        if (score) conductor.onEvent(e, backend.now);
+      }
     },
     setPaused(next) {
       if (next === paused) return;
@@ -155,7 +199,36 @@ export function createAudioEngine(o: EngineOptions): AudioEngine {
       preview = key ? { key, value } : null;
     },
     refreshMusic() {
-      if (unlocked) backend.setMusic(o.music?.() ?? null);
+      if (!unlocked) return;
+      const def = o.music?.() ?? null;
+      backend.setMusic(def && def.source.kind === 'score' ? null : def);
+      startScore();
+    },
+    setMusicState(input, dt) {
+      if (!unlocked || paused) return;
+      const cur = currentScore();
+      if ((cur?.score ?? null) !== score) startScore(); // the style or the track changed
+      if (!cur || !score) return;
+      const levels = `${cur.volume}|${cur.sting}`;
+      if (levels !== scoreLevels) {
+        scoreLevels = levels;
+        backend.setScore(cur.volume, cur.sting);
+      }
+      conductor.setInput(input);
+      const step = conductor.step(backend.now, dt);
+      for (const bar of step.bars) backend.playBar(bar);
+      for (const sting of step.stingers) backend.playStinger(sting);
+    },
+    get musicStatus() {
+      return score ? conductor.status : null;
+    },
+    forceMusic(force) {
+      forced = force;
+      conductor.force(force);
+    },
+    playStinger(key) {
+      if (!unlocked) engine.unlock();
+      if (score) conductor.trigger(key, backend.now);
     },
     reset() {
       planner.reset();

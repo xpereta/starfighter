@@ -1,8 +1,10 @@
 import type { LoopLayer, MusicDef, SynthLayer } from '../render/style';
 import { NOISE_WAVEFORMS } from '../render/style';
 import type { AudioBackend, DuckBus, MixLevels, PlayRequest } from './backend';
+import type { BarPlan, StingerPlan } from './conductor';
 import type { LoopFrame } from './loops';
 import { loopLength, loopNotes, type LoopSource } from './music';
+import type { PitchedNote, ScoreNote } from './score';
 
 /** Seconds of tail before a paused context is really suspended, so the pause blip is heard. */
 const SUSPEND_DELAY_MS = 400;
@@ -89,6 +91,13 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
   let reverbOut!: GainNode;
   let convolver!: ConvolverNode;
   let reverbSeconds = 0;
+  // The adaptive score: stems -> scoreBus (track volume) -> duckGain -> music; stingers skip the duck.
+  let scoreBus: GainNode | null = null;
+  let scoreMute: GainNode | null = null;
+  let stingBus: GainNode | null = null;
+  let scoreVerbIn!: GainNode;
+  let scoreVerb: ConvolverNode | null = null;
+  const stems = new Map<string, { gain: GainNode; send: GainNode }>();
   const noises = new Map<Noise, AudioBuffer>();
   const curves = new Map<number, Float32Array<ArrayBuffer>>();
   let suspendTimer: ReturnType<typeof setTimeout> | undefined;
@@ -232,7 +241,19 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
   }
 
   function layer(c: AudioContext, l: SynthLayer, req: PlayRequest, out: AudioNode): void {
-    const t0 = c.currentTime + req.startDelay + (l.delay ?? 0);
+    layerAt(c, l, c.currentTime + req.startDelay, req.pitch, out);
+  }
+
+  /** One synthesised layer starting at `base` (+ its own delay) on the audio clock, at a pitch multiplier. */
+  function layerAt(
+    c: AudioContext,
+    l: SynthLayer,
+    base: number,
+    pitch: number,
+    out: AudioNode,
+  ): void {
+    const req = { pitch };
+    const t0 = base + (l.delay ?? 0);
     const t1 = t0 + l.attack;
     const th = t1 + (l.hold ?? 0);
     const t2 = th + l.decay;
@@ -366,6 +387,136 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
     };
   }
 
+  /** Length of the score's own hall (s) and how loud its return is next to the dry stems. */
+  const SCORE_VERB_SECONDS = 3.4;
+  const SCORE_VERB_LEVEL = 0.7;
+  /** Level of the stingers' send into the shared space reverb. */
+  const STING_SEND = 0.25;
+
+  function ensureScore(c: AudioContext): void {
+    if (scoreBus) return;
+    scoreBus = c.createGain();
+    scoreBus.gain.value = 0;
+    scoreMute = c.createGain();
+    scoreBus.connect(scoreMute).connect(duckGain);
+    stingBus = c.createGain();
+    stingBus.connect(music);
+    const stingSend = c.createGain();
+    stingSend.gain.value = STING_SEND;
+    stingBus.connect(stingSend).connect(reverbIn);
+    scoreVerbIn = c.createGain();
+    scoreVerb = c.createConvolver();
+    const length = Math.round(c.sampleRate * SCORE_VERB_SECONDS);
+    const buf = c.createBuffer(2, length, c.sampleRate);
+    impulseResponse([buf.getChannelData(0), buf.getChannelData(1)], c.sampleRate);
+    scoreVerb.buffer = buf;
+    const wet = c.createGain();
+    wet.gain.value = SCORE_VERB_LEVEL;
+    scoreVerbIn.connect(scoreVerb).connect(wet).connect(scoreBus);
+  }
+
+  function stopScore(): void {
+    for (const s of stems.values()) {
+      s.gain.disconnect();
+      s.send.disconnect();
+    }
+    stems.clear();
+    scoreBus?.disconnect();
+    scoreMute?.disconnect();
+    stingBus?.disconnect();
+    scoreVerbIn?.disconnect();
+    scoreVerb?.disconnect();
+    scoreBus = null;
+    scoreMute = null;
+    stingBus = null;
+    scoreVerb = null;
+  }
+
+  function stemNode(c: AudioContext, id: string): { gain: GainNode; send: GainNode } {
+    let s = stems.get(id);
+    if (!s) {
+      const gain = c.createGain();
+      gain.gain.value = 0;
+      const send = c.createGain();
+      send.gain.value = 0;
+      gain.connect(scoreBus!);
+      gain.connect(send).connect(scoreVerbIn);
+      s = { gain, send };
+      stems.set(id, s);
+    }
+    return s;
+  }
+
+  /** One pitched score note: voices -> [grit] -> [filter that sweeps] -> ADSR envelope -> out. */
+  function pitchedNote(c: AudioContext, n: PitchedNote, t0: number, out: AudioNode): void {
+    const ins = n.instrument;
+    const peak = Math.max(FLOOR, ins.gain * n.vel);
+    const tEnd = t0 + Math.max(n.length, ins.attack + 0.01);
+    const stopAt = tEnd + ins.release * 1.3 + 0.05;
+    const env = c.createGain();
+    env.gain.setValueAtTime(FLOOR, t0);
+    env.gain.linearRampToValueAtTime(peak, t0 + ins.attack);
+    env.gain.setTargetAtTime(Math.max(FLOOR, peak * ins.sustain), t0 + ins.attack, ins.decay / 3);
+    env.gain.setTargetAtTime(0, tEnd, ins.release / 4);
+    env.connect(out);
+    let head: AudioNode = env;
+    // Build back to front: the voices feed `mix`, which goes through the optional stages into `env`.
+    const mix = c.createGain();
+    let tail: AudioNode = mix;
+    if (ins.distortion) {
+      const ws = shaper(c, ins.distortion);
+      tail.connect(ws);
+      tail = ws;
+    }
+    if (ins.filter) {
+      const f = c.createBiquadFilter();
+      f.type = ins.filter.type;
+      f.Q.value = ins.filter.q;
+      const follow = (n.freq / 261.6) ** (ins.filter.track ?? 0);
+      f.frequency.setValueAtTime(ins.filter.freq * follow, t0);
+      if (ins.filter.freqEnd !== undefined)
+        f.frequency.setTargetAtTime(ins.filter.freqEnd * follow, t0 + ins.attack, ins.decay / 3);
+      tail.connect(f);
+      tail = f;
+    }
+    tail.connect(head);
+    head = mix;
+    let lfoGain: GainNode | null = null;
+    if (ins.vibrato) {
+      const lfo = c.createOscillator();
+      lfo.frequency.value = ins.vibrato.rate;
+      lfoGain = c.createGain();
+      lfoGain.gain.setValueAtTime(0, t0);
+      lfoGain.gain.linearRampToValueAtTime(ins.vibrato.depth, t0 + (ins.vibrato.delay ?? 0) + 0.3);
+      lfo.connect(lfoGain);
+      lfo.start(t0);
+      lfo.stop(stopAt);
+    }
+    for (const v of ins.voices) {
+      const osc = c.createOscillator();
+      osc.type = v.waveform;
+      osc.frequency.value = n.freq * 2 ** (v.octave ?? 0);
+      osc.detune.value = v.detune ?? 0;
+      lfoGain?.connect(osc.detune);
+      const vg = c.createGain();
+      vg.gain.value = v.gain;
+      osc.connect(vg).connect(head);
+      osc.start(t0);
+      osc.stop(stopAt);
+    }
+  }
+
+  function scoreNote(c: AudioContext, n: ScoreNote, t0: number, out: AudioNode): void {
+    if (n.kind === 'pitched') {
+      pitchedNote(c, n, t0, out);
+      return;
+    }
+    const hit = c.createGain();
+    hit.gain.value = n.vel * n.gain;
+    hit.connect(out);
+    for (const l of n.layers) layerAt(c, l, t0, 1, hit);
+  }
+
   return {
     get now() {
       return ctx ? ctx.currentTime : 0;
@@ -389,7 +540,8 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
         reverbIn.connect(convolver).connect(reverbOut).connect(effects);
         loopBus.connect(loopDuck).connect(effects);
         effects.connect(master);
-        music.connect(duckGain).connect(master);
+        duckGain.connect(music);
+        music.connect(master);
         // The safety stage: a limiter, then a soft ceiling so nothing ever clips at the output.
         const limiter = ctx.createDynamicsCompressor();
         limiter.threshold.value = -10;
@@ -475,11 +627,11 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
       if (!c || !def) return;
       const track = c.createGain();
       track.gain.value = def.volume;
-      track.connect(music);
+      track.connect(duckGain);
       musicStop = () => track.disconnect();
       if (def.source.kind === 'loop') {
         playLoop(c, def.source, track);
-      } else {
+      } else if (def.source.kind === 'sample') {
         let live = true;
         let src: AudioBufferSourceNode | null = null;
         musicStop = () => {
@@ -504,6 +656,54 @@ export function createWebAudioBackend(urlOf: (file: string) => string | undefine
       g.cancelScheduledValues(t);
       g.setTargetAtTime(1 - amount, t, 0.03);
       g.setTargetAtTime(1, t + time, 0.25);
+    },
+    setScore(volume, stingerLevel = 1) {
+      const c = ctx;
+      if (!c) return;
+      if (volume === null) {
+        stopScore();
+        return;
+      }
+      ensureScore(c);
+      scoreBus!.gain.setTargetAtTime(volume, c.currentTime, 0.05);
+      stingBus!.gain.setTargetAtTime(volume * stingerLevel, c.currentTime, 0.05);
+    },
+    playBar(plan: BarPlan) {
+      const c = ctx;
+      if (!c || !scoreBus || c.state !== 'running') return;
+      const fadeAt = Math.max(c.currentTime, plan.time - 0.05);
+      for (const level of plan.stems) {
+        const node = stemNode(c, level.id);
+        node.gain.gain.setTargetAtTime(level.gain, fadeAt, plan.fade / 3);
+        node.send.gain.setTargetAtTime(level.reverb, fadeAt, plan.fade / 3);
+      }
+      for (const n of plan.notes) scoreNote(c, n, plan.time + n.at, stemNode(c, n.stem).gain);
+      for (const s of plan.samples) {
+        const node = stemNode(c, s.stem);
+        void sample(c, s.file).then((buf) => {
+          if (!buf || !scoreBus) return;
+          const src = c.createBufferSource();
+          src.buffer = buf;
+          src.connect(node.gain);
+          src.start(Math.max(c.currentTime, plan.time));
+        });
+      }
+    },
+    playStinger(plan: StingerPlan) {
+      const c = ctx;
+      if (!c || !stingBus || c.state !== 'running') return;
+      for (const n of plan.notes) scoreNote(c, n, plan.time + n.at, stingBus);
+      if (plan.mute && scoreMute) {
+        // A dramatic silence: the cue (including what is already scheduled) is cut for the stinger.
+        const m = scoreMute.gain;
+        m.setTargetAtTime(0, Math.max(c.currentTime, plan.time - 0.01), 0.02);
+        m.setTargetAtTime(1, plan.time + plan.seconds, 0.12);
+      }
+      if (plan.duck > 0) {
+        const g = duckGain.gain;
+        g.setTargetAtTime(1 - plan.duck, Math.max(c.currentTime, plan.time - 0.02), 0.05);
+        g.setTargetAtTime(1, plan.time + plan.seconds, 0.4);
+      }
     },
     setLoops(frames) {
       const c = ctx;
