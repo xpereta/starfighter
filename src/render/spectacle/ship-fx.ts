@@ -45,7 +45,7 @@ export interface ShipFx {
 
 /** Ribbon keys: category * KEY_STRIDE + id. */
 const KEY_STRIDE = 100000;
-const CAT = { wingtip: 1, wingman: 2, fighter: 3, missile: 4, roll: 5 } as const;
+const CAT = { wingtip: 1, wingman: 2, fighter: 3, missile: 4, roll: 5, exhaust: 6 } as const;
 /** Longest any ribbon point lives (s); each kind fades over its own shorter life. */
 const MAX_LIFE = 3;
 const PLUME_PLAYER = 0x8fdcff;
@@ -106,6 +106,7 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
   const lockTime = new Float32Array(LOCK_TRACK_CAP);
   let clock = 0;
   let plumes = 0;
+  let exhaustThrust = 0;
   let bracketCount = 0;
   const wing = { left: [-0.5, 0.8] as [number, number], right: [-0.5, -0.8] as [number, number] };
 
@@ -352,6 +353,24 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
         toLinear(0xcfeeff, rgb);
         ribbons.push(CAT.roll * KEY_STRIDE, ship.x, ship.y, rgb[0]!, rgb[1]!, rgb[2]!);
       }
+      // The player's exhaust: a ribbon from each nozzle along the path actually flown, so it curves with the turn.
+      const exhaustLife = def.plume.trail ?? 0;
+      const playerShape = activeStyle().ships.player;
+      if (exhaustLife > 0 && playerShape?.glow) {
+        const ec = Math.cos(ship.heading);
+        const es = Math.sin(ship.heading);
+        toLinear(PLUME_PLAYER, rgb);
+        playerShape.glow.forEach(([gx, gy], k) => {
+          ribbons.push(
+            CAT.exhaust * KEY_STRIDE + k,
+            ship.x + PLAYER_SCALE * (gx * ec - gy * es),
+            ship.y + PLAYER_SCALE * (gx * es + gy * ec),
+            rgb[0]!,
+            rgb[1]!,
+            rgb[2]!,
+          );
+        });
+      }
       const w = wingtips('player');
       wing.left = w.left;
       wing.right = w.right;
@@ -403,6 +422,7 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
       // Plumes, nav lights.
       const throttle = world.actions.throttle;
       const playerThrust = clamp(0.3 + 0.7 * f.speedFactor + 0.35 * Math.max(0, throttle), 0, 1);
+      exhaustThrust = playerThrust;
       drawShip(
         'player',
         ship.x,
@@ -534,6 +554,21 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
         });
     }
     drawSheet(left, right, t.alpha * trailFade * 0.3, t.life);
+    // The player's exhaust ribbons: longer with thrust, tapering to nothing, bent along the flown path.
+    const exhaustLife = def.plume.trail ?? 0;
+    if (exhaustLife > 0) {
+      for (let k = 0; k < 4; k++) {
+        const slot = ribbons.slotOf(CAT.exhaust * KEY_STRIDE + k);
+        if (slot < 0) continue;
+        drawRibbon(glow, ribbons, slot, {
+          life: exhaustLife * (0.35 + 0.65 * exhaustThrust),
+          width: def.plume.width * PLAYER_SCALE * 1.1,
+          tailWidth: 0,
+          alpha: 0.6,
+          gain: 1.5,
+        });
+      }
+    }
     const roll = ribbons.slotOf(CAT.roll * KEY_STRIDE);
     if (roll >= 0 && def.rollStreak.length > 0) {
       const life = clamp(def.rollStreak.length / Math.max(world.ship.speed, 150), 0.12, 1.2);

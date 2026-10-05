@@ -59,7 +59,11 @@ describe('ship effects', () => {
     initStyle('?style=anime-spectacle', null);
     const world = createWorld(31, createTuning());
     const fx = createShipFx(world, spectacleQualityPresets.high);
-    const flat = { ...def, trails: { ...def.trails, width: 0 } };
+    const flat = {
+      ...def,
+      trails: { ...def.trails, width: 0 },
+      plume: { ...def.plume, trail: 0 }, // the exhaust ribbon is a trail too
+    };
     for (let i = 0; i < 240; i++) {
       stepWorld(world, DT);
       fx.update({ dt: DT, time: i * DT, speedFactor: 1 }, flat, true);

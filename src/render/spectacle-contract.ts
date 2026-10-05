@@ -166,6 +166,8 @@ export interface ShipFxDef {
     flicker: number;
     /** Heat shimmer: a pulsing halo (no refraction), 0..1. */
     shimmer: number;
+    /** Optional: seconds of exhaust the player's engines leave behind along the path they flew (a curving ribbon), 0..3; 0 or missing = none. */
+    trail?: number;
   };
   navLights: {
     /** Light size, world units, 0..12 (0 = off). */
@@ -215,6 +217,8 @@ export function validateShipFx(s: ShipFxDef): string[] {
   if (!isNum(s.plume?.idle, 0, 1)) e.push('ships.plume.idle must be 0..1');
   if (!isNum(s.plume?.flicker, 0, 1)) e.push('ships.plume.flicker must be 0..1');
   if (!isNum(s.plume?.shimmer, 0, 1)) e.push('ships.plume.shimmer must be 0..1');
+  if (s.plume?.trail !== undefined && !isNum(s.plume.trail, 0, 3))
+    e.push('ships.plume.trail must be 0..3 s');
   if (!isNum(s.navLights?.size, 0, 12)) e.push('ships.navLights.size must be 0..12 u');
   if (!isNum(s.navLights?.blinkHz, 0, 4)) e.push('ships.navLights.blinkHz must be 0..4');
   for (const k of ['port', 'starboard', 'strobe'] as const)

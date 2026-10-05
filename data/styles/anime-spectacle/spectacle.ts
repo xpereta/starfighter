@@ -17,7 +17,8 @@ export const spectacle: SpectacleDef = {
   // Ships with presence: plumes that follow the throttle, nav lights, trails, a helix streak on the
   // evade roll, curling missile smoke with launch flashes, and snapping lock-on brackets.
   ships: {
-    plume: { length: 1.7, width: 0.2, idle: 0.35, flicker: 0.8, shimmer: 0.7 },
+    // Longer plumes (2.6 radii) plus a 1.1 s exhaust ribbon that follows the path the ship actually flew.
+    plume: { length: 2.6, width: 0.2, idle: 0.35, flicker: 0.8, shimmer: 0.7, trail: 1.1 },
     navLights: { size: 5, blinkHz: 1.2, port: 0xff3050, starboard: 0x30ff90, strobe: 0xffffff },
     trails: { life: 0.9, width: 5, alpha: 0.8, from: 0.55 },
     rollStreak: { length: 320, alpha: 0.85 },
