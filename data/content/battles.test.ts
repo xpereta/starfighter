@@ -4,29 +4,57 @@ import { createCapitalConfig, capitalParams } from '../tuning/capital';
 import { createGunshipConfig, gunshipParams } from '../tuning/gunship';
 import { createLancerConfig, lancerParams } from '../tuning/lancer';
 import { createWingsConfig, wingsParams } from '../tuning/wings';
-import { turretsIn, wavesIn, waveSizeIn } from '../../src/core/run/run';
+import { battleDefOf, turretsIn, wavesIn, waveSizeIn } from '../../src/core/run/run';
 import { BATTLES } from './battles';
 import { fighterKind } from './kinds/fighter';
 import { createFighterConfig } from '../tuning/fighter';
 
-describe('the default battle table is today’s behaviour (until the ramp rows change)', () => {
+const count = (battle: (typeof BATTLES)[number], kind: string): number =>
+  battle.waves.reduce(
+    (n, w) => n + w.groups.filter((g) => g.kind === kind).reduce((m, g) => m + g.count, 0),
+    0,
+  );
+
+describe('the authored ramp (spec section 6)', () => {
   const cfg = createTuning().run;
-  cfg.ramp = 'classic';
   it('has one entry per battle of the run', () => {
     expect(BATTLES).toHaveLength(cfg.battleCount);
   });
-  it('reproduces the waves, their sizes and the turrets of the run formulas', () => {
-    BATTLES.forEach((battle, i) => {
-      const n = i + 1;
-      expect(battle.waves, `battle ${n} waves`).toHaveLength(wavesIn(cfg, n));
-      for (const wave of battle.waves) {
-        expect(wave.groups, `battle ${n}`).toEqual([
-          { kind: 'fighter', count: waveSizeIn(cfg, n) },
-        ]);
+  it('battle 1: fighters, one formation wing in the last wave only', () => {
+    const b = BATTLES[0]!;
+    expect(count(b, 'wing')).toBe(1);
+    expect(b.waves.at(-1)!.groups.some((g) => g.kind === 'wing')).toBe(true);
+    expect(count(b, 'gunship')).toBe(0);
+    expect(b.turrets).toBe(0);
+  });
+  it('battle 2: fighters, wings and one gunship in wave 2', () => {
+    const b = BATTLES[1]!;
+    expect(count(b, 'gunship')).toBe(1);
+    expect(b.waves[1]!.groups.some((g) => g.kind === 'gunship')).toBe(true);
+    expect(count(b, 'wing')).toBeGreaterThanOrEqual(1);
+  });
+  it('battle 3: wings, two gunships, a lone missile fighter first and then a pair', () => {
+    const b = BATTLES[2]!;
+    expect(count(b, 'wing')).toBeGreaterThanOrEqual(1);
+    expect(count(b, 'gunship')).toBe(2);
+    const lancers = b.waves.map((w) => count({ waves: [w], turrets: 0 }, 'lancer')).filter(Boolean);
+    expect(lancers).toEqual([1, 2]);
+  });
+  it('battle 4 is still the old fighter row, with no boss yet (track C replaces it)', () => {
+    const classic = { ...cfg, ramp: 'classic' as const };
+    expect(BATTLES[3]).toEqual(battleDefOf(classic, 4));
+    expect(BATTLES[3]!.boss).toBeUndefined();
+  });
+  it('the classic ramp is still selectable and reproduces the old formulas', () => {
+    const classic = { ...cfg, ramp: 'classic' as const };
+    for (let n = 1; n <= cfg.battleCount; n++) {
+      const plan = battleDefOf(classic, n);
+      expect(plan.waves, `battle ${n} waves`).toHaveLength(wavesIn(cfg, n));
+      for (const wave of plan.waves) {
+        expect(wave.groups).toEqual([{ kind: 'fighter', count: waveSizeIn(cfg, n) }]);
       }
-      expect(battle.turrets, `battle ${n} turrets`).toBe(turretsIn(cfg, n));
-      expect(battle.boss).toBeUndefined();
-    });
+      expect(plan.turrets).toBe(turretsIn(cfg, n));
+    }
   });
 });
 

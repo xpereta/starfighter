@@ -129,6 +129,24 @@ test.describe('dev panel: run phase and spawn', () => {
     expect(errors).toEqual([]);
   });
 
+  test('the authored ramp: battle 2 brings a gunship in wave 2, battle 3 wings and gunships', async ({
+    page,
+  }) => {
+    const errors = errorsOf(page);
+    await open(page, 'Run phase').click();
+    await open(page, 'Spawn').click();
+    await button(page, 'Jump: Battle 2').click(); // wave 1 arrives by itself: four fighters
+    await expect(status(page, /enemies alive: 4 fighters, 0 targets/)).toBeVisible();
+    await button(page, 'Next wave').click(); // wave 2: two fighters and the gunship
+    await expect(status(page, /enemies alive: 7 fighters \(1 gunships\)/)).toBeVisible();
+    await button(page, 'Jump: Battle 3').click(); // wave 1: a wing (4) and two fighters
+    await expect(status(page, /enemies alive: 6 fighters, 2 targets/)).toBeVisible();
+    await button(page, 'Next wave').click(); // wave 2: three fighters, a gunship (and a lancer, once track B lands)
+    await expect(status(page, /\(1 gunships\)/)).toBeVisible();
+    await page.waitForTimeout(1000);
+    expect(errors).toEqual([]);
+  });
+
   test('a jump is refused while a replay is recording', async ({ page }) => {
     await open(page, 'Replay').click();
     await button(page, 'Record (restarts the run)').click();

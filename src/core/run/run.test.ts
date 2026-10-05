@@ -151,8 +151,20 @@ describe('a battle', () => {
     expect(w.fighters.filter((f) => f.alive)).toHaveLength(3);
     clearWave(w);
     expect(w.run.wave).toBe(2);
-    expect(w.fighters.filter((f) => f.alive)).toHaveLength(3);
+    // Battle 1's last wave: three fighters and one formation wing (the introduction).
+    expect(w.fighters.filter((f) => f.alive)).toHaveLength(3 + w.tuning.wings.size);
+    expect(w.enemies.wings).toHaveLength(1);
     expect(w.run.battleKills).toBe(3);
+  });
+
+  it('the classic ramp sends plain fighter waves instead', () => {
+    const w = startWorld();
+    w.tuning.run.ramp = 'classic';
+    press(w, 'menuSelect');
+    clearWave(w);
+    expect(w.run.wave).toBe(2);
+    expect(w.fighters.filter((f) => f.alive)).toHaveLength(3);
+    expect(w.enemies.wings).toHaveLength(0);
   });
 
   it('has no statics or drones, and turrets only from battle 3', () => {
@@ -384,11 +396,12 @@ describe('the battle table drives the run', () => {
     return cfg;
   };
 
-  it("the authored ramp and the classic ramp give the same plan for today's table", () => {
+  it('the authored ramp differs from the classic one in battles 1 to 3; battle 4 is still the old row (track C replaces it)', () => {
     const authored = createTuning().run;
-    for (let n = 1; n <= authored.battleCount; n++) {
-      expect(battleDefOf(authored, n), `battle ${n}`).toEqual(battleDefOf(classic(), n));
+    for (const n of [1, 2, 3]) {
+      expect(battleDefOf(authored, n), `battle ${n}`).not.toEqual(battleDefOf(classic(), n));
     }
+    expect(battleDefOf(authored, 4)).toEqual(battleDefOf(classic(), 4));
   });
 
   it('a battle past the end of the table falls back to the classic formulas', () => {

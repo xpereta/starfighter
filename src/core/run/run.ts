@@ -126,6 +126,15 @@ export function spawnRunWave(world: World): void {
   spawnBattleWave(world, waves[Math.min(world.run.wave, waves.length) - 1]!);
 }
 
+/**
+ * Hook for track C (the capital ship): true when the current battle has no boss, or its boss is
+ * destroyed. A boss battle is won by the boss's death, not only by clearing the waves. Until the
+ * capital exists no battle table row has a boss, so this is always true.
+ */
+export function bossDown(world: World): boolean {
+  return battleDefOf(world.tuning.run, world.run.battle).boss === undefined;
+}
+
 /** Rows on the current menu screen: the highlighted `cursor` ranges over 0..rows-1. */
 export function menuRows(run: Run): number {
   if (run.phase === 'start') return run.available.length + 1; // veterans, then Start
@@ -345,7 +354,7 @@ export function stepRunBattle(world: World): void {
     if (f.diedAt > lastDeath) lastDeath = f.diedAt;
   }
   if (run.wave >= run.waveTotal) {
-    clearBattle(world);
+    if (bossDown(world)) clearBattle(world);
     return;
   }
   if (world.fighters.length > 0 && world.time - lastDeath < world.tuning.fighter.waveDelay) return;
