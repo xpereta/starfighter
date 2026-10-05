@@ -4,7 +4,7 @@ import { enterStartScreen, offerVeterans } from '../core/run/run';
 import { createWorld, stepWorld, type World } from '../core/world/world';
 import { createInput } from '../input/input';
 import { startAudio } from '../audio';
-import { loopStateOf } from '../audio/state';
+import { loopStateOf, musicInputOf } from '../audio/state';
 import { createHud } from '../render/hud/hud';
 import { createRenderer } from '../render/renderer';
 import { initFxLevel } from '../render/spectacle/settings';
@@ -118,7 +118,9 @@ function frame(now: number): void {
   loop.setPaused(pause.paused);
   audio.engine.setPaused(pause.paused);
   audio.engine.update();
-  audio.engine.setLoopState(loopStateOf(world), Math.min(0.1, (now - last) / 1000));
+  const audioDt = Math.min(0.1, (now - last) / 1000);
+  audio.engine.setLoopState(loopStateOf(world), audioDt);
+  audio.engine.setMusicState(musicInputOf(world), audioDt); // the adaptive score (when the style has one)
   // The pause buttons (pad Start is also the time trial) never act as flight controls.
   if (input.pause) maskFlightActions(world.actions);
   if (menuVisible(world.run)) maskFlightActions(world.actions); // the keys that fly never act behind a menu

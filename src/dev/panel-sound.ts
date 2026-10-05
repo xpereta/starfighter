@@ -2,6 +2,7 @@ import { mixParams } from '../../data/audio/mix';
 import { activeAudio } from '../audio';
 import { loopStateOf } from '../audio/state';
 import type { World } from '../core/world/world';
+import { buildMusicRows } from './panel-music';
 import { formatLoopsActive, formatLoopValues } from './panel-sound-logic';
 import type { ParamDef } from '../core/params/params';
 import {
@@ -159,8 +160,10 @@ export function buildSoundSection(
   sound.add(loopsLine);
   valuesLine.el.dataset.loopValues = '';
   loopsLine.el.dataset.loopsActive = '';
+  let musicRows: { update(): void } | null = null;
   const readout: SoundReadout = {
     update(world) {
+      musicRows?.update();
       const a = activeAudio();
       if (!a) return;
       if (!a.engine.unlocked) {
@@ -348,6 +351,9 @@ export function buildSoundSection(
     }),
     sound,
   );
+
+  // The adaptive score (when the style has one): readout, forced scene and intensity, tempo, stems, stingers.
+  musicRows = buildMusicRows(ctx, sound, track, refreshAll);
 
   // Sound test: every sound, one click each.
   track(

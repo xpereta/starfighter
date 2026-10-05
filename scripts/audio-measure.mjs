@@ -9,8 +9,14 @@
 //   2. every loop on its own at full level (the panel's loop preview);
 //   3. a scripted battle in four phases (cruise, guns, guns + missiles + turns, quiet) with peak,
 //      RMS and how much the level moves while the guns fire (a constant buzz does not move).
+//   4. (styles with an adaptive score) the music on its own in every scene and at several fight
+//      intensities, every stinger, and the music against the guns: music level, how far it moves
+//      with the intensity, and that gunfire still stands out over a full-intensity score.
+// Sections 1 to 3 run with the music switched off (mix music 0, through `window.__starfighterAudio`,
+// which `?dev` pages expose) so each sound is measured alone.
 // It checks the rules the mix has to keep: no peak over 0.9, no clipped samples, loops quiet next
-// to guns, guns not blurred into one sustained tone. Exit code 1 when a rule fails.
+// to guns, guns not blurred into one sustained tone, a music that is neither silent nor deafening
+// and does move with the fight. Exit code 1 when a rule fails.
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
@@ -24,10 +30,23 @@ const jsonOut = flag('json', '');
 const base = `http://localhost:${port}`;
 
 const PEAK_LIMIT = 0.9;
-/** A loop at its loudest, a steady cruise bed (engine, rumble, space), and how far gunfire must stand above that bed (dB). */
-const LOOP_FULL_MAX_DB = -30;
-const BED_MAX_DB = -34;
-const BED_IDLE_MAX_DB = -40;
+/**
+ * A loop at its loudest, a steady cruise bed (engine, rumble, space), and how far gunfire must stand
+ * above that bed (dB). The cinematic pack has a fuller bed than the default (a ship you can feel).
+ */
+const PROFILES = {
+  default: { loopFullMax: -30, bedMax: -34, bedIdleMax: -40 },
+  'anime-spectacle': { loopFullMax: -25, bedMax: -29, bedIdleMax: -31 },
+};
+const profile = PROFILES[style] ?? PROFILES.default;
+const LOOP_FULL_MAX_DB = profile.loopFullMax;
+const BED_MAX_DB = profile.bedMax;
+const BED_IDLE_MAX_DB = profile.bedIdleMax;
+/** The score: its level at a full fight (dBFS RMS, not silent and not deafening), how much louder a full fight is than a patrol, and how far gunfire stands over it. */
+const MUSIC_FULL_MAX_DB = -14;
+const MUSIC_FULL_MIN_DB = -40;
+const MUSIC_MOVES_MIN_DB = 5;
+const GUNS_OVER_MUSIC_MIN_DB = 2;
 /** Spread (p90 - p10, dB) of the 20 ms level while the guns fire: a constant buzz would not move. */
 const GUN_MOVEMENT_MIN_DB = 8;
 const GUNS_OVER_BED_MIN_DB = 6;
@@ -124,8 +143,18 @@ async function main() {
       page.evaluate((from) => window.__tap.filter(([t]) => t >= from), t0);
     const row = (p) => page.locator(`#tuning-panel [data-param="${p}"]`);
 
+    // The music is off while single sounds and the bed are measured (`?dev` pages expose the audio).
+    const setMix = (key, value) =>
+      page.evaluate(
+        ([k, v]) => {
+          if (window.__starfighterAudio) window.__starfighterAudio.mix[k] = v;
+        },
+        [key, value],
+      );
+
     // 1 + 2: the panel, on the Start screen (no loop runs there).
     await page.goto(`${base}/?dev&style=${style}`);
+    await setMix('music', 0);
     await page.getByRole('button', { name: /Sound/ }).click();
     const keys = await page
       .locator('#tuning-panel [data-sound-test]')
@@ -211,9 +240,48 @@ async function main() {
       };
     };
 
+    // 3a: the score on its own (Start screen: no loops, no effects): every scene, the fight at rising
+    //     intensity, then every stinger. Only for styles whose music is an adaptive score.
+    report.music = {};
+    report.stingers = {};
+    await page.goto(`${base}/?dev&style=${style}`);
+    await page.mouse.click(5, 790); // unlock
+    await page.waitForTimeout(1500);
+    const stingerKeys = await page.evaluate(
+      () => window.__starfighterAudio?.engine.musicStatus?.stingers ?? [],
+    );
+    report.hasScore = stingerKeys.length > 0;
+    if (report.hasScore) {
+      const force = (f) => page.evaluate((v) => window.__starfighterAudio.engine.forceMusic(v), f);
+      const scenes = [
+        ['menu', { scene: 'menu' }],
+        ['debrief', { scene: 'debrief' }],
+        ['end', { scene: 'end' }],
+        ['patrol 0.10', { scene: 'flight', intensity: 0.1 }],
+        ['threat 0.45', { scene: 'flight', intensity: 0.45 }],
+        ['fight 0.65', { scene: 'flight', intensity: 0.65 }],
+        ['battle 0.85', { scene: 'flight', intensity: 0.85 }],
+        ['full 1.00', { scene: 'flight', intensity: 1 }],
+      ];
+      for (const [name, f] of scenes) {
+        await force(f);
+        await page.waitForTimeout(7000); // the next bar line and the stems' fade
+        await phase(report.music, name, 16, async () => {}); // two loops of a 4-bar cue, a full 8 bars of the fight
+      }
+      await force({ scene: 'menu' });
+      await page.waitForTimeout(6000);
+      for (const key of stingerKeys) {
+        await phase(report.stingers, key, 9, async () =>
+          page.evaluate((k) => window.__starfighterAudio.engine.playStinger(k), key),
+        );
+      }
+      await force(null);
+    }
+
     // 3: the flight bed on its own, in the practice arena with the enemies frozen (no enemy fire,
     //    no kills): idle, then throttle held (afterburner and rumble up), then the guns on top.
     await page.goto(`${base}/?dev&practice&style=${style}`);
+    await setMix('music', 0);
     await page.getByRole('button', { name: /Debug/ }).click();
     await row('arena.enemiesFrozen').click();
     // No wingmen either: they would shoot and kill the frozen enemies.
@@ -230,6 +298,22 @@ async function main() {
     await phase(report.bed, 'throttle+guns', 8, async () => page.keyboard.down('Space'));
     await page.keyboard.up('Space');
     await page.keyboard.up('KeyW');
+
+    // 3b: the music against the guns: a full-intensity score (and the bed), then the guns on top.
+    if (report.hasScore) {
+      await setMix('music', 0.6);
+      await page.evaluate(() =>
+        window.__starfighterAudio.engine.forceMusic({ scene: 'flight', intensity: 1 }),
+      );
+      await page.waitForTimeout(6000);
+      report.musicVsGuns = {};
+      await phase(report.musicVsGuns, 'music+bed', 10, async () => {});
+      await phase(report.musicVsGuns, 'music+bed+guns', 10, async () =>
+        page.keyboard.down('Space'),
+      );
+      await page.keyboard.up('Space');
+      await page.evaluate(() => window.__starfighterAudio.engine.forceMusic(null));
+    }
 
     // 4: a scripted battle (Start screen, Enter, then phases).
     await page.goto(`${base}/?style=${style}`);
@@ -304,6 +388,29 @@ async function main() {
         `gunfire moves only ${f1(guns.movementDb)} dB (needs ${GUN_MOVEMENT_MIN_DB}): it may be a constant buzz`,
       );
     report.gunSoloRmsDb = gunRms;
+    if (report.hasScore) {
+      const full = report.music['full 1.00'];
+      const patrol = report.music['patrol 0.10'];
+      for (const [name, m] of Object.entries(report.music)) {
+        if (m.rmsDb < MUSIC_FULL_MIN_DB)
+          failures.push(`music "${name}" is silent (${f1(m.rmsDb)} dBFS RMS)`);
+      }
+      if (full.rmsDb > MUSIC_FULL_MAX_DB)
+        failures.push(
+          `the score is loud at full intensity (${f1(full.rmsDb)} dBFS RMS, max ${MUSIC_FULL_MAX_DB})`,
+        );
+      if (full.rmsDb - patrol.rmsDb < MUSIC_MOVES_MIN_DB)
+        failures.push(
+          `the score barely moves with the fight (${f1(full.rmsDb - patrol.rmsDb)} dB from patrol to full, needs ${MUSIC_MOVES_MIN_DB})`,
+        );
+      const both = report.musicVsGuns['music+bed+guns'];
+      const alone = report.musicVsGuns['music+bed'];
+      report.gunsOverMusicDb = both.rmsDb - alone.rmsDb;
+      if (report.gunsOverMusicDb < GUNS_OVER_MUSIC_MIN_DB)
+        failures.push(
+          `gunfire stands only ${f1(report.gunsOverMusicDb)} dB over the full score (needs ${GUNS_OVER_MUSIC_MIN_DB})`,
+        );
+    }
   } finally {
     await browser.close();
     server.kill();
@@ -322,6 +429,18 @@ async function main() {
   for (const [k, v] of Object.entries(report.loops)) console.log(line(k, v));
   console.log('\nFlight bed on its own (practice arena, enemies frozen):');
   for (const [k, v] of Object.entries(report.bed)) console.log(line(k, v));
+  if (report.hasScore) {
+    console.log('\nScore on its own (Start screen, no effects, mix music 0.6, master 0.7):');
+    for (const [k, v] of Object.entries(report.music)) console.log(line(k, v));
+    console.log('\nStingers (over the quiet menu cue):');
+    for (const [k, v] of Object.entries(report.stingers)) console.log(line(k, v));
+    console.log('\nMusic against the guns (practice arena, full intensity):');
+    for (const [k, v] of Object.entries(report.musicVsGuns)) console.log(line(k, v));
+    const full = report.music['full 1.00'];
+    console.log(
+      `balance: full score ${f1(full.rmsDb)} dBFS RMS; shot solo ${f1(report.gunSoloRmsDb)}; explosion solo ${f1(report.sounds.Killed?.rmsDb ?? -180)}; guns add ${f1(report.gunsOverMusicDb)} dB on top of the score`,
+    );
+  }
   console.log('\nScripted battle:');
   for (const [k, v] of Object.entries(report.battle)) console.log(line(k, v));
   console.log(`\nworst peak ${report.worstPeak.toFixed(3)}, clipped samples ${report.clipped}`);

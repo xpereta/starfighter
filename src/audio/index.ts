@@ -77,6 +77,9 @@ export function startAudio(): Audio {
     },
   };
   current = audio;
+  // Dev builds and `?dev` pages expose the audio for the level measurement script (scripts/audio-measure.mjs).
+  if (new URLSearchParams(window.location.search).has('dev'))
+    (window as unknown as { __starfighterAudio?: Audio }).__starfighterAudio = audio;
   return audio;
 }
 
