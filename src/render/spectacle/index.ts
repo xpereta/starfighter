@@ -7,6 +7,7 @@ import { palette } from '../palette';
 import { activeStyle } from '../style-active';
 import { createBackdrop, type Backdrop, type BackdropStats } from './backdrop';
 import { createPost, type Post } from './post';
+import { createShipFx, type ShipFx, type ShipFxStats } from './ship-fx';
 import { currentFxLevel, fxLevelRevision, spectacleSettings } from './settings';
 
 /** What the renderer tells the spectacle each frame. */
@@ -29,6 +30,7 @@ export interface SpectacleFrame {
  */
 export interface SpectaclePartsStats {
   backdrop: BackdropStats | null;
+  ships: ShipFxStats | null;
 }
 
 export interface SpectacleParts {
@@ -47,6 +49,7 @@ export function createSpectacleParts(world: World, level: QualityLevel): Spectac
   const quality = spectacleQualityPresets[level];
   const group = new THREE.Group();
   let backdrop: Backdrop | null = null;
+  let shipFx: ShipFx | null = null;
   let sky: number | null = null;
 
   const spec = () => activeStyle().spectacle;
@@ -59,6 +62,7 @@ export function createSpectacleParts(world: World, level: QualityLevel): Spectac
       for (const e of events) {
         if (e.type === 'Killed') backdrop?.excite(e.kind === 'turret' ? 1 : 0.4);
       }
+      if (spectacleSettings.ships) shipFx?.consume(events);
     },
     update(f) {
       const s = spec();
@@ -87,12 +91,31 @@ export function createSpectacleParts(world: World, level: QualityLevel): Spectac
         );
         if (on) sky = backdrop.skyColor();
       } else if (backdrop) backdrop.object.visible = false;
+
+      if (s?.ships && !shipFx) {
+        shipFx = createShipFx(world, quality);
+        group.add(shipFx.object);
+      }
+      if (shipFx) {
+        if (s?.ships)
+          shipFx.update(
+            { dt: f.dt, time: f.time, speedFactor: f.speedFactor },
+            s.ships,
+            spectacleSettings.ships,
+          );
+        else shipFx.object.visible = false;
+      }
     },
     skyColor: () => sky,
-    stats: () => ({ backdrop: backdrop?.object.visible ? backdrop.stats() : null }),
+    stats: () => ({
+      backdrop: backdrop?.object.visible ? backdrop.stats() : null,
+      ships: shipFx?.object.visible ? shipFx.stats() : null,
+    }),
     dispose() {
       backdrop?.dispose();
       backdrop = null;
+      shipFx?.dispose();
+      shipFx = null;
       group.clear();
     },
   };
@@ -145,6 +168,12 @@ export function createSpectacle(
     }
     parts = createSpectacleParts(world, currentFxLevel());
     scene.add(parts.object);
+    // Pool readout for the screenshot and frame-time scripts (and a look in the console).
+    (globalThis as { __spectacle?: unknown }).__spectacle = {
+      stats: () => parts?.stats() ?? null,
+      level: currentFxLevel(),
+      settings: spectacleSettings,
+    };
     if (quality().post > 0) {
       post = createPost(renderer, scene, camera, quality());
       post?.resize(size.w, size.h);

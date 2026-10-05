@@ -14,6 +14,16 @@ export const spectacle: SpectacleDef = {
     scanlines: 0.1,
     punch: 0.8,
   },
+  // Ships with presence: plumes that follow the throttle, nav lights, trails, a helix streak on the
+  // evade roll, curling missile smoke with launch flashes, and snapping lock-on brackets.
+  ships: {
+    plume: { length: 1.7, width: 0.2, idle: 0.35, flicker: 0.8, shimmer: 0.7 },
+    navLights: { size: 5, blinkHz: 1.2, port: 0xff3050, starboard: 0x30ff90, strobe: 0xffffff },
+    trails: { life: 0.9, width: 5, alpha: 0.8, from: 0.55 },
+    rollStreak: { length: 320, alpha: 0.85 },
+    missiles: { spirals: 2, amplitude: 16, smokeLife: 1.6, flash: 60 },
+    brackets: { size: 1.6, color: 0xffd23f },
+  },
   // One sky per battle of a run (cycling): a cobalt ringed planet, a crimson rift with a carrier,
   // an emerald veil around a colony ring, then golden ash. Practice mode uses the first.
   backdrop: {
@@ -51,15 +61,15 @@ export const spectacle: SpectacleDef = {
       {
         name: 'Golden Ash',
         sky: 0x120c06,
-        nebulaA: 0xc88a2a,
-        nebulaB: 0x8a3a2a,
+        nebulaA: 0xa06a1c,
+        nebulaB: 0x6a2a20,
         star: 0xffe9b8,
         glow: 0xffe07a,
         structure: 'planet',
         structureColor: 0xd0a050,
       },
     ],
-    nebula: { layers: 3, strength: 0.55, scale: 2600, drift: 12 },
+    nebula: { layers: 3, strength: 0.42, scale: 2600, drift: 12 },
     stars: { extraLayers: 3, twinkle: 0.55 },
     debris: { count: 40, size: [14, 70], depth: 0.8 },
     flashes: { rate: 1.2, size: 260 },

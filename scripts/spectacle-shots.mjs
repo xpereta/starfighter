@@ -18,8 +18,8 @@ const browser = await chromium.launch({
   ],
 });
 
-async function open(query, viewport = { width: 1280, height: 800 }) {
-  const page = await browser.newPage({ viewport });
+async function open(query, viewport = { width: 1280, height: 800 }, scale = 1) {
+  const page = await browser.newPage({ viewport, deviceScaleFactor: scale });
   const errors = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
@@ -45,6 +45,23 @@ for (const style of ['anime-80s', 'anime-spectacle']) {
   shots.push(`${style}-flight ${errors.length ? `ERRORS ${errors}` : 'ok'}`);
   await page.close();
 }
+// Close-up of the player's ship with engine plume, lights and trails (2x scale, cropped).
+{
+  const { page, errors } = await open(
+    'style=anime-spectacle&practice&dev',
+    { width: 1280, height: 800 },
+    2,
+  );
+  await page.keyboard.press('k');
+  await hold(page, ['KeyW'], 2200);
+  await page.screenshot({
+    path: `${out}/closeup-ship.png`,
+    clip: { x: 250, y: 250, width: 420, height: 300 },
+  });
+  shots.push(`closeup-ship ${errors.length ? `ERRORS ${errors}` : 'ok'}`);
+  await page.close();
+}
+
 // One shot per battle sky.
 for (const sky of [1, 2, 3, 4]) {
   const { page, errors } = await open(`style=anime-spectacle&sky=${sky}&practice&dev`);

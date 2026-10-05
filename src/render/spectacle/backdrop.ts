@@ -70,8 +70,8 @@ const NOISE = /* glsl */ `
   }
   float fbm(vec2 p) {
     float a = 0.5, s = 0.0;
-    for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; }
-    return s;
+    for (int i = 0; i < 3; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; }
+    return s * 1.14;
   }`;
 
 const QUAD_VERT = /* glsl */ `
@@ -107,11 +107,11 @@ const NEBULA_FRAG = /* glsl */ `
   ${NOISE}
   void main() {
     vec2 p = (vP + uOff) / uScale;
-    vec2 q = vec2(fbm(p + uTime * 0.01), fbm(p + vec2(5.2, 1.3) - uTime * 0.008));
+    vec2 q = vec2(vnoise(p * 1.4 + uTime * 0.01), vnoise(p * 1.4 + vec2(5.2, 1.3) - uTime * 0.008));
     float d = fbm(p + 1.6 * q);
     float band = smoothstep(0.42, 0.8, d);
     float cel = mix(band, floor(band * 4.0 + 0.5) / 4.0, 0.5);
-    vec3 col = mix(uColA, uColB, fbm(p * 0.7 + 9.0));
+    vec3 col = mix(uColA, uColB, vnoise(p * 0.7 + 9.0));
     float rim = smoothstep(0.0, 0.2, band) - smoothstep(0.2, 0.6, band);
     gl_FragColor = vec4(col * (0.55 + 0.9 * rim), cel * uAlpha);
     #include <colorspace_fragment>

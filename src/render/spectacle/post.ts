@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -11,8 +10,9 @@ import { spectacleSettings } from './settings';
 
 /**
  * The finishing pass: colour fringe that grows towards the edges (and pulses on hits), vignette,
- * scanlines, film grain and a zoom punch of the finished picture. Runs in linear colour before the
- * output pass, so the colours match the plain render.
+ * scanlines, film grain and a zoom punch of the finished picture. It works in linear colour and
+ * converts to the output colour space itself (the last pass, replacing the output pass), so the
+ * colours match the plain render and one full-screen pass is saved.
  */
 const FinishShader = {
   name: 'SpectacleFinish',
@@ -51,6 +51,7 @@ const FinishShader = {
       col *= 1.0 - uScan * 0.3 * step(1.0, mod(floor(vUv.y * uRes.y), 2.0));
       col += (hash(vUv * uRes + fract(uTime) * 91.0) - 0.5) * uGrain * 0.1;
       gl_FragColor = vec4(max(col, 0.0), 1.0);
+      #include <colorspace_fragment>
     }`,
 };
 
@@ -97,7 +98,6 @@ export function createPost(
     composer.addPass(bloom);
     const finish = new ShaderPass(FinishShader);
     composer.addPass(finish);
-    composer.addPass(new OutputPass());
 
     const state: PostState = createPostState();
     let failed = false;

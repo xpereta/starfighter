@@ -17,11 +17,8 @@ import { createPodRenderer } from './pods';
 import { createTargetRenderer } from './targets';
 import { palette } from './palette';
 import { styleRevision } from './style-active';
-import { createShipArt, rollSquash } from './ship-art';
+import { createShipArt, PLAYER_SCALE, rollSquash } from './ship-art';
 import { createSpectacle } from './spectacle';
-
-/** The player's shape is authored in radius units; this is its drawn size (about 100 u long). */
-const PLAYER_SCALE = 60;
 
 export interface Renderer {
   /** Feed each simulation step's events (FX attach here). */
