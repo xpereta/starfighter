@@ -46,6 +46,30 @@ function makeTarget(kind: TargetKind, x: number, y: number, hp: number, radius: 
   };
 }
 
+/**
+ * One target of a kind at a position, built from the arena config without touching the RNG (used by
+ * the dev panel's spawn buttons). Drones fly straight along `heading`; static ones and turrets stay put.
+ */
+export function createTargetAt(
+  kind: TargetKind,
+  cfg: ArenaConfig,
+  x: number,
+  y: number,
+  heading: number,
+): Target {
+  if (kind === 'static') return makeTarget('static', x, y, cfg.staticHp, cfg.staticRadius);
+  if (kind === 'turret') {
+    const t = makeTarget('turret', x, y, cfg.turretHp, cfg.turretRadius);
+    t.cooldown = 1.5;
+    return t;
+  }
+  const t = makeTarget('drone', x, y, cfg.droneHp, cfg.droneRadius);
+  t.mode = 'straight';
+  t.angle = heading;
+  t.speed = cfg.droneSpeedMin;
+  return t;
+}
+
 /** Builds the arena layout from the seeded RNG: static drones, moving drones, turrets. */
 export function createTargets(cfg: ArenaConfig, rng: Rng): Target[] {
   const targets: Target[] = [];

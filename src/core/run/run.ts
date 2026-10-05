@@ -162,7 +162,7 @@ function clearField(world: World): void {
 }
 
 /** Starts battle `n`: a clean field (which also restores the squad's hp and the pilots' positions) and its turrets. */
-function startBattle(world: World, n: number): void {
+export function startBattle(world: World, n: number): void {
   const run = world.run;
   const cfg = world.tuning.run;
   clearField(world);
@@ -200,7 +200,7 @@ function startRun(world: World): void {
   startBattle(world, 1);
 }
 
-function endRun(world: World, result: 'victory' | 'defeat'): void {
+export function endRun(world: World, result: 'victory' | 'defeat'): void {
   const run = world.run;
   run.phase = 'end';
   run.result = result;
@@ -211,7 +211,7 @@ function endRun(world: World, result: 'victory' | 'defeat'): void {
 }
 
 /** A battle's last wave is down: debrief (hull restored, a pick if there is a free slot) or, after the last battle, victory. */
-function clearBattle(world: World): void {
+export function clearBattle(world: World): void {
   const run = world.run;
   world.events.emit({ type: 'BattleCleared', battle: run.battle });
   markBattleFlown(world);
