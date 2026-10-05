@@ -74,7 +74,7 @@ Pods, debriefs and pilot picks work as before. The ramp is data: Xavi can edit e
 - All cues are events and read-only state (they work with every style).
 
 ## 9. Dev tools and tests
-- Panel: spawn buttons per kind (gunship, wing, lancer, capital), toggles to freeze them, per-kind tuning groups, a capital parts overlay (part circles, hp, which plates cover the core), a missile overlay.
+- Panel: run-phase jumps and spawn buttons per kind (gunship, wing, lancer, capital; via the spawn registry from `dev-tools/jump-and-spawn`), toggles to freeze them, per-kind tuning groups, a capital parts overlay (part circles, hp, which plates cover the core), a missile overlay.
 - Pure-function tests: formation slots and break rules, weapon mount arcs, missile steering and expiry, part damage routing and core exposure.
 - Sim tests: whole battles 1 to 4 with scripted bots under the authored ramp (never NaN, always ends, bounded pools); a capital ship fight where parts die in any order; determinism of a whole run; hash coverage updated.
 - e2e: each new enemy appears and the page has no console errors.
@@ -88,12 +88,15 @@ Then three parallel tracks:
 - **Track C, capital ship:** multi-part bodies and part damage, lock-on on parts, the capital's AI, death sequence data, escorts and the battle 4 script, HUD bar.
 Then integration (everything together, battle ramp tuning, e2e, a reviewer pass).
 
-## 11. Open points (my recommendations, Xavi to confirm or change)
-1. **Armour plates and the core:** I recommend plates **block** the core (it cannot be damaged while its covering plates stand), so there is a clear order of play; the alternative (damage reduction) is softer but less readable.
+## 11. Open points: decided (Xavi, 2026-10-05: "go with your recommendation")
+1. **Armour plates block the core:** the core cannot be damaged while any plate covering it stands, so there is a clear order of play.
 2. **Gunship turret arcs** are wide but not 360 degrees, so there are blind spots to exploit.
-3. **Enemy missiles vs wingmen:** not targeted at all (simplest, protects the pilots). The risk is the fantasy "my squad is in danger" is weaker; we can add it later.
-4. **Missile damage 2 hull** versus the player hull of 5: so two missile hits plus a few bullets are lethal. Tune after play.
-5. **Looks and sound:** each new kind gets placeholder shapes in `plain` and a first anime/realistic pass later through the style packs (ships and death sequences are data already), so this prototype does not wait for art.
+3. **Enemy missiles do not target wingmen** at all (simplest, protects the pilots); revisit after play.
+4. **Missile damage is 2 hull** against the player's 5; tune after play.
+5. **Looks and sound:** each new kind gets placeholder shapes in `plain` now and a proper pass later through the style packs (ships and death sequences are data already), so this prototype does not wait for art.
+
+## 11b. Dev tools requested (Xavi, 2026-10-05)
+The debug menu must allow **jumping between run phases** (Start, Battle 1 to N, Debrief, End) and **spawning enemies of any type**. This is built first, as its own small PR (`dev-tools/jump-and-spawn`), around a spawn registry: every new enemy kind from this spec adds one registry entry and appears in the panel automatically.
 
 ## 12. Feel questions for Xavi
 Does each new enemy ask for a different answer? Is the missile fighter fair and readable (can you tell a missile is coming and when to roll)? Is the capital ship exciting rather than a slog, and are the parts and the core order clear? Is the ramp too fast or too slow, and which battle is the hardest?
