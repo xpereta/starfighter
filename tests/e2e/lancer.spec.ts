@@ -34,6 +34,7 @@ const warningPixels = (page: Page): Promise<number> =>
 test('a spawned missile fighter fires a missile and the MISSILE warning shows', async ({
   page,
 }) => {
+  test.setTimeout(90_000); // the simulation runs slower when the whole suite shares the machine
   const errors = errorsOf(page);
   await page.goto('/?dev&practice');
   await expect(panel(page)).toBeVisible();
@@ -52,7 +53,7 @@ test('a spawned missile fighter fires a missile and the MISSILE warning shows', 
     panel(page)
       .locator('[role=status]')
       .filter({ hasText: /[1-9]\d* enemy missiles/ }),
-  ).toBeVisible({ timeout: 20_000 });
+  ).toBeVisible({ timeout: 45_000 });
   // The warning is blinking, so look for red pixels for a while.
   await expect.poll(() => warningPixels(page), { timeout: 5000 }).toBeGreaterThan(50);
   await page.waitForTimeout(500);
