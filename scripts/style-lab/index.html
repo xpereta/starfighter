@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Style lab</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #000;
+        color: #dfe6f2;
+        font:
+          12px/1.3 ui-monospace,
+          Menlo,
+          Consolas,
+          monospace;
+      }
+      #stage {
+        position: relative;
+        display: inline-block;
+      }
+      #stage canvas {
+        display: block;
+      }
+      .label {
+        position: absolute;
+        white-space: pre;
+        text-shadow:
+          0 0 3px #000,
+          0 0 3px #000,
+          0 0 6px #000;
+        pointer-events: none;
+      }
+      .label b {
+        font-size: 14px;
+        letter-spacing: 0.04em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <script type="module" src="./lab.ts"></script>
+  </body>
+</html>

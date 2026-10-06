@@ -8,6 +8,7 @@ import type { World } from '../../core/world/world';
 import type { QualitySettings } from '../../../data/quality';
 import { palette } from '../palette';
 import { ringOutline } from '../shape-geometry';
+import { pieceColor } from '../shape-parts';
 import { EXPLOSION_KINDS, type ExplosionKind, type Point, type ShipKind } from '../style';
 import { activeStyle } from '../style-active';
 import {
@@ -486,7 +487,9 @@ export function createDeathFx(
     };
     const rng = createRng(deathSeed(world.seed, entityId, world.tick, x, y));
     const sink: DeathSink = {
-      piece: (p) => addPiece(p, color),
+      // Pieces are cut along the outer silhouette; the layered parts under a piece's centre colour it.
+      piece: (p) =>
+        addPiece(p, pieceColor(shape, p.localX, p.localY, color, style.theme.partColors)),
       blast: addBlast,
       explosion: (x) =>
         spawnExplosion(

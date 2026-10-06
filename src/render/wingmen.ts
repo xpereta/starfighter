@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import type { Wingman } from '../core/squadron/squadron';
 import { palette } from './palette';
 import { createShipArt, type ShipArt } from './ship-art';
+import type { ShapeKind } from './style';
+
+/** The second and third wingman wear their own livery when the style has one (they fall back to `wingman`). */
+const LIVERIES: readonly ShapeKind[] = ['wingman', 'wingmanB', 'wingmanC'];
 
 export interface WingmanRenderer {
   readonly object: THREE.Group;
@@ -18,7 +22,7 @@ export function createWingmanRenderer(): WingmanRenderer {
     object: group,
     update(wingmen, radius) {
       while (arts.length < wingmen.length) {
-        const art = createShipArt('wingman', () => palette.wingman);
+        const art = createShipArt(LIVERIES[arts.length % LIVERIES.length]!, () => palette.wingman);
         group.add(art.object);
         arts.push(art);
       }

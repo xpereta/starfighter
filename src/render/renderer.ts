@@ -141,7 +141,7 @@ export function createRenderer(
         squash: rollSquash(s.roll), // evade roll: the wingspan squashes like a barrel roll seen from above
         thrust: speedFactor,
       });
-      background.update(cam.x, cam.y, s.vx, s.vy, speedFactor);
+      background.update(cam.x, cam.y, s.vx, s.vy, speedFactor, view);
       bullets.update(world.bullets);
       enemyShots.update(world.enemyShots);
       enemyMissiles.update(world.enemies.missiles);

@@ -18,7 +18,10 @@
     "e2e": "playwright test",
     "prepare": "lefthook install",
     "board": "node scripts/board-sync.mjs",
-    "audio:measure": "node scripts/audio-measure.mjs"
+    "audio:measure": "node scripts/audio-measure.mjs",
+    "style:contrast": "node scripts/contrast-audit.mjs",
+    "style:sheet": "node scripts/style-sheet.mjs",
+    "style:frame-time": "node scripts/frame-time.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"
