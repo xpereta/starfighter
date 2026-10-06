@@ -34,7 +34,8 @@ const SHOT_STYLE_ID = 'sf-look-style';
 
 /** Hides the HUD, run HUD, debug overlay, panel and hint, so the same moment can be captured in two styles. */
 const SHOT_CSS = `
-body.${SHOT_CLASS} #hud, body.${SHOT_CLASS} #run-hud, body.${SHOT_CLASS} #debug-overlay,
+body.${SHOT_CLASS} #hud, body.${SHOT_CLASS} #run-hud, body.${SHOT_CLASS} #spectacle-world,
+body.${SHOT_CLASS} #spectacle-screen, body.${SHOT_CLASS} #debug-overlay,
 body.${SHOT_CLASS} #tuning-panel, body.${SHOT_CLASS} .dev-hint, body.${SHOT_CLASS} .sf-tip { display: none !important; }
 `;
 

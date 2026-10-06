@@ -1,4 +1,6 @@
 import type { GameEvent } from '../core/events/events';
+import { mergeSpectacle, validateSpectacle, type SpectacleDef } from './spectacle-contract';
+import { validateScore, type ScoreDef } from '../audio/score';
 
 /**
  * The style contract: everything a style pack (data/styles/<id>/) can provide. Pure types and
@@ -336,6 +338,8 @@ export interface DebrisDef {
   fade: number;
   /** Smoke puffs per second each piece trails, 0 = none. */
   trail: number;
+  /** Optional 0..1: how far pieces stray from flying straight out of the wreck (0 = radial, 1 = any direction at all); default 0. */
+  scatter?: number;
 }
 
 /**
@@ -640,6 +644,8 @@ export interface MusicDef {
   volume: number;
   source:
     | { kind: 'sample'; file: string }
+    /** An adaptive, layered score that follows the game (see `src/audio/score.ts`). */
+    | { kind: 'score'; score: ScoreDef }
     | {
         kind: 'loop';
         /** Beats per minute; one step is an eighth note. */
@@ -668,6 +674,8 @@ export interface StylePack {
   loops: LoopTable;
   /** The music track, or null for none. */
   music: MusicDef | null;
+  /** Render-only extras (post-processing, backdrop, ship and combat effects, cards), or null for none. Additive: see `spectacle-contract.ts`. */
+  spectacle: SpectacleDef | null;
 }
 
 /** What a pack folder exports: a manifest and any parts it has. Missing parts fall back. */
@@ -680,6 +688,7 @@ export interface StyleInput {
   sounds?: Partial<SoundTable>;
   loops?: Partial<LoopTable>;
   music?: MusicDef | null;
+  spectacle?: SpectacleDef | null;
 }
 
 export type StyleRegistry = Readonly<Record<string, StyleInput>>;
@@ -933,6 +942,8 @@ export function validateDeaths(deaths: DeathDefs): string[] {
       if (!isNum(d.spin, 0, 30)) errors.push(`${at}.debris.spin must be 0..30 rad/s`);
       if (!isNum(d.fade, 0, 1)) errors.push(`${at}.debris.fade must be 0..1`);
       if (!isNum(d.trail, 0, 30)) errors.push(`${at}.debris.trail must be 0..30 per second`);
+      if (d.scatter !== undefined && !isNum(d.scatter, 0, 1))
+        errors.push(`${at}.debris.scatter must be 0..1`);
     }
     if (!isNum(def.blow, 0, 1)) errors.push(`${at}.blow must be 0..1`);
     if (!isNum(def.momentum, 0, 1)) errors.push(`${at}.momentum must be 0..1`);
@@ -1167,6 +1178,17 @@ export function validateMusic(music: MusicDef | null | undefined): string[] {
   const src = music.source;
   if (src?.kind === 'sample') {
     if (!isText(src.file)) errors.push('music.source.file is empty');
+  } else if (src?.kind === 'score') {
+    errors.push(...validateScore(src.score));
+    for (const [id, ins] of Object.entries(src.score?.instruments ?? {})) {
+      if (ins.kind !== 'kit') continue;
+      for (const [name, piece] of Object.entries(ins.pieces ?? {}))
+        (piece.layers ?? []).forEach((l, i) =>
+          errors.push(
+            ...validateLayer(`music.source.score.instruments.${id}.${name}.layers[${i}]`, l),
+          ),
+        );
+    }
   } else if (src?.kind === 'loop') {
     if (!isNum(src.bpm, 40, 240)) errors.push('music.source.bpm must be 40..240');
     if (!isNum(src.root, 20, 2000)) errors.push('music.source.root must be 20..2000 Hz');
@@ -1202,6 +1224,7 @@ export function checkStyle(input: StyleInput): string[] {
     ...validateSounds(input.sounds ?? {}),
     ...validateLoops(input.loops ?? {}),
     ...validateMusic(input.music),
+    ...(input.spectacle ? validateSpectacle(input.spectacle) : []),
   ];
 }
 
@@ -1256,6 +1279,11 @@ export function resolveStyle(input: StyleInput, base: StylePack): ResolvedStyle 
       `style "${id}": music is invalid (${musicErrors.join('; ')}), using ${base.manifest.id}`,
     );
   const validMusic = musicErrors.length === 0 ? input.music : undefined;
+  const spectacleErrors = input.spectacle ? validateSpectacle(input.spectacle) : [];
+  if (spectacleErrors.length)
+    warnings.push(
+      `style "${id}": spectacle is invalid (${spectacleErrors.join('; ')}), using ${base.manifest.id}`,
+    );
   const pack: StylePack = {
     manifest: input.manifest,
     theme: { ...base.theme, ...theme, palette: { ...base.theme.palette, ...theme.palette } },
@@ -1268,6 +1296,7 @@ export function resolveStyle(input: StyleInput, base: StylePack): ResolvedStyle 
     sounds: { ...base.sounds, ...valid('sounds', input.sounds, validateSounds) },
     loops: { ...base.loops, ...valid('loops', input.loops, validateLoops) },
     music: input.music === null ? null : (validMusic ?? base.music),
+    spectacle: mergeSpectacle(spectacleErrors.length ? undefined : input.spectacle, base.spectacle),
   };
   if (id !== base.manifest.id) {
     const missing = missingParts(input);

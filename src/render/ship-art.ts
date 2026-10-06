@@ -25,6 +25,9 @@ const Z_EYE = 0.04;
 const Z_PARTS = 0.0205;
 const Z_LIGHTS = 0.0305;
 
+/** The player's shape is authored in radius units; this is its drawn size (about 100 u long). */
+export const PLAYER_SCALE = 60;
+
 /** Narrowest a ship gets mid-roll, so it never vanishes. */
 export const MIN_ROLL_WIDTH = 0.15;
 

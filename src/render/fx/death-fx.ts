@@ -434,12 +434,18 @@ export function createDeathFx(
     kind: EntityKind,
     x: number,
     y: number,
-  ): { vx: number; vy: number; heading: number } {
+  ): { vx: number; vy: number; heading: number; lancer?: boolean } {
     const near = (ex: number, ey: number): boolean =>
       Math.abs(ex - x) < MATCH_DIST && Math.abs(ey - y) < MATCH_DIST;
     if (kind === 'fighter' || kind === 'gunship') {
       for (const f of world.fighters)
-        if (near(f.x, f.y)) return { vx: f.ship.vx, vy: f.ship.vy, heading: f.ship.heading };
+        if (near(f.x, f.y))
+          return {
+            vx: f.ship.vx,
+            vy: f.ship.vy,
+            heading: f.ship.heading,
+            lancer: f.lancer !== null,
+          };
     } else if (kind === 'wingman') {
       for (const w of world.squadron.wingmen)
         if (near(w.ship.x, w.ship.y))
@@ -514,16 +520,13 @@ export function createDeathFx(
   }
 
   function startDeath(e: Extract<GameEvent, { type: 'Killed' }>): void {
-    if (!activeStyle().deaths[e.kind] || !activeStyle().ships[e.kind]) return;
-    rollFor(
-      e.kind,
-      e.entityId,
-      e.x,
-      e.y,
-      e.radius,
-      findDying(e.kind, e.x, e.y),
-      KIND_COLOR[e.kind](),
-    );
+    const dying = findDying(e.kind, e.x, e.y);
+    // A missile fighter is a fighter in the events; a style that draws it apart breaks that shape up.
+    const style = activeStyle();
+    const look: ShipKind =
+      dying.lancer && style.deaths.lancer && style.ships.lancer ? 'lancer' : e.kind;
+    if (!style.deaths[look] || !style.ships[look]) return;
+    rollFor(look, e.entityId, e.x, e.y, e.radius, dying, KIND_COLOR[e.kind]());
   }
 
   /** The capital ship's parts and hull die from the same data as any ship (prototype 5, track C). */

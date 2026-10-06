@@ -2,7 +2,7 @@
 
 One page, kept short. Written by Claude as a first proposal for the `anime-80s` direction; **Xavi edits it** (the references above all). Each style pack (`data/styles/<id>/`) states its own intent and references in its manifest; this page holds the direction the first considered pack follows, and the headings every direction answers (`specs/prototype-4-look-and-sound.md`, section 1).
 
-Packs today: `plain` (flat placeholder shapes, silent: the baseline and the fallback), `anime-80s` (the first sections of this page) and `used-future` (the last section). View with `?style=anime-80s` or `?style=used-future`.
+Packs today: `plain` (flat placeholder shapes, silent: the baseline and the fallback), `anime-80s` (the first sections of this page), `anime-spectacle` (a presentation layer on `anime-80s`, below) and `used-future` (the last section). View with `?style=anime-80s`, `?style=used-future` or `?style=anime-spectacle` (`&spectacle=calm|full|overdrive|off`; see `src/ui/README.md`).
 
 ## Mood
 
@@ -67,6 +67,25 @@ Thin, high-contrast HUD in the Indigo Night family: cel white text, gold for loc
 | Akira and Patlabor-era explosions | Hand-drawn layered spherical bursts, hard-edged smoke puffs, shockwave rings, drifting debris that bursts again. |
 
 Xavi supplies or approves the references: swap any title for one you prefer and the notes in `data/styles/anime-80s/style.ts` follow.
+
+## Spectacle (`anime-spectacle`)
+
+A second pack on the same direction, `data/styles/anime-spectacle/` (parent `anime-80s`, view with `?style=anime-spectacle`, quality `&fx=low|medium|high`): the same ships and palette with the lights on. Bloom on emissives, a faint laser-disc colour fringe, vignette and grain; a living backdrop with a new sky each battle (gas clouds, a ringed planet, a colony ring or a carrier, drifting rocks, distant flashes); engine plumes, nav lights, wingtip trails, a helix streak on the roll, spiralling missile smoke; multi-stage blasts (flash frame, shock rings, fireball, ink-blot smoke, glinting debris, chain reactions, capital-scale turret kills) with a zoom punch; title cards. All render-only (contract: `src/render/spectacle-contract.ts`, notes: `src/render/spectacle/README.md`). Screenshots: `docs/reference/spectacle/`.
+
+### Spectacle: how the three tracks combine
+
+`anime-spectacle` is one pack made of three tracks: render visuals (`src/render/spectacle`, the pack's `spectacle.ts`), the UI presentation (`src/ui/spectacle`, `presentation.ts`, read directly by `src/ui/spectacle/active.ts`) and audio (`sounds.ts`, `loops.ts`, `music.ts`: sound set, loops and an adaptive score). The dev panel has two sections, "Spectacle visuals" (row ids `spectacle.*`) and "Spectacle presentation" (row ids `presentation.*`). Debug globals: `__spectacle` (visuals pools and settings), `__presentation` (presentation events, feel), `__sf` (world).
+
+One source of truth per effect, applied in `src/app/main.ts` (`syncSpectacleTracks`, only on change so the panel can still force both back on):
+
+- Title cards: the presentation banners win. While the banners layer is on, the visuals' `#sf-cards` are off (visuals panel: "Title cards").
+- Zoom punch: the presentation's camera punch wins. While its Zoom punch intensity is above 0 the shader zoom punch is off (visuals panel: "Zoom punch (shader)").
+- Not overlapping, both stay on: bloom, colour fringe pulses, grain, scanlines and the static vignette (visuals) vs. roll, extra shake, hit-stop, kill-cam, flashes, speed lines and the low-hull tension vignette (presentation). Hit-stop only holds the drawing, so it freezes the post-processed picture too.
+- With `?spectacle=off` (presentation off) the visuals' cards and punch come back.
+
+Screenshots of the combination: `docs/reference/spectacle-combined/` (`scripts/spectacle-combined-shots.mjs`).
+
+Prototype 5 enemies (gunship, lancer and its missile with spiral smoke, wing members, the capital ship and its parts) have anime ships, deaths, plumes, nav lights, blasts per destroyed part, a capital-scale final blast, sounds for every event (missile launch and hit, part destroyed, core exposed, capital destroyed, wing broken, enemy shots), the anime MISSILE warning, WING INBOUND banner, capital parts bar and CORE EXPOSED call-out; the classic cues are skipped while the spectacle HUD is on. Screenshots: `docs/reference/spectacle-combined/p5-*.png` (`scripts/spectacle-p5-shots.mjs`). Known limit: the capital hull is 2.9:1 against the backdrop in the contrast audit, as in its parent `anime-80s` (it reads through its ink outline and parts).
 
 ---
 

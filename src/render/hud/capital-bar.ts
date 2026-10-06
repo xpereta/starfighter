@@ -12,7 +12,7 @@ import { blinkOn } from './layout';
  */
 
 /** Width of a segment by role (relative), so the core reads at a glance and turrets stay small. */
-const WEIGHT: Record<PartRole, number> = {
+export const SEGMENT_WEIGHT: Record<PartRole, number> = {
   turret: 1,
   engine: 1.3,
   bridge: 1.3,
@@ -49,7 +49,7 @@ export function barRects(
   let weight = 0;
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i]!;
-    weight += WEIGHT[seg.role];
+    weight += SEGMENT_WEIGHT[seg.role];
     if (i > 0) gaps += seg.role === segments[i - 1]!.role ? GAP : GROUP_GAP;
   }
   const unit = Math.max(0, width - gaps) / Math.max(weight, 1e-9);
@@ -61,7 +61,7 @@ export function barRects(
     if (i > 0) x += seg.role === segments[i - 1]!.role ? GAP : GROUP_GAP;
     const rect = out[i]!;
     rect.x = x;
-    rect.width = WEIGHT[seg.role] * unit;
+    rect.width = SEGMENT_WEIGHT[seg.role] * unit;
     x += rect.width;
   }
   return out;

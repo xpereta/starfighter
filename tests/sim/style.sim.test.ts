@@ -5,15 +5,17 @@ import { createWorld, stepWorld } from '../../src/core/world/world';
 import { qualityPresets } from '../../data/quality';
 import { createDeathFx } from '../../src/render/fx/death-fx';
 import { initStyle, styleIds } from '../../src/render/style-active';
+import { createSpectacleParts } from '../../src/render/spectacle';
 
 const DT = 1 / 60;
 
 /** Runs the sim; with `withFx` the render-side death effects watch every step, as the game does. */
-function finalHash(withFx = false): string {
+function finalHash(withFx = false, withSpectacle = false): string {
   const world = createWorld(777, createTuning());
   const fx = withFx
     ? createDeathFx(qualityPresets.high, world, { flash: () => {}, hitStop: () => {} })
     : null;
+  const spectacle = withSpectacle ? createSpectacleParts(world, 'high') : null;
   const a = world.actions;
   for (let i = 0; i < 20 * 60; i++) {
     if (i % 20 === 0) {
@@ -28,8 +30,22 @@ function finalHash(withFx = false): string {
       fx.consume(world.events.events);
       fx.update(DT);
     }
+    if (spectacle) {
+      // The spectacle watches every step, as the renderer does (events, then a frame).
+      spectacle.consume(world.events.events);
+      spectacle.update({
+        dt: DT,
+        time: world.time,
+        camX: world.camera.x,
+        camY: world.camera.y,
+        viewW: 2400,
+        viewH: 1500,
+        speedFactor: 0.5,
+      });
+    }
   }
   fx?.dispose();
+  spectacle?.dispose();
   return hashWorld(world);
 }
 
@@ -48,6 +64,15 @@ it('the hash is also identical with the death effects watching every step, under
   for (const id of styleIds()) {
     initStyle(`?style=${id}`, null);
     expect(finalHash(true)).toBe(plainHash);
+  }
+  initStyle('', null);
+});
+
+it('the hash is also identical with the spectacle effects watching every step, under every style', () => {
+  const plainHash = (initStyle('?style=plain', null), finalHash(false));
+  for (const id of styleIds()) {
+    initStyle(`?style=${id}`, null);
+    expect(finalHash(true, true)).toBe(plainHash);
   }
   initStyle('', null);
 });
