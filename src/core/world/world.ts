@@ -2,6 +2,8 @@ import type { Tuning } from '../../../data/tuning';
 import { lancerParams } from '../../../data/tuning/lancer';
 import { stepFighters, stepWaves, type Fighter } from '../ai/fighters';
 import { createCamera, stepCamera, type Camera } from '../camera/camera';
+import { stepCapital } from '../enemies/capital-ai';
+import { stepCapitalBullets } from '../enemies/capital-hits';
 import { clearEnemyState, createEnemyState, type EnemyState } from '../enemies/state';
 import { createEventQueue, type EventQueue } from '../events/events';
 import { createShip, stepFlight, type Ship } from '../flight/flight';
@@ -172,6 +174,7 @@ export function stepWorld(world: World, dt: number): void {
   }
   stepFlight(world.ship, actions, tuning.flight, world.events, dt);
   stepFighters(world); // prototype 2 (B1): enemy fighters
+  stepCapital(world); // prototype 5 (C): the capital ship's motion, guns and death chain
   stepSquadron(world); // prototype 2 (B2/B3): wingmen and orders
   stepLockOn(world); // prototype 2 (A1): lock set
   stepGuns(
@@ -186,6 +189,7 @@ export function stepWorld(world: World, dt: number): void {
   );
   stepMissiles(world); // prototype 2 (A2): salvo launch, motion and hits
   stepBullets(world.bullets, world.targets, tuning.weapons, world.events, dt, world.fighters);
+  stepCapitalBullets(world); // prototype 5 (C): what is left of the bullets hits the capital ship's parts
   world.stats.kills += resolveKills(world.targets, tuning.arena, world.events);
   if (tuning.arena.enemiesFrozen) {
     // Debug freeze: drones and turrets stay put and silent, shots in the air vanish.

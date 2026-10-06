@@ -179,6 +179,7 @@ export function createPanel(world: World): Panel {
     pilots: 'Pilots',
     rescue: 'Rescue',
     chatter: 'Chatter',
+    capital: 'Capital ship',
   };
   const names = [
     'Flight',

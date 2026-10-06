@@ -16,6 +16,7 @@ import { createRunConfig, runParams, type RunConfig } from './run';
 import { createPilotsConfig, pilotsParams, type PilotsConfig } from './pilots';
 import { createRescueConfig, rescueParams, type RescueConfig } from './rescue';
 import { createChatterConfig, chatterParams, type ChatterConfig } from './chatter';
+import { capitalParams, createCapitalConfig, type CapitalConfig } from './capital';
 
 /** All live-tunable values. Core reads these through `world.tuning`; the dev panel edits them. */
 export interface Tuning {
@@ -32,6 +33,8 @@ export interface Tuning {
   pilots: PilotsConfig;
   rescue: RescueConfig;
   chatter: ChatterConfig;
+  /** Prototype 5, track C: the capital ship. */
+  capital: CapitalConfig;
 }
 
 export function createTuning(): Tuning {
@@ -49,6 +52,7 @@ export function createTuning(): Tuning {
     pilots: createPilotsConfig(),
     rescue: createRescueConfig(),
     chatter: createChatterConfig(),
+    capital: createCapitalConfig(),
   };
 }
 
@@ -67,6 +71,7 @@ export const tuningParams = {
   pilots: pilotsParams,
   rescue: rescueParams,
   chatter: chatterParams,
+  capital: capitalParams,
 } as const;
 
 /** Non-numeric tuning values and the options they accept. */
@@ -84,6 +89,7 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   pilots: {},
   rescue: {},
   chatter: {},
+  capital: {},
 };
 
 /** Plain-language tooltip for each toggle, keyed `group.name` (what it does, and what each option means). */

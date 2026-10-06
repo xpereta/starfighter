@@ -81,9 +81,17 @@ function busyWorld(): World {
     vx: 1,
     vy: 2,
     coreExposed: false,
+    hullRadius: 700,
+    phase: 0,
+    time: 3,
+    startDistance: 4000,
+    chainTime: 0,
+    wingsSent: 1,
+    lancersSent: false,
+    lastHitBy: 0,
     parts: [
-      { hp: 5, alive: true },
-      { hp: 3, alive: true },
+      { hp: 5, maxHp: 6, alive: true, cooldown: 0.5, burstLeft: 2 },
+      { hp: 3, maxHp: 4, alive: true, cooldown: 1, burstLeft: 0 },
     ],
   };
   w.run.battle = 2;
@@ -205,7 +213,7 @@ describe('every gameplay field is in the replay hash', () => {
     w.enemies.wings[0]!.members.push(2);
     expect(hashWorld(w)).not.toBe(a);
     const b = hashWorld(w);
-    w.enemies.capital!.parts.push({ hp: 1, alive: true });
+    w.enemies.capital!.parts.push({ hp: 1, maxHp: 1, alive: true, cooldown: 0, burstLeft: 0 });
     expect(hashWorld(w)).not.toBe(b);
     // Emptied, the stubs give the hash of a world that never had them (they write nothing).
     const withStubs = hashWorld(busyWorld());
