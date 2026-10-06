@@ -126,12 +126,42 @@ export function createShipArt(kind: ShapeKind, color: () => number): ShipArt {
       depthWrite: false,
     };
 
+    const layered = !!def.parts?.length;
+    // A layered ship is one vertex-coloured mesh: outline, fill, parts, lights and eye together
+    // (depth orders them), so it costs one draw call plus the shadow and the glow.
+    const solid: { positions: number[]; colors: number[] } = { positions: [], colors: [] };
+    const addSolid = (tris: ArrayLike<number>, hex: number, z: number): void => {
+      const c = new THREE.Color(hex);
+      for (let i = 0; i < tris.length; i += 3) {
+        solid.positions.push(tris[i]!, tris[i + 1]!, z);
+        solid.colors.push(c.r, c.g, c.b);
+      }
+    };
+    const addShape = (
+      points: readonly Point[],
+      hole: readonly Point[] | undefined,
+      hex: number,
+      z: number,
+    ): void => {
+      const g = new THREE.ShapeGeometry(shapeOf(points, hole));
+      const pos = g.getAttribute('position');
+      const idx = g.getIndex();
+      const flatTris: number[] = [];
+      const count = idx ? idx.count : pos.count;
+      for (let i = 0; i < count; i++) {
+        const v = idx ? idx.getX(i) : i;
+        flatTris.push(pos.getX(v), pos.getY(v), 0);
+      }
+      g.dispose();
+      addSolid(flatTris, hex, z);
+    };
     if (theme.outlineWidth > 0) {
       // Width is in world units: divide by the drawn size to get shape units.
       const w = theme.outlineWidth / Math.max(scale, 1e-6);
       const tris = ringOutline(def.polygon, w, true);
       if (def.hole) tris.push(...ringOutline(def.hole, w, false));
-      group.add(mesh(own(trianglesGeometry(tris)), flat(theme.outlineColor), Z_OUTLINE));
+      if (layered) addSolid(tris, theme.outlineColor, Z_OUTLINE);
+      else group.add(mesh(own(trianglesGeometry(tris)), flat(theme.outlineColor), Z_OUTLINE));
     }
     if (theme.glow > 0 && def.glow?.length) {
       const core: number[] = [];
@@ -147,16 +177,16 @@ export function createShipArt(kind: ShapeKind, color: () => number): ShipArt {
       group.add(mesh(own(trianglesGeometry(halo)), haloMaterial, Z_GLOW));
       group.add(mesh(own(trianglesGeometry(core)), glowMaterial, Z_GLOW + 0.001));
     }
-    const body = new THREE.ShapeGeometry(shapeOf(def.polygon, def.hole));
-    group.add(mesh(own(body), flat(fill), Z_FILL));
-    const layered = !!def.parts?.length;
     if (layered) {
-      // One vertex-coloured mesh per layer group: every part of a ship in one draw call.
+      addShape(def.polygon, def.hole, fill, Z_FILL);
       const built = buildParts(def, fill, theme.partColors, Z_PARTS, Z_LIGHTS);
-      if (built.body.positions.length)
-        group.add(partsMesh(own, built.body.positions, built.body.colors, 0));
-      if (built.lights.positions.length)
-        group.add(partsMesh(own, built.lights.positions, built.lights.colors, 0));
+      for (const part of [built.body, built.lights]) {
+        solid.positions.push(...part.positions);
+        solid.colors.push(...part.colors);
+      }
+    } else {
+      const body = new THREE.ShapeGeometry(shapeOf(def.polygon, def.hole));
+      group.add(mesh(own(body), flat(fill), Z_FILL));
     }
     if (def.shadow && theme.shadowShare > 0) {
       const cut = shadowFor(def.shadow, theme.shadowShare);
@@ -177,8 +207,14 @@ export function createShipArt(kind: ShapeKind, color: () => number): ShipArt {
       }
     }
     if (def.eye) {
-      group.add(mesh(own(new THREE.ShapeGeometry(shapeOf(def.eye))), flat(theme.eyeColor), Z_EYE));
+      if (layered) addShape(def.eye, undefined, theme.eyeColor, Z_EYE);
+      else
+        group.add(
+          mesh(own(new THREE.ShapeGeometry(shapeOf(def.eye))), flat(theme.eyeColor), Z_EYE),
+        );
     }
+    if (layered && solid.positions.length)
+      group.add(partsMesh(own, solid.positions, solid.colors, 0));
   };
 
   return {
