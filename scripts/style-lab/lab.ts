@@ -251,7 +251,7 @@ function sheet(
   if (row.length) rows.push(row);
   const header = 54;
   const tall = 520 * zoom;
-  const width = COLS * CELL;
+  const width = Math.max(...rows.map((r) => r.reduce((s, c) => s + c.span, 0)), 1) * CELL;
   const height = header + rows.reduce((s, r) => s + (r.some((c) => c.span > 1) ? tall : CELL), 0);
   init(width, height);
   setStyle(styleId);
