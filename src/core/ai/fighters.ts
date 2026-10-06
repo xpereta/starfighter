@@ -18,6 +18,7 @@ import {
   reactionTrigger,
   timeToImpact,
 } from './missile-evasion';
+import { thinkLancer } from './lancer';
 import { deriveFlight, leadPoint, noEvents, type Point } from './steering';
 
 export type { Fighter } from './fighter';
@@ -37,6 +38,7 @@ const SPEED_BAND = 100;
 const TURN_FIRST_ANGLE = 60 * DEG;
 /** How quickly a speed mismatch with the leader (as a fraction of the speed range) turns on the catch-up boost. */
 const SPEED_MISMATCH_BOOST_GAIN = 4;
+const lancerFlightScratch = createFlightConfig();
 const leadScratch: Point = { x: 0, y: 0 };
 
 interface Mover {
@@ -184,7 +186,14 @@ function evadeMissiles(
 }
 
 /** One fighter's decisions for this step: writes `f.actions` and may fire. */
-function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: number): void {
+function think(
+  world: World,
+  f: Fighter,
+  index: number,
+  cfg: FighterConfig,
+  flight: typeof flightScratch,
+  dt: number,
+): void {
   // Notice new hits (hp dropped since last step).
   if (f.hp < f.lastHp) {
     f.hitTimeA = f.hitTimeB;
@@ -198,7 +207,11 @@ function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: 
   // Target: nearest of the player and wingmen, re-picked every retargetInterval.
   f.retargetTimer -= dt;
   let target = targetOf(world, f.targetIndex);
-  if (!target || f.retargetTimer <= 0) {
+  if (f.lancer) {
+    // A lancer only ever goes for the player: its missiles never chase wingmen (spec section 11).
+    f.targetIndex = -1;
+    target = world.ship;
+  } else if (!target || f.retargetTimer <= 0) {
     f.targetIndex = chooseTarget(world, f.ship.x, f.ship.y);
     f.retargetTimer = cfg.retargetInterval;
     target = targetOf(world, f.targetIndex)!;
@@ -215,7 +228,13 @@ function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: 
     if (hitTwice || locked) startBreak(world, f, cfg);
   }
 
-  if (cfg.enemiesEvadeMissiles) evadeMissiles(world, f, index, cfg, flightScratch);
+  if (cfg.enemiesEvadeMissiles) evadeMissiles(world, f, index, cfg, flight);
+
+  if (f.lancer) {
+    // Same break-away and missile evasion as above; its own range keeping and launching (lancer.ts).
+    thinkLancer(world, f, index, cfg, flight, dt, f.breakTimer > 0);
+    return;
+  }
 
   const ship = f.ship;
   const toX = target.x - ship.x;
@@ -236,11 +255,7 @@ function think(world: World, f: Fighter, index: number, cfg: FighterConfig, dt: 
   }
   const error = wrapAngle(desired - ship.heading);
   // Far off the nose: slow to corner speed so the turn is tighter.
-  if (
-    !breaking &&
-    Math.abs(error) > cfg.hardTurnAngle * DEG &&
-    ship.speed > flightScratch.cornerSpeed
-  ) {
+  if (!breaking && Math.abs(error) > cfg.hardTurnAngle * DEG && ship.speed > flight.cornerSpeed) {
     throttle = -1;
   }
   a.steerX = Math.cos(desired);
@@ -347,6 +362,10 @@ export function stepFighters(world: World): void {
   const cfg = world.tuning.fighter;
   deriveFlight(flightScratch, world.tuning.flight, cfg);
   gunshipFlight(gunshipScratch, world);
+  deriveFlight(lancerFlightScratch, world.tuning.flight, {
+    speedScale: world.tuning.lancer.speedScale,
+    turnRateScale: world.tuning.lancer.turnRateScale,
+  });
   stepWings(world);
   for (let i = 0; i < world.fighters.length; i++) {
     const f = world.fighters[i]!;
@@ -361,8 +380,9 @@ export function stepFighters(world: World): void {
       boostFlight(followerScratch, flightScratch, world.tuning.squadron, catchUp);
       stepFlight(f.ship, f.actions, followerScratch, noEvents, dt);
     } else {
-      think(world, f, i, cfg, dt);
-      stepFlight(f.ship, f.actions, flightScratch, noEvents, dt);
+      const flight = f.lancer ? lancerFlightScratch : flightScratch;
+      think(world, f, i, cfg, flight, dt);
+      stepFlight(f.ship, f.actions, flight, noEvents, dt);
     }
     f.x = f.ship.x;
     f.y = f.ship.y;

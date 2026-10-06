@@ -1,5 +1,6 @@
 import { spawnGunship } from '../core/ai/gunship';
 import { spawnWing } from '../core/ai/wings';
+import { spawnLancer } from '../core/ai/lancer';
 import { spawnFighter } from '../core/ai/waves';
 import { createTargetAt } from '../core/world/arena';
 import { spawnPodAt } from '../core/world/pods';
@@ -7,7 +8,7 @@ import type { EntityKind } from '../core/world/target';
 import type { World } from '../core/world/world';
 
 /** What a spawn entry stands for: an enemy kind of the world (`EntityKind` without wingmen) or a rescue pod. */
-export type SpawnKind = Exclude<EntityKind, 'wingman'> | 'wing' | 'pod';
+export type SpawnKind = Exclude<EntityKind, 'wingman'> | 'wing' | 'lancer' | 'pod';
 
 export interface SpawnEntry {
   id: string;
@@ -41,8 +42,16 @@ export const SPAWN_REGISTRY: readonly SpawnEntry[] = [
     id: 'wing',
     label: 'Formation wing',
     kind: 'wing',
-    // A whole wing (leader and followers in formation) flying at the player.
+    // A whole wing (leader and followers in formation) flying at the player. Note: a wing spawned within
+    // breakProximity (500 u) of the player breaks formation at once (its followers become plain fighters).
     spawn: (world, x, y, heading) => void spawnWing(world, x, y, heading + Math.PI),
+  },
+  {
+    id: 'lancer',
+    label: 'Missile fighter',
+    kind: 'lancer',
+    // Faces the player; it keeps 900-1500 u away and fires homing missiles (practice: no hull, a speed knock).
+    spawn: (world, x, y, heading) => void spawnLancer(world, x, y, heading + Math.PI),
   },
   {
     id: 'drone',

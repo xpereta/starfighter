@@ -89,6 +89,7 @@ export const SHIP_KINDS = [
   'wingman',
   'fighter',
   'gunship',
+  'lancer',
   'drone',
   'turret',
   'pod',
@@ -375,8 +376,6 @@ export const SOUND_EVENT_KEYS = Object.keys(SOUND_KEY_SET) as SoundEventKey[];
  */
 export const PENDING_SOUND_EVENTS: readonly SoundEventKey[] = [
   'EnemySpawned',
-  'EnemyMissileFired',
-  'EnemyMissileHit',
   'PartDestroyed',
   'CoreExposed',
   'WingBroken',

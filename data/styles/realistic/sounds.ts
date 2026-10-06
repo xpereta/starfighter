@@ -552,8 +552,41 @@ export const sounds: SoundTable = {
   // Pause is a held breath: a short falling tone and a click; resume is the reverse.
   // Prototype 5 events: silent until the tracks give each a sound (see docs/p5-tracks.md).
   EnemySpawned: 'silent',
-  EnemyMissileFired: 'silent',
-  EnemyMissileHit: 'silent',
+  // An enemy missile leaves the rail: a rising whoosh and a thump, and the cockpit's two-tone warning beep.
+  EnemyMissileFired: sfx(
+    [
+      noise('bandpass', 400, 3000, 0.7, 0.45, { waveform: 'pink', attack: 0.15 }),
+      thump(80, 40, 0.25, 0.6, { distortion: 0.3 }),
+      tone('sine', 1250, 1250, 0.1, 0.4, { delay: 0.05, attack: 0.005, filter: lowpass(3500) }),
+      tone('sine', 940, 940, 0.12, 0.4, { delay: 0.2, attack: 0.005, filter: lowpass(3500) }),
+    ],
+    {
+      volume: 0.32,
+      pitchRandom: 0.05,
+      minGap: 0.2,
+      maxVoices: 2,
+      spatial: AROUND,
+      reverb: 0.25,
+      preDelay: 0.02,
+    },
+  ),
+  // It ends: on the hull a heavy crunch, on a roll or a burn-out a shorter pop (one sound for all three).
+  EnemyMissileHit: sfx(
+    [
+      thump(110, 40, 0.4, 0.9, { distortion: 0.35 }),
+      crack(3600, 900, 0.07, 0.8),
+      noise('lowpass', 2000, 180, 0.5, 0.5, { waveform: 'pink' }),
+    ],
+    {
+      volume: 0.4,
+      pitchRandom: 0.1,
+      minGap: 0.05,
+      maxVoices: 3,
+      spatial: AROUND,
+      reverb: 0.3,
+      preDelay: 0.02,
+    },
+  ),
   PartDestroyed: 'silent',
   CoreExposed: 'silent',
   WingBroken: 'silent',

@@ -11,7 +11,8 @@ export interface FighterRenderer {
 }
 
 /** The style's shape name for a fighter-list entry. */
-const kindOf = (f: Fighter): ShipKind => (f.shipType === SHIP_GUNSHIP ? 'gunship' : 'fighter');
+const kindOf = (f: Fighter): ShipKind =>
+  f.shipType === SHIP_GUNSHIP ? 'gunship' : f.lancer ? 'lancer' : 'fighter';
 
 /**
  * One drawn ship per fighter slot, created on demand (waves can change size); hidden while dead,
@@ -22,6 +23,7 @@ export function createFighterRenderer(): FighterRenderer {
   const group = new THREE.Group();
   group.position.z = 0.25;
   const arts: ShipArt[] = [];
+  /** Which look each slot's art was made for (a slot can be reused by another kind of ship). */
   const kinds: ShipKind[] = [];
   return {
     object: group,
@@ -32,19 +34,21 @@ export function createFighterRenderer(): FighterRenderer {
         arts.push(art);
         kinds.push('fighter');
       }
-      arts.forEach((art, i) => {
+      arts.forEach((art0, i) => {
         const f = fighters[i];
         if (!f || !f.alive) {
-          art.hide();
+          art0.hide();
           return;
         }
-        if (kinds[i] !== kindOf(f)) {
-          group.remove(art.object);
-          art.dispose();
-          kinds[i] = kindOf(f);
-          art = createShipArt(kinds[i]!, () => palette.fighter);
+        let art = art0;
+        const look = kindOf(f);
+        if (kinds[i] !== look) {
+          group.remove(art0.object);
+          art0.dispose();
+          art = createShipArt(look, () => palette.fighter);
           group.add(art.object);
           arts[i] = art;
+          kinds[i] = look;
         }
         const s = f.ship;
         art.update({

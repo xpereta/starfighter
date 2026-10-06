@@ -25,9 +25,10 @@ const countOf = (w: ReturnType<typeof createWorld>, kind: SpawnKind): number => 
   if (kind === 'pod') return w.pods.length;
   if (kind === 'wing') return w.enemies.wings.length;
   if (kind === 'fighter')
-    return w.fighters.filter((f) => f.alive && f.shipType === SHIP_FIGHTER).length;
+    return w.fighters.filter((f) => f.alive && f.shipType === SHIP_FIGHTER && !f.lancer).length;
   if (kind === 'gunship')
     return w.fighters.filter((f) => f.alive && f.shipType === SHIP_GUNSHIP).length;
+  if (kind === 'lancer') return w.fighters.filter((f) => f.alive && f.lancer).length;
   return w.targets.filter((t) => t.kind === kind).length;
 };
 
@@ -36,6 +37,7 @@ describe('spawn registry', () => {
     const kinds = SPAWN_REGISTRY.map((e) => e.kind);
     for (const kind of Object.keys(ENEMY_KINDS)) expect(kinds).toContain(kind);
     expect(kinds).toContain('wing');
+    expect(kinds).toContain('lancer');
     expect(kinds).toContain('pod');
   });
 

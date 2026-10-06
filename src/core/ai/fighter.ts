@@ -1,6 +1,7 @@
 import type { FlightConfig } from '../../../data/tuning/flight';
 import { createShip, type Ship } from '../flight/flight';
 import { createActions, type Actions } from '../world/actions';
+import { mixLancer, type LancerState } from './lancer-state';
 import type { Collider } from '../world/target';
 import type { MountState } from './mount-aim';
 
@@ -58,6 +59,8 @@ export interface Fighter extends Collider {
   mounts: MountState[];
   /** world.time when it died (NO_HIT while alive); the next wave waits `waveDelay` after the last one. */
   diedAt: number;
+  /** Set on a missile fighter (track B, `lancer.ts`); null on an ordinary fighter. */
+  lancer: LancerState | null;
 }
 
 export function createFighter(
@@ -106,6 +109,7 @@ export function createFighter(
     mounts: [],
     diedAt: NO_HIT,
     lastHitBy: 0,
+    lancer: null,
   };
 }
 
@@ -163,5 +167,9 @@ export function mixFighters(mix: (n: number) => void, fighters: readonly Fighter
     }
     mix(f.diedAt);
     mix(f.lastHitBy ?? 0);
+    if (f.lancer) {
+      mix(-5); // marks a lancer; ordinary fighters write nothing, so their hash is unchanged
+      mixLancer(mix, f.lancer);
+    }
   }
 }

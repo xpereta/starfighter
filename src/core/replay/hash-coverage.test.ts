@@ -3,6 +3,7 @@ import { createTuning } from '../../../data/tuning';
 import { clearEnemyState } from '../enemies/state';
 import { SHIP_GUNSHIP, type Fighter } from '../ai/fighter';
 import { spawnGunship } from '../ai/gunship';
+import { spawnLancer } from '../ai/lancer';
 import { spawnFighter } from '../ai/waves';
 import { createWorld, stepWorld, type World } from '../world/world';
 import { hashWorld } from './hash';
@@ -33,6 +34,7 @@ function busyWorld(): World {
   spawnFighter(w, 900, 200, Math.PI);
   spawnFighter(w, -700, -300, 0);
   spawnGunship(w, -1500, 900, 0); // a gunship, with mounts
+  spawnLancer(w, -1500, 600, 0);
   for (let i = 0; i < 40; i++) {
     w.actions.fire = i % 2 === 0;
     stepWorld(w, dt);
@@ -77,6 +79,7 @@ function busyWorld(): World {
   // Prototype 5 stubs: an enemy missile, a wing and a capital ship with two parts (all inert).
   w.enemies.missiles.spawn();
   w.enemies.wings.push({ shape: 'v', leader: 0, members: [1], broken: false, born: 3 });
+  w.enemies.nextMissileUid = 3;
   w.enemies.capital = {
     x: 10,
     y: 20,
@@ -177,6 +180,12 @@ describe('every gameplay field is in the replay hash', () => {
       ...missing(w, 'fighter.ship', w.fighters[0]!.ship as unknown as Record<string, unknown>),
       ...missing(w, 'gunship', gunshipOf(w) as unknown as Record<string, unknown>),
       ...missing(w, 'mount', gunshipOf(w).mounts[0] as unknown as Record<string, unknown>),
+      ...missing(
+        w,
+        'lancer',
+        w.fighters.find((f) => f.lancer)!.lancer as unknown as Record<string, unknown>,
+      ),
+      ...missing(w, 'enemies', w.enemies as unknown as Record<string, unknown>),
       ...missing(w, 'wing', w.enemies.wings[0] as unknown as Record<string, unknown>),
       ...missing(w, 'capital', w.enemies.capital as unknown as Record<string, unknown>),
       ...missing(w, 'part', w.enemies.capital!.parts[1] as unknown as Record<string, unknown>),

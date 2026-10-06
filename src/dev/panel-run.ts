@@ -191,7 +191,9 @@ export function buildRunSpawnSections(
     runReadout.set(`now: ${where}`);
     const c = enemyCounts(w);
     const gunships = c.gunships > 0 ? ` (${c.gunships} gunships)` : '';
-    spawnReadout.set(`enemies alive: ${c.fighters} fighters${gunships}, ${c.targets} targets`);
+    spawnReadout.set(
+      `enemies alive: ${c.fighters} fighters${gunships}, ${c.targets} targets, ${w.enemies.missiles.count} enemy missiles`,
+    );
   }
   update(world);
 

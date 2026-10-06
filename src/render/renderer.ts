@@ -55,6 +55,12 @@ export function createRenderer(
   scene.add(enemyShots.object);
   const missiles = createMissileRenderer(world.missiles.capacity);
   scene.add(missiles.object);
+  // Enemy missiles (prototype 5): bigger and red, so they read apart from yours; the HUD marks each one.
+  const enemyMissiles = createBulletRenderer(world.enemies.missiles.capacity, palette.enemy, {
+    length: 34,
+    width: 11,
+  });
+  scene.add(enemyMissiles.object);
   const targets = createTargetRenderer(world.targets);
   scene.add(targets.object);
   const fighters = createFighterRenderer();
@@ -135,6 +141,7 @@ export function createRenderer(
       background.update(cam.x, cam.y, s.vx, s.vy, speedFactor);
       bullets.update(world.bullets);
       enemyShots.update(world.enemyShots);
+      enemyMissiles.update(world.enemies.missiles);
       targets.update(world.targets);
       fighters.update(world.fighters);
       wingmen.update(world.squadron.wingmen, world.tuning.squadron.radius);
@@ -159,6 +166,7 @@ export function createRenderer(
       pods.dispose();
       enemyShots.dispose();
       missiles.dispose();
+      enemyMissiles.dispose();
       shipArt.dispose();
       renderer.dispose();
     },

@@ -11,6 +11,7 @@ import { createWeaponsConfig, type WeaponsConfig } from './weapons';
 import { createLockOnConfig, lockonParams, type LockOnConfig } from './lockon';
 import { createMissilesConfig, missilesParams, type MissilesConfig } from './missiles';
 import { createFighterConfig, fighterParams, type FighterConfig } from './fighter';
+import { createLancerConfig, lancerParams, type LancerConfig } from './lancer';
 import { createSquadronConfig, squadronParams, type SquadronConfig } from './squadron';
 import { createRunConfig, runParams, type RunConfig } from './run';
 import { createPilotsConfig, pilotsParams, type PilotsConfig } from './pilots';
@@ -29,6 +30,7 @@ export interface Tuning {
   lockon: LockOnConfig;
   missiles: MissilesConfig;
   fighter: FighterConfig;
+  lancer: LancerConfig;
   squadron: SquadronConfig;
   run: RunConfig;
   pilots: PilotsConfig;
@@ -48,6 +50,7 @@ export function createTuning(): Tuning {
     lockon: createLockOnConfig(),
     missiles: createMissilesConfig(),
     fighter: createFighterConfig(),
+    lancer: createLancerConfig(),
     squadron: createSquadronConfig(),
     run: createRunConfig(),
     pilots: createPilotsConfig(),
@@ -68,6 +71,7 @@ export const tuningParams = {
   lockon: lockonParams,
   missiles: missilesParams,
   fighter: fighterParams,
+  lancer: lancerParams,
   squadron: squadronParams,
   run: runParams,
   pilots: pilotsParams,
@@ -87,6 +91,7 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   lockon: {},
   missiles: {},
   fighter: { enemiesEvadeMissiles: [true, false] },
+  lancer: { inBattles: [false, true] },
   squadron: { slotAnchor: ['velocity', 'nose'] },
   run: { ramp: ['authored', 'classic'] },
   pilots: {},
@@ -108,6 +113,8 @@ export const tuningToggleNotes: Record<string, string> = {
     'Evade variant. On = the roll slides the ship sideways and gives brief invulnerability; off = no sidestep, only invulnerability and a tighter break turn.',
   'fighter.enemiesEvadeMissiles':
     'Whether enemy fighters try to dodge missiles homing on them. On = a fighter that notices a missile may roll at the right moment (the roll makes it immune, so the missile passes through and loses its lock) or get the timing wrong and be hit anyway; off = fighters ignore missiles, as before.',
+  'lancer.inBattles':
+    'Whether run battles 3 and 4 bring in missile fighters (lancers). On = some fighters of those waves are lancers (one at first, then pairs); off = fighters only, as before. Practice mode is never affected: spawn lancers from the dev panel.',
   'camera.lookMode':
     'What the camera leans toward. Velocity = where the ship is actually moving, so drifting shows the direction of travel; Nose = where the ship points, so you see what you are aiming at.',
   'arena.enemiesFrozen':

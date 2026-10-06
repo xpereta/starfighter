@@ -173,6 +173,7 @@ export function createPanel(world: World): Panel {
     lockon: 'Lock-on',
     missiles: 'Missiles',
     fighter: 'Enemy fighter',
+    lancer: 'Missile fighter',
     squadron: 'Wingmen',
     arena: 'Arena',
     run: 'Run',
