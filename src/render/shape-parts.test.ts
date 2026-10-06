@@ -14,6 +14,7 @@ import {
   polygonArea,
   SHAPE_KINDS,
   shapeTriangles,
+  validateDeaths,
   validateShips,
   validateTheme,
   type BackdropGlow,
@@ -117,6 +118,20 @@ describe('layered ship parts: validation', () => {
       (_, i) => [Math.cos(i), Math.sin(i)] as Point,
     );
     expect(bad({ ...plate, points: many }).join()).toMatch(/more than/);
+  });
+
+  it('accepts death sequences for the extra slots and rejects other ids', () => {
+    const d = {
+      pieces: [2, 3],
+      primary: { kind: 'small', size: 1 },
+      secondary: [],
+      debris: { life: [1, 2], drift: [10, 20], spin: 1, fade: 0.5, trail: 0 },
+      blow: 0.5,
+      momentum: 0.5,
+      hitStop: 0,
+    } as const;
+    expect(validateDeaths({ capital: d, gunship: d })).toEqual([]);
+    expect(validateDeaths({ battleship: d } as never)[0]).toMatch(/not a ship kind/);
   });
 
   it('validates the engine glow colour', () => {
