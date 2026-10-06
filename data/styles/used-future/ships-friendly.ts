@@ -487,7 +487,7 @@ function wingmanWith(stripe: number, trim: number, extras: ShapeDef['parts'] = [
         0.014,
         { m: true },
       ),
-      hardpoint(bar(0.56, 0.56, 0.7, 0.6, 0.04), { m: true }),
+      hardpoint(bar(0.46, 0.54, 0.54, 0.56, 0.04), { m: true }),
       line(
         [
           [0.02, 0.12],

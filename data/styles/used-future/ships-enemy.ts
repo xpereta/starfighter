@@ -76,7 +76,7 @@ const fighter: ShapeDef = {
   glowColor: 0x6fb4ff,
   parts: [
     // Blades: dark frame, lighter face, spokes and hub.
-    dark(hexBlade, { m: true }),
+    panel(hexBlade, { m: true, c: 0x68798c }),
     panel(hexFace, { m: true }),
     ...[0, 1, 2, 3, 4, 5].map((i) => {
       const v = hexFace[i]!;
@@ -224,9 +224,9 @@ const lancer: ShapeDef = {
     dark(bar(0.6, 0.94, 0.1, 0.94, 0.1), { m: true }),
     accent(
       [
-        [0.64, 0.8],
-        [0.7, 0.84],
-        [0.64, 0.88],
+        [0.58, 0.8],
+        [0.63, 0.84],
+        [0.58, 0.88],
       ],
       { m: true, c: 0xff5030 },
     ),
@@ -294,11 +294,11 @@ const lancer: ShapeDef = {
       ],
       { m: true, role: 'dark' },
     ),
-    light(rect(-0.9, 0.13, 0.05, 0.12), { m: true, c: 0xff7a2a }),
+    light(rect(-0.87, 0.13, 0.05, 0.12), { m: true, c: 0xff7a2a }),
     scar([
       [-0.6, 0.2],
-      [-0.9, 0.24],
-      [-0.9, 0.12],
+      [-0.86, 0.22],
+      [-0.86, 0.12],
       [-0.7, 0.1],
     ]),
     // Panel lines and greebles.

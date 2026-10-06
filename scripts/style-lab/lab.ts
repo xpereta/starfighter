@@ -43,13 +43,13 @@ const ENTITY: Record<ShapeKind, EntityInfo> = {
   turret: { color: () => palette.turret, radius: 42, side: 'enemy' },
   static: { color: () => palette.enemyStatic, radius: 30, side: 'enemy' },
   pod: { color: () => palette.pod, radius: 22, side: 'neutral' },
-  gunship: { color: () => palette.enemy, radius: 70, side: 'enemy' },
+  gunship: { color: () => palette.fighter, radius: 70, side: 'enemy' },
   lancer: { color: () => palette.fighter, radius: 28, side: 'enemy' },
-  capital: { color: () => palette.enemy, radius: 700, side: 'enemy' },
+  capital: { color: () => palette.fighter, radius: 700, side: 'enemy' },
   capitalTurret: { color: () => palette.turret, radius: 60, side: 'enemy' },
-  capitalEngine: { color: () => palette.enemy, radius: 90, side: 'enemy' },
-  capitalPlate: { color: () => palette.enemy, radius: 110, side: 'enemy' },
-  capitalBridge: { color: () => palette.enemy, radius: 80, side: 'enemy' },
+  capitalEngine: { color: () => palette.fighter, radius: 90, side: 'enemy' },
+  capitalPlate: { color: () => palette.fighter, radius: 110, side: 'enemy' },
+  capitalBridge: { color: () => palette.fighter, radius: 80, side: 'enemy' },
   capitalCore: { color: () => palette.enemyStatic, radius: 100, side: 'enemy' },
 };
 
@@ -221,7 +221,7 @@ const SHEET_ORDER: readonly SheetCell[] = [
   { kind: 'capitalPlate', px: 100, span: 1 },
   { kind: 'capitalBridge', px: 100, span: 1 },
   { kind: 'capitalCore', px: 100, span: 1 },
-  { kind: 'capital', px: 330, span: 4 },
+  { kind: 'capital', px: 350, span: 4 },
 ];
 
 const COLS = 4;
@@ -276,16 +276,20 @@ function sheet(
       const wx = cx - width / 2;
       const wy = height / 2 - cy;
       const info = ENTITY[c.kind];
-      placed.push({ kind: c.kind, x: wx, y: wy, heading: Math.PI / 2, scale: c.px * zoom });
-      // The same ship at its game size on the slowest zoom, beside it, for judging detail.
-      const small = (info.radius * SCREEN.width) / NEAR;
-      placed.push({
-        kind: c.kind,
-        x: wx + (c.span * CELL) / 2 - 38,
-        y: wy - rowH / 2 + 46,
-        heading: Math.PI / 2,
-        scale: small,
-      });
+      // The capital ship is wide: it lies across its full-width cell, the rest point up.
+      const heading = c.span > 1 ? 0 : Math.PI / 2;
+      placed.push({ kind: c.kind, x: wx, y: wy, heading, scale: c.px * zoom });
+      // The same ship at its game size on the slowest zoom, beside it, for judging detail (not the huge ones).
+      if (info.radius < 300) {
+        const small = (info.radius * SCREEN.width) / NEAR;
+        placed.push({
+          kind: c.kind,
+          x: wx + (c.span * CELL) / 2 - 38,
+          y: wy - rowH / 2 + 46,
+          heading: Math.PI / 2,
+          scale: small,
+        });
+      }
       const def = activeStyle().ships[c.kind]!;
       labels.push({
         x: left + 12,
