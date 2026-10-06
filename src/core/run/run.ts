@@ -1,7 +1,9 @@
 import type { RunConfig } from '../../../data/tuning/run';
+import { BATTLES } from '../../../data/content/battles';
 import { TRAIT_IDS } from '../../../data/content/traits';
 import { NO_HIT } from '../ai/fighter';
 import { resolveFighterKills, spawnWave } from '../ai/waves';
+import { spawnCapitalBattle, stepCapitalBattle } from '../enemies/capital-battle';
 import { clearEnemyState } from '../enemies/state';
 import { createCamera } from '../camera/camera';
 import { createShip } from '../flight/flight';
@@ -101,6 +103,11 @@ export function turretsIn(cfg: RunConfig, n: number): number {
   return Math.max(0, Math.round(cfg.turretsBase + cfg.turretsGrowth * (n - cfg.turretsFromBattle)));
 }
 
+/** The boss of battle `n` (1-based), from the authored battle table, or undefined. */
+export function bossOf(n: number): 'capital' | undefined {
+  return BATTLES[n - 1]?.boss;
+}
+
 /** Rows on the current menu screen: the highlighted `cursor` ranges over 0..rows-1. */
 export function menuRows(run: Run): number {
   if (run.phase === 'start') return run.available.length + 1; // veterans, then Start
@@ -176,6 +183,12 @@ export function startBattle(world: World, n: number): void {
   run.battle = n;
   run.wave = 0;
   run.waveTotal = wavesIn(cfg, n);
+  if (bossOf(n)) {
+    // A boss battle (prototype 5, track C): the boss is the objective, not the waves.
+    spawnCapitalBattle(world);
+    run.waveTotal = 1;
+    run.wave = 1;
+  }
   run.battleKills = 0;
   run.battleLost = 0;
   run.hitsSeen = world.stats.hitsTaken;
@@ -311,6 +324,11 @@ export function stepRunBattle(world: World): void {
       endRun(world, 'defeat');
       return;
     }
+  }
+  if (bossOf(run.battle)) {
+    // Boss battle: escorts and the objective come from the boss script; won when the capital ship is destroyed.
+    if (stepCapitalBattle(world)) clearBattle(world);
+    return;
   }
   if (world.tuning.arena.enemiesFrozen) return; // debug freeze: no new waves
   let lastDeath = NO_HIT;

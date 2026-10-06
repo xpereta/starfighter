@@ -75,7 +75,7 @@ it('jumping through every target, spawning everything, keeps the world valid and
     devJumpTo(world, { kind: 'battle', n });
     fly(world, rng, 60);
     devClearBattle(world);
-    fly(world, rng, 10);
+    fly(world, rng, 60 * (tuning.capital.deathChainTime + 1)); // the capital ship's death chain takes a few seconds
     expect(['debrief', 'end']).toContain(world.run.phase);
   }
   expect(world.run).toMatchObject({ phase: 'end', result: 'victory' });

@@ -22,7 +22,9 @@ export const BATTLES: BattleTable = [
   fighters(2, 3, 0), // battle 1
   fighters(3, 4, 0), // battle 2
   fighters(3, 5, 2), // battle 3
-  fighters(4, 6, 3), // battle 4
+  // Battle 4: the capital ship (boss, track C). Its escorts come from the boss script (`capital-battle.ts`), so
+  // the waves here are only the objective placeholder the table type needs: the battle is won by the core's death.
+  { ...fighters(1, 1, 3), boss: 'capital' },
 ];
 
 validateBattleTable(BATTLES, ENEMY_KINDS);

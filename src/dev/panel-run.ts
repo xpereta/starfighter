@@ -4,6 +4,7 @@ import {
   devJumpTo,
   devNextWave,
   devRestore,
+  capitalSummary,
   enemyCounts,
   jumpLabel,
   jumpTargets,
@@ -190,7 +191,10 @@ export function buildRunSpawnSections(
             : run.phase;
     runReadout.set(`now: ${where}`);
     const c = enemyCounts(w);
-    spawnReadout.set(`enemies alive: ${c.fighters} fighters, ${c.targets} targets`);
+    const capital = capitalSummary(w);
+    spawnReadout.set(
+      `enemies alive: ${c.fighters} fighters, ${c.targets} targets${capital ? `; ${capital}` : ''}`,
+    );
   }
   update(world);
 

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { CAPITAL_PARTS } from '../../../data/content/capital';
+import type { PartRole } from '../../core/enemies/capital-parts';
 import type { GameEvent } from '../../core/events/events';
 import { createRng, type Rng } from '../../core/rng/rng';
 import type { EntityKind } from '../../core/world/target';
@@ -88,6 +90,22 @@ const KIND_COLOR: Record<EntityKind, () => number> = {
   drone: () => palette.enemy,
   turret: () => palette.turret,
 };
+
+/** Which ship shape and death a capital ship part uses, by role. */
+const PART_SHIP_KIND: Record<PartRole, ShipKind> = {
+  turret: 'capitalTurret',
+  engine: 'capitalEngine',
+  armour: 'capitalArmour',
+  bridge: 'capitalBridge',
+  core: 'capitalCore',
+};
+/** Death seeds of the capital ship use ids from here (part index added), clear of every entity id. */
+const PART_ENTITY_BASE = 5000;
+const partIndexOf = (id: string): number =>
+  Math.max(
+    0,
+    CAPITAL_PARTS.findIndex((p) => p.id === id),
+  );
 
 const ink = [0, 0, 0];
 
@@ -436,30 +454,36 @@ export function createDeathFx(
     return { vx: 0, vy: 0, heading: Math.PI / 2 };
   }
 
-  function startDeath(e: Extract<GameEvent, { type: 'Killed' }>): void {
+  /** Rolls one death sequence for `kind` at a place, with its own seeded stream (never the simulation's). */
+  function rollFor(
+    kind: ShipKind,
+    entityId: number,
+    x: number,
+    y: number,
+    radius: number,
+    dying: { vx: number; vy: number; heading: number },
+    color: number,
+  ): void {
     const style = activeStyle();
-    const kind: ShipKind = e.kind;
     const def = style.deaths[kind];
     const shape = style.ships[kind];
     if (!def || !shape) return;
-    const found = findDying(e.kind, e.x, e.y);
     const hit = lastHit;
     const fresh =
       world.time - hit.time <= BLOW_MAX_AGE &&
-      Math.hypot(hit.x - e.x, hit.y - e.y) <= e.radius * BLOW_REACH;
+      Math.hypot(hit.x - x, hit.y - y) <= radius * BLOW_REACH;
     const ctx: DeathContext = {
-      x: e.x,
-      y: e.y,
-      heading: found.heading,
-      radius: e.radius,
-      vx: found.vx,
-      vy: found.vy,
+      x,
+      y,
+      heading: dying.heading,
+      radius,
+      vx: dying.vx,
+      vy: dying.vy,
       blowX: fresh ? hit.dirX : 0,
       blowY: fresh ? hit.dirY : 0,
       impulse: fresh ? hit.impulse : 0,
     };
-    const rng = createRng(deathSeed(world.seed, e.entityId, world.tick, e.x, e.y));
-    const color = KIND_COLOR[e.kind]();
+    const rng = createRng(deathSeed(world.seed, entityId, world.tick, x, y));
     const sink: DeathSink = {
       piece: (p) => addPiece(p, color),
       blast: addBlast,
@@ -483,6 +507,39 @@ export function createDeathFx(
       },
     };
     rollDeath(def, shape.polygon, ctx, quality, rng, sink, deathCounter++);
+  }
+
+  function startDeath(e: Extract<GameEvent, { type: 'Killed' }>): void {
+    if (!activeStyle().deaths[e.kind] || !activeStyle().ships[e.kind]) return;
+    rollFor(
+      e.kind,
+      e.entityId,
+      e.x,
+      e.y,
+      e.radius,
+      findDying(e.kind, e.x, e.y),
+      KIND_COLOR[e.kind](),
+    );
+  }
+
+  /** The capital ship's parts and hull die from the same data as any ship (prototype 5, track C). */
+  function startCapitalDeath(
+    kind: ShipKind,
+    entityId: number,
+    x: number,
+    y: number,
+    radius: number,
+  ): void {
+    const cap = world.enemies.capital;
+    rollFor(
+      kind,
+      entityId,
+      x,
+      y,
+      radius,
+      { vx: cap?.vx ?? 0, vy: cap?.vy ?? 0, heading: cap?.heading ?? 0 },
+      kind === 'capitalTurret' ? palette.turret : palette.enemy,
+    );
   }
 
   const smokeRgb = new Float32Array(3);
@@ -526,6 +583,16 @@ export function createDeathFx(
               false,
             );
         } else if (e.type === 'Killed') startDeath(e);
+        else if (e.type === 'PartDestroyed')
+          startCapitalDeath(
+            PART_SHIP_KIND[e.role],
+            PART_ENTITY_BASE + partIndexOf(e.part),
+            e.x,
+            e.y,
+            e.radius,
+          );
+        else if (e.type === 'CapitalDestroyed')
+          startCapitalDeath('capital', PART_ENTITY_BASE - 1, e.x, e.y, e.radius);
       }
     },
     update(dt) {

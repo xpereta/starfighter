@@ -15,6 +15,7 @@ import { createScreenFx } from './fx/screen-fx';
 import { createSparks } from './sparks';
 import { createPodRenderer } from './pods';
 import { createTargetRenderer } from './targets';
+import { createCapitalRenderer } from './capital';
 import { palette } from './palette';
 import { styleRevision } from './style-active';
 import { createShipArt, rollSquash } from './ship-art';
@@ -57,6 +58,8 @@ export function createRenderer(
   scene.add(missiles.object);
   const targets = createTargetRenderer(world.targets);
   scene.add(targets.object);
+  const capital = createCapitalRenderer(); // prototype 5, track C: under the fighters
+  scene.add(capital.object);
   const fighters = createFighterRenderer();
   scene.add(fighters.object);
   const wingmen = createWingmanRenderer();
@@ -136,6 +139,7 @@ export function createRenderer(
       bullets.update(world.bullets);
       enemyShots.update(world.enemyShots);
       targets.update(world.targets);
+      capital.update(world);
       fighters.update(world.fighters);
       wingmen.update(world.squadron.wingmen, world.tuning.squadron.radius);
       pods.update(world.pods, world.tuning.rescue.podRadius);
@@ -154,6 +158,7 @@ export function createRenderer(
       deathFx.dispose();
       screenFx.dispose();
       targets.dispose();
+      capital.dispose();
       fighters.dispose();
       wingmen.dispose();
       pods.dispose();

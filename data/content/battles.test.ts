@@ -17,6 +17,12 @@ describe('the default battle table is today’s behaviour', () => {
   it('reproduces the waves, their sizes and the turrets of the run formulas', () => {
     BATTLES.forEach((battle, i) => {
       const n = i + 1;
+      if (battle.boss) {
+        // Battle 4 is the capital ship (track C): its objective is the boss, not the waves.
+        expect(battle.boss).toBe('capital');
+        expect(battle.turrets, `battle ${n} turrets`).toBe(turretsIn(cfg, n));
+        return;
+      }
       expect(battle.waves, `battle ${n} waves`).toHaveLength(wavesIn(cfg, n));
       for (const wave of battle.waves) {
         expect(wave.groups, `battle ${n}`).toEqual([

@@ -4,6 +4,7 @@ import type { TargetKind } from '../../core/world/target';
 import type { World } from '../../core/world/world';
 import { lockLimit } from '../../core/lockon/lockon';
 import { palette } from '../palette';
+import { drawCapitalBar } from './capital-bar';
 import { drawLockPanel, drawLockRings } from './locks-hud';
 import { drawOrderMarker } from './order-marker';
 import { drawPodRings } from './pods-hud';
@@ -32,6 +33,8 @@ const css = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`;
 const FIGHTER_COLOR = css(palette.fighter);
 const WINGMAN_COLOR = css(palette.wingman);
 const POD_COLOR = css(palette.pod);
+const CAPITAL_COLOR = css(palette.enemy);
+const capitalBody = { x: 0, y: 0, radius: 0 };
 const KIND_COLOR: Record<TargetKind, string> = {
   static: css(palette.enemyStatic),
   drone: css(palette.enemy),
@@ -144,6 +147,14 @@ export function createHud(container: HTMLElement): Hud {
     };
     for (const t of world.targets) if (t.alive) arrow(t, KIND_COLOR[t.kind], 'plain');
     for (const f of world.fighters) if (f.alive) arrow(f, FIGHTER_COLOR, 'notched');
+    const cap = world.enemies.capital;
+    if (cap && cap.phase !== 2) {
+      // The capital ship: one arrow at its centre (its hull is the radius), labelled, in the enemy colour.
+      capitalBody.x = cap.x;
+      capitalBody.y = cap.y;
+      capitalBody.radius = cap.hullRadius;
+      arrow(capitalBody, CAPITAL_COLOR, 'notched', () => 'CAPITAL SHIP');
+    }
     for (const pod of world.pods) {
       if (pod.alive) {
         const podBody = { x: pod.x, y: pod.y, radius: world.tuning.rescue.podRadius };
@@ -280,6 +291,7 @@ export function createHud(container: HTMLElement): Hud {
       drawLocks(world);
       drawFlight(world);
       drawStatus(world);
+      drawCapitalBar(g, world, screen); // prototype 5, track C: only while a capital ship is on the field
     },
     dispose() {
       window.removeEventListener('resize', resize);
