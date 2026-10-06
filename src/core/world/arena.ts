@@ -46,6 +46,30 @@ function makeTarget(kind: TargetKind, x: number, y: number, hp: number, radius: 
   };
 }
 
+/**
+ * One target of a kind at a position, built from the arena config without touching the RNG (used by
+ * the dev panel's spawn buttons). Drones fly straight along `heading`; static ones and turrets stay put.
+ */
+export function createTargetAt(
+  kind: TargetKind,
+  cfg: ArenaConfig,
+  x: number,
+  y: number,
+  heading: number,
+): Target {
+  if (kind === 'static') return makeTarget('static', x, y, cfg.staticHp, cfg.staticRadius);
+  if (kind === 'turret') {
+    const t = makeTarget('turret', x, y, cfg.turretHp, cfg.turretRadius);
+    t.cooldown = 1.5;
+    return t;
+  }
+  const t = makeTarget('drone', x, y, cfg.droneHp, cfg.droneRadius);
+  t.mode = 'straight';
+  t.angle = heading;
+  t.speed = cfg.droneSpeedMin;
+  return t;
+}
+
 /** Builds the arena layout from the seeded RNG: static drones, moving drones, turrets. */
 export function createTargets(cfg: ArenaConfig, rng: Rng): Target[] {
   const targets: Target[] = [];
@@ -232,6 +256,10 @@ export function stepEnemyShots(
   dt: number,
   /** The hull before this step's hits, only used to say how much is left in `PlayerDamaged` (0 in practice mode). */
   hullBefore = 0,
+  /** True while the player is inside the post-hit protection window: bullets pass through like during an evade roll. */
+  guarded = false,
+  /** True when the first hit of this step starts a protection window: no further bullet hits the ship this step. */
+  guardAfterHit = false,
 ): number {
   const { x, y, vx, vy, life } = shots.data;
   const reach = cfg.playerRadius + cfg.enemyShotRadius;
@@ -244,7 +272,7 @@ export function stepEnemyShots(
       shots.remove(i);
       continue;
     }
-    if (ship.invulnerable) continue;
+    if (ship.invulnerable || guarded || (guardAfterHit && hits > 0)) continue;
     const dx = x[i]! - ship.x;
     const dy = y[i]! - ship.y;
     if (dx * dx + dy * dy > reach * reach) continue;

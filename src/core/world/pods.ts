@@ -42,13 +42,16 @@ export function podBattle(world: World, battle: number): boolean {
 }
 
 function spawnPod(world: World): void {
-  const cfg = world.tuning.rescue;
   const arena = world.tuning.flight.arenaRadius;
   const angle = world.rng.range(0, TAU);
   const heading = world.rng.range(0, TAU);
-  const r = arena * cfg.podSpawnFraction;
-  const x = Math.cos(angle) * r;
-  const y = Math.sin(angle) * r;
+  const r = arena * world.tuning.rescue.podSpawnFraction;
+  spawnPodAt(world, Math.cos(angle) * r, Math.sin(angle) * r, heading);
+}
+
+/** Adds a pod at a position, drifting along `heading`, for the current battle. Also used by the dev panel's spawn buttons. */
+export function spawnPodAt(world: World, x: number, y: number, heading: number): void {
+  const cfg = world.tuning.rescue;
   world.pods.push({
     x,
     y,

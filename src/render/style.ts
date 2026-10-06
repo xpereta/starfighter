@@ -70,7 +70,66 @@ export interface Theme {
   eyeColor: number;
   /** Speed lines at high speed, strength 0..1; 0 = off. */
   speedLines: number;
+  /** Colours and tones of layered ship parts (see `ShapePart`). Optional: missing fields use `DEFAULT_PART_COLORS`. */
+  partColors?: Partial<PartColors>;
+  /** The deep background behind the stars: soft glows, a planet, grain. Optional: none = plain stars on the background colour. */
+  backdrop?: BackdropDef;
 }
+
+/** How the roles of a layered ship part are coloured (the `hull` role is the ship's faction colour). */
+export interface PartColors {
+  /** `panel` role: the hull colour times this, 0.05..1.6 (above 1 = lighter). */
+  panelTone: number;
+  /** `dark` role: the hull colour times this, 0..1. */
+  darkTone: number;
+  /** `accent` role: stripes and markings (0xRRGGBB). */
+  accent: number;
+  /** `glass` role: canopies and sensor windows (0xRRGGBB). */
+  glass: number;
+  /** `glow` role: lights and hot metal, drawn bright (0xRRGGBB). */
+  glow: number;
+}
+
+/** What a theme that gives no `partColors` gets. */
+export const DEFAULT_PART_COLORS: PartColors = {
+  panelTone: 0.8,
+  darkTone: 0.4,
+  accent: 0xffd23f,
+  glass: 0xfff4b0,
+  glow: 0xffffff,
+};
+
+/**
+ * A soft glow or a lit sphere in the deep background. Positions and sizes are fractions of the
+ * visible area, so the backdrop looks the same at every zoom: `x`, `y` in -1..1 (the screen edges),
+ * `radius` as a share of the view width.
+ */
+export interface BackdropGlow {
+  x: number;
+  y: number;
+  radius: number;
+  color: number;
+  /** Opacity at the centre, 0..1. */
+  strength: number;
+  /** 0 = a soft glow fading out from the centre; towards 1 = a solid disc (a planet) with a thin soft rim. */
+  hardness: number;
+  /** Planets: how dark the side away from the light is, 0..1 (0 = flat). */
+  shade: number;
+  /** Direction the light comes from, degrees (0 = from the right, 90 = from above). */
+  lightAngle: number;
+  /** How much it slides against the camera, 0..0.2 (0 = fixed on screen, far away). */
+  drift: number;
+}
+
+export interface BackdropDef {
+  /** Behind the stars, far to near, at most `MAX_BACKDROP_GLOWS`. */
+  glows: readonly BackdropGlow[];
+  /** A fine speckle over the whole view (film grain, dust haze); omit for none. */
+  grain?: { count: number; size: number; color: number; opacity: number };
+}
+
+export const MAX_BACKDROP_GLOWS = 6;
+export const MAX_BACKDROP_GRAIN = 3000;
 
 /** A pack may give only some theme fields; the rest come from the fallback. */
 export type ThemeInput = Partial<Omit<Theme, 'palette'>> & { palette?: Partial<Palette> };
@@ -90,12 +149,40 @@ export const SHIP_KINDS = [
   'player',
   'wingman',
   'fighter',
+  'gunship',
+  'lancer',
   'drone',
   'turret',
   'pod',
   'static',
+  // Prototype 5, track C: the capital ship's hull (drawn behind its parts) and one shape per part role.
+  'capital',
+  'capitalTurret',
+  'capitalEngine',
+  'capitalArmour',
+  'capitalBridge',
+  'capitalCore',
 ] as const;
 export type ShipKind = (typeof SHIP_KINDS)[number];
+
+/**
+ * Optional shape slots. `wingmanB` and `wingmanC` are liveries of the wingman: the second and third
+ * wingman of the squadron use them when a pack gives them (else the plain `wingman` shape), so they
+ * should keep the wingman's outer silhouette (deaths are cut from `wingman`). The Prototype 5 kinds
+ * (gunship, lancer, the capital ship and its parts) are ordinary `SHIP_KINDS`.
+ */
+export const EXTRA_SHAPE_KINDS = ['wingmanB', 'wingmanC'] as const;
+export type ExtraShapeKind = (typeof EXTRA_SHAPE_KINDS)[number];
+
+/** Every id a pack may give a shape or a death sequence for. */
+export const SHAPE_KINDS = [...SHIP_KINDS, ...EXTRA_SHAPE_KINDS] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** The shape a variant slot falls back to when a pack does not give it. */
+export const SHAPE_FALLBACK: Partial<Record<ShapeKind, ShapeKind>> = {
+  wingmanB: 'wingman',
+  wingmanC: 'wingman',
+};
 
 export type Point = readonly [number, number];
 
@@ -105,6 +192,7 @@ export type Point = readonly [number, number];
  * implicitly (the last edge is not repeated).
  */
 export interface ShapeDef {
+  /** The outer silhouette: the outline, the base fill and the fracture lines of a death follow it. */
   polygon: readonly Point[];
   /** A hole in the silhouette (the background shows through), e.g. the ring of a pod. */
   hole?: readonly Point[];
@@ -114,9 +202,80 @@ export interface ShapeDef {
   eye?: readonly Point[];
   /** Engine glow points (where the flame starts), drawn with `theme.glow`. */
   glow?: readonly Point[];
+  /** Colour of the engine glow (0xRRGGBB); omit for the ship's own colour. Ion blue, sodium orange, plasma white. */
+  glowColor?: number;
+  /**
+   * Layered detail on top of the silhouette, drawn in order (later parts over earlier ones): hull
+   * plates, panel lines, greebles, canopy, nacelles, flaps, hardpoints, damage scars. Optional: a
+   * shape without parts is drawn exactly as before. See `ShapePart` and `MAX_SHAPE_TRIANGLES`.
+   */
+  parts?: readonly ShapePart[];
 }
-/** Every kind has a shape: a pack that lacks one falls back to its parent or `plain`. */
-export type ShipShapes = Partial<Record<ShipKind, ShapeDef>>;
+
+/** What a part is (it decides only the budget and the checks; the role decides the colour). */
+export const PART_KINDS = [
+  'hull',
+  'panel',
+  'greeble',
+  'canopy',
+  'nacelle',
+  'flap',
+  'hardpoint',
+  'scar',
+  'line',
+] as const;
+export type PartKind = (typeof PART_KINDS)[number];
+
+/** Which colour a part takes: `hull` is the faction colour, the rest come from `theme.partColors`. */
+export const PART_ROLES = ['hull', 'panel', 'dark', 'accent', 'glass', 'glow'] as const;
+export type PartRole = (typeof PART_ROLES)[number];
+
+/** One layered part of a ship, in the same radius units as the silhouette. */
+export interface ShapePart {
+  kind: PartKind;
+  role: PartRole;
+  /** A polygon (3 or more points, closed implicitly), or for kind `line` a polyline (2 or more points). */
+  points: readonly Point[];
+  /** Line width in radius units, 0.002..0.3 (kind `line` only; default 0.02). */
+  width?: number;
+  /** Also draw the mirror image across the ship's long axis (y becomes -y): half the data for a symmetric ship. */
+  mirror?: boolean;
+  /** An exact colour instead of the role's (0xRRGGBB), e.g. a faction stripe or soot. */
+  color?: number;
+}
+
+/** Most parts in one shape (a mirrored part counts as one), and most points in one part. */
+export const MAX_SHAPE_PARTS = 96;
+export const MAX_PART_POINTS = 16;
+/** Complexity budget per shape in triangles (fill, outline, parts, shadow, glow, all counted). The capital ship may be far bigger than a fighter. */
+export const MAX_SHAPE_TRIANGLES = 900;
+export const MAX_CAPITAL_TRIANGLES = 4000;
+/** Triangles of one engine glow point (core plus halo discs). */
+export const GLOW_POINT_TRIANGLES = 24;
+
+/** Shape kinds that get the larger triangle budget. */
+export const BIG_SHAPE_KINDS: readonly ShapeKind[] = ['capital'];
+
+/** The triangles one part costs, counting its mirror image. */
+export function partTriangles(part: ShapePart): number {
+  const n = part.points.length;
+  const one = part.kind === 'line' ? 2 * Math.max(0, n - 1) : Math.max(0, n - 2);
+  return part.mirror ? one * 2 : one;
+}
+
+/** A shape's triangle count: what drawing it once costs (fill, outline stroke, shadow, eye, glow, parts). */
+export function shapeTriangles(def: ShapeDef): number {
+  let t = Math.max(0, def.polygon.length - 2) + 2 * def.polygon.length;
+  if (def.hole) t += 2 * def.hole.length;
+  if (def.shadow) t += Math.max(0, def.shadow.length - 2);
+  if (def.eye) t += Math.max(0, def.eye.length - 2);
+  if (def.glow) t += def.glow.length * GLOW_POINT_TRIANGLES;
+  for (const p of def.parts ?? []) t += partTriangles(p);
+  return t;
+}
+
+/** The core kinds have a shape in every resolved pack (a pack that lacks one falls back to its parent or `plain`); the extra kinds are optional. */
+export type ShipShapes = Partial<Record<ShapeKind, ShapeDef>>;
 
 /** A min..max range, picked uniformly by the seeded roll. */
 export type Range = readonly [min: number, max: number];
@@ -204,7 +363,7 @@ export interface DeathDef {
   /** Drawing-only freeze when the ship dies, seconds (s); 0 = none. */
   hitStop: number;
 }
-export type DeathDefs = Partial<Record<ShipKind, DeathDef>>;
+export type DeathDefs = Partial<Record<ShapeKind, DeathDef>>;
 
 // Sounds ----------------------------------------------------------------------------------
 
@@ -358,11 +517,31 @@ const SOUND_KEY_SET: Record<SoundEventKey, true> = {
   MenuSelect: true,
   MenuBack: true,
   MenuTick: true,
+  EnemySpawned: true,
+  EnemyMissileFired: true,
+  EnemyMissileHit: true,
+  PartDestroyed: true,
+  CoreExposed: true,
+  WingBroken: true,
+  CapitalDestroyed: true,
   MenuPick: true,
   Paused: true,
   Resumed: true,
 };
 export const SOUND_EVENT_KEYS = Object.keys(SOUND_KEY_SET) as SoundEventKey[];
+
+/**
+ * Prototype 5 events that are deliberately silent in the style packs until their track gives them a
+ * sound. The completeness tests allow 'silent' only for `PilotKill` and these; a track removes its
+ * events from this list when it adds their sounds (see docs/p5-tracks.md).
+ */
+export const PENDING_SOUND_EVENTS: readonly SoundEventKey[] = [
+  'EnemySpawned',
+  'PartDestroyed',
+  'CoreExposed',
+  'WingBroken',
+  'CapitalDestroyed',
+];
 
 /** A table with every event 'silent'. */
 export function silentSoundTable(): SoundTable {
@@ -562,6 +741,51 @@ export function validateTheme(t: ThemeInput): string[] {
     errors.push('theme.speedLines must be 0..1');
   if (t.eyeColor !== undefined && !isColor(t.eyeColor))
     errors.push('theme.eyeColor must be a colour 0..0xffffff');
+  if (t.partColors !== undefined) errors.push(...validatePartColors(t.partColors));
+  if (t.backdrop !== undefined) errors.push(...validateBackdrop(t.backdrop));
+  return errors;
+}
+
+function validatePartColors(c: Partial<PartColors>): string[] {
+  const errors: string[] = [];
+  for (const [k, v] of Object.entries(c)) {
+    if (k === 'panelTone') {
+      if (!isNum(v, 0.05, 1.6)) errors.push('theme.partColors.panelTone must be 0.05..1.6');
+    } else if (k === 'darkTone') {
+      if (!isNum(v, 0, 1)) errors.push('theme.partColors.darkTone must be 0..1');
+    } else if (k === 'accent' || k === 'glass' || k === 'glow') {
+      if (!isColor(v)) errors.push(`theme.partColors.${k} must be a colour 0..0xffffff`);
+    } else errors.push(`theme.partColors.${k} is unknown`);
+  }
+  return errors;
+}
+
+function validateBackdrop(b: BackdropDef): string[] {
+  const errors: string[] = [];
+  if (!Array.isArray(b.glows) || b.glows.length > MAX_BACKDROP_GLOWS)
+    errors.push(`theme.backdrop.glows must be a list of at most ${MAX_BACKDROP_GLOWS}`);
+  else
+    b.glows.forEach((g, i) => {
+      const at = `theme.backdrop.glows[${i}]`;
+      if (!isNum(g?.x, -1.5, 1.5) || !isNum(g?.y, -1.5, 1.5))
+        errors.push(`${at}.x and .y must be -1.5..1.5 (fractions of the view)`);
+      if (!isNum(g?.radius, 0.01, 3)) errors.push(`${at}.radius must be 0.01..3 of the view width`);
+      if (!isColor(g?.color)) errors.push(`${at}.color must be a colour 0..0xffffff`);
+      if (!isNum(g?.strength, 0, 1)) errors.push(`${at}.strength must be 0..1`);
+      if (!isNum(g?.hardness, 0, 1)) errors.push(`${at}.hardness must be 0..1`);
+      if (!isNum(g?.shade, 0, 1)) errors.push(`${at}.shade must be 0..1`);
+      if (!isNum(g?.lightAngle, -360, 360))
+        errors.push(`${at}.lightAngle must be -360..360 degrees`);
+      if (!isNum(g?.drift, 0, 0.2)) errors.push(`${at}.drift must be 0..0.2`);
+    });
+  const gr = b.grain;
+  if (gr !== undefined) {
+    if (!isNum(gr.count, 0, MAX_BACKDROP_GRAIN) || !Number.isInteger(gr.count))
+      errors.push(`theme.backdrop.grain.count must be a whole number 0..${MAX_BACKDROP_GRAIN}`);
+    if (!isNum(gr.size, 0.5, 4)) errors.push('theme.backdrop.grain.size must be 0.5..4 px');
+    if (!isColor(gr.color)) errors.push('theme.backdrop.grain.color must be a colour 0..0xffffff');
+    if (!isNum(gr.opacity, 0, 1)) errors.push('theme.backdrop.grain.opacity must be 0..1');
+  }
   return errors;
 }
 
@@ -599,16 +823,66 @@ function validatePolygon(name: string, p: readonly Point[] | undefined, min: num
 export function validateShips(ships: ShipShapes): string[] {
   const errors: string[] = [];
   for (const [kind, def] of Object.entries(ships)) {
-    if (!isKind(SHIP_KINDS, kind)) {
+    if (!isKind(SHAPE_KINDS, kind)) {
       errors.push(`ships.${kind} is not a ship kind`);
       continue;
     }
-    errors.push(...validatePolygon(`ships.${kind}.polygon`, def.polygon, 3));
-    if (def.hole) errors.push(...validatePolygon(`ships.${kind}.hole`, def.hole, 3));
-    if (def.shadow) errors.push(...validatePolygon(`ships.${kind}.shadow`, def.shadow, 3));
-    if (def.eye) errors.push(...validatePolygon(`ships.${kind}.eye`, def.eye, 3));
-    if (def.glow) errors.push(...validatePolygon(`ships.${kind}.glow`, def.glow, 1));
+    const own: string[] = [
+      ...validatePolygon(`ships.${kind}.polygon`, def.polygon, 3),
+      ...(def.hole ? validatePolygon(`ships.${kind}.hole`, def.hole, 3) : []),
+      ...(def.shadow ? validatePolygon(`ships.${kind}.shadow`, def.shadow, 3) : []),
+      ...(def.eye ? validatePolygon(`ships.${kind}.eye`, def.eye, 3) : []),
+      ...(def.glow ? validatePolygon(`ships.${kind}.glow`, def.glow, 1) : []),
+      ...(def.glowColor !== undefined && !isColor(def.glowColor)
+        ? [`ships.${kind}.glowColor must be a colour 0..0xffffff`]
+        : []),
+      ...(def.parts !== undefined ? validateParts(`ships.${kind}`, def.parts) : []),
+    ];
+    if (own.length === 0) {
+      const budget = isKind(BIG_SHAPE_KINDS, kind) ? MAX_CAPITAL_TRIANGLES : MAX_SHAPE_TRIANGLES;
+      const cost = shapeTriangles(def);
+      if (cost > budget)
+        own.push(`ships.${kind} costs ${cost} triangles, over its budget of ${budget}`);
+    }
+    errors.push(...own);
   }
+  return errors;
+}
+
+function validateParts(at: string, parts: readonly ShapePart[]): string[] {
+  if (!Array.isArray(parts) || parts.length > MAX_SHAPE_PARTS)
+    return [`${at}.parts must be a list of at most ${MAX_SHAPE_PARTS} parts`];
+  const errors: string[] = [];
+  parts.forEach((p, i) => {
+    const name = `${at}.parts[${i}]`;
+    if (!isKind(PART_KINDS, String(p?.kind))) errors.push(`${name}.kind is unknown`);
+    if (!isKind(PART_ROLES, String(p?.role))) errors.push(`${name}.role is unknown`);
+    const isLine = p?.kind === 'line';
+    if (Array.isArray(p?.points) && p.points.length > MAX_PART_POINTS)
+      errors.push(`${name}.points has more than ${MAX_PART_POINTS} points`);
+    else if (isLine) errors.push(...validatePolyline(`${name}.points`, p.points));
+    else errors.push(...validatePolygon(`${name}.points`, p?.points, 3));
+    if (p?.width !== undefined && (!isLine || !isNum(p.width, 0.002, 0.3)))
+      errors.push(`${name}.width must be 0.002..0.3 and only for lines`);
+    if (p?.color !== undefined && !isColor(p.color))
+      errors.push(`${name}.color must be a colour 0..0xffffff`);
+    if (p?.mirror !== undefined && typeof p.mirror !== 'boolean')
+      errors.push(`${name}.mirror must be true or false`);
+  });
+  return errors;
+}
+
+function validatePolyline(name: string, p: readonly Point[] | undefined): string[] {
+  if (!Array.isArray(p) || p.length < 2) return [`${name} needs at least 2 points`];
+  const errors: string[] = [];
+  p.forEach((pt, i) => {
+    if (
+      !Array.isArray(pt) ||
+      !isNum(pt[0], -MAX_SHAPE_EXTENT, MAX_SHAPE_EXTENT) ||
+      !isNum(pt[1], -MAX_SHAPE_EXTENT, MAX_SHAPE_EXTENT)
+    )
+      errors.push(`${name}[${i}] must be two numbers within +/-${MAX_SHAPE_EXTENT} radii`);
+  });
   return errors;
 }
 
@@ -629,7 +903,7 @@ export function validateDeaths(deaths: DeathDefs): string[] {
   const errors: string[] = [];
   for (const [kind, def] of Object.entries(deaths)) {
     const at = `deaths.${kind}`;
-    if (!isKind(SHIP_KINDS, kind)) {
+    if (!isKind(SHAPE_KINDS, kind)) {
       errors.push(`${at} is not a ship kind`);
       continue;
     }

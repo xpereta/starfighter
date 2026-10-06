@@ -3,6 +3,7 @@ import { anime80s } from './anime-80s';
 import { animeSpectacle } from './anime-spectacle';
 import { plain } from './plain';
 import { realistic } from './realistic';
+import { usedFuture } from './used-future';
 
 /** Registry of style packs: one line per pack (the key is the pack's folder name and its id). */
 export const styles: StyleRegistry = {
@@ -10,4 +11,5 @@ export const styles: StyleRegistry = {
   'anime-80s': anime80s,
   'anime-spectacle': animeSpectacle,
   realistic,
+  'used-future': usedFuture,
 };

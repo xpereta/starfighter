@@ -227,6 +227,55 @@ export const sounds: SoundTable = {
       minGap: 0.1,
     },
   ),
+  // Prototype 5 events: silent until the tracks give each a sound (see docs/p5-tracks.md).
+  EnemySpawned: 'silent',
+  // An enemy missile leaves: a rising rush and a two-beep alarm (the audible half of the MISSILE warning).
+  EnemyMissileFired: sfx(
+    [
+      noise('highpass', 600, 3500, 0.5, 0.35, { attack: 0.1 }),
+      tone('square', 1300, 1300, 0.09, 0.45, { filter: { type: 'lowpass', freq: 3000, q: 1 } }),
+      tone('square', 1300, 1300, 0.09, 0.45, {
+        delay: 0.16,
+        filter: { type: 'lowpass', freq: 3000, q: 1 },
+      }),
+    ],
+    { volume: 0.4, minGap: 0.2, maxVoices: 2, spatial: AROUND },
+  ),
+  // An enemy missile ends: on you (a heavy thud), spent on your roll or burnt out (the same short pop).
+  EnemyMissileHit: sfx([noise('lowpass', 2400, 160, 0.35, 0.9), tone('sine', 180, 55, 0.3, 0.8)], {
+    volume: 0.5,
+    pitchRandom: 0.08,
+    minGap: 0.05,
+    maxVoices: 3,
+    spatial: AROUND,
+  }),
+  // A part of the capital ship goes: a medium thud with noise.
+  PartDestroyed: sfx([noise('lowpass', 2600, 200, 0.4, 0.8), tone('sine', 150, 50, 0.4, 0.8)], {
+    volume: 0.45,
+    pitchRandom: 0.1,
+    minGap: 0.08,
+    maxVoices: 4,
+    spatial: AROUND,
+  }),
+  // The core is bare: a short rising two-tone alert.
+  CoreExposed: sfx(
+    [tone('sine', 520, 520, 0.12, 0.5), tone('sine', 780, 780, 0.2, 0.5, { delay: 0.14 })],
+    {
+      volume: 0.3,
+      maxVoices: 1,
+      minGap: 0.5,
+    },
+  ),
+  WingBroken: 'silent',
+  // The capital ship ends: a long deep blast.
+  CapitalDestroyed: sfx(
+    [
+      noise('lowpass', 2400, 120, 2, 0.9),
+      tone('sine', 80, 25, 1.6, 1),
+      tone('sine', 55, 20, 1.4, 0.8, { delay: 0.5 }),
+    ],
+    { volume: 0.6, maxVoices: 1, minGap: 1, spatial: AROUND, duck: { amount: 0.4, time: 2 } },
+  ),
   Paused: sfx([tone('sine', 500, 250, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
   Resumed: sfx([tone('sine', 250, 500, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
 };

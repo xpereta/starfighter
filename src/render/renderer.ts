@@ -15,6 +15,7 @@ import { createScreenFx } from './fx/screen-fx';
 import { createSparks } from './sparks';
 import { createPodRenderer } from './pods';
 import { createTargetRenderer } from './targets';
+import { createCapitalRenderer } from './capital';
 import { palette } from './palette';
 import { styleRevision } from './style-active';
 import { createShipArt, PLAYER_SCALE, rollSquash } from './ship-art';
@@ -54,8 +55,16 @@ export function createRenderer(
   scene.add(enemyShots.object);
   const missiles = createMissileRenderer(world.missiles.capacity);
   scene.add(missiles.object);
+  // Enemy missiles (prototype 5): bigger and red, so they read apart from yours; the HUD marks each one.
+  const enemyMissiles = createBulletRenderer(world.enemies.missiles.capacity, palette.enemy, {
+    length: 34,
+    width: 11,
+  });
+  scene.add(enemyMissiles.object);
   const targets = createTargetRenderer(world.targets);
   scene.add(targets.object);
+  const capital = createCapitalRenderer(); // prototype 5, track C: under the fighters
+  scene.add(capital.object);
   const fighters = createFighterRenderer();
   scene.add(fighters.object);
   const wingmen = createWingmanRenderer();
@@ -135,10 +144,12 @@ export function createRenderer(
         squash: rollSquash(s.roll), // evade roll: the wingspan squashes like a barrel roll seen from above
         thrust: speedFactor,
       });
-      background.update(cam.x, cam.y, s.vx, s.vy, speedFactor);
+      background.update(cam.x, cam.y, s.vx, s.vy, speedFactor, view);
       bullets.update(world.bullets);
       enemyShots.update(world.enemyShots);
+      enemyMissiles.update(world.enemies.missiles);
       targets.update(world.targets);
+      capital.update(world);
       fighters.update(world.fighters);
       wingmen.update(world.squadron.wingmen, world.tuning.squadron.radius);
       pods.update(world.pods, world.tuning.rescue.podRadius);
@@ -167,11 +178,13 @@ export function createRenderer(
       screenFx.dispose();
       spectacle.dispose();
       targets.dispose();
+      capital.dispose();
       fighters.dispose();
       wingmen.dispose();
       pods.dispose();
       enemyShots.dispose();
       missiles.dispose();
+      enemyMissiles.dispose();
       shipArt.dispose();
       renderer.dispose();
     },

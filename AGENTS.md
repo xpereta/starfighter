@@ -6,27 +6,32 @@ Browser game (top-down 2D space dogfighting roguelite): Vite + TypeScript (stric
 
 Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 
-| Command                 | What it does                                                                 |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| `npm run dev`           | Vite dev server                                                              |
-| `npm run build`         | typecheck + production build into `dist/`                                    |
-| `npm test`              | unit tests (Vitest, `src/**/*.test.ts`)                                      |
-| `npm run test:sim`      | headless simulation tests (`tests/sim`)                                      |
-| `npm run lint`          | ESLint (includes the core boundary rule)                                     |
-| `npm run format`        | Prettier write (`format:check` to verify)                                    |
-| `npm run typecheck`     | `tsc --noEmit`                                                               |
-| `npm run e2e`           | Playwright smoke test (builds + serves `dist/`)                              |
-| `npm run board`         | sync the GitHub Project board (needs `gh` with the `project` scope)          |
-| `npm run audio:measure` | headless level check of the sound (after a build; see `src/audio/README.md`) |
+| Command                                 | What it does                                                                                                                 |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                           | Vite dev server                                                                                                              |
+| `npm run build`                         | typecheck + production build into `dist/`                                                                                    |
+| `npm test`                              | unit tests (Vitest, `src/**/*.test.ts`)                                                                                      |
+| `npm run test:sim`                      | headless simulation tests (`tests/sim`)                                                                                      |
+| `npm run lint`                          | ESLint (includes the core boundary rule)                                                                                     |
+| `npm run format`                        | Prettier write (`format:check` to verify)                                                                                    |
+| `npm run typecheck`                     | `tsc --noEmit`                                                                                                               |
+| `npm run e2e`                           | Playwright tests (builds + serves `dist/`; `E2E_PORT=4180` avoids a stale server)                                            |
+| `npm run board`                         | sync the GitHub Project board (needs `gh` with the `project` scope)                                                          |
+| `npm run audio:measure`                 | headless level check of the sound (after a build; see `src/audio/README.md`)                                                 |
+| `npm run style:contrast`                | headless contrast audit of every style pack (ships, shots, UI colours vs the backdrop; `-- --strict` fails on a miss)        |
+| `npm run style:sheet -- <style>`        | headless reference sheet of a pack's ships, large, on its backdrop                                                           |
+| `npm run style:frame-time`              | headless frame cost of a busy scene per style pack (compare packs, not absolute)                                             |
+| `node scripts/ingame-shots.mjs <style>` | headless in-game screenshots (dev spawns: gunship, wing, lancer missile, capital) into `docs/reference/<style>/ingame-*.png` |
 
 ## Module map
 
 ```
-src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ squadron/ run/ pilots/ meta/
+src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ enemies/ squadron/ run/ pilots/ meta/
+               (prototype 5: ai/ has wings, gunship and lancer; enemies/ has kinds, enemy missiles and the capital ship; the ramp is data/content/battles.ts)
 src/render/    Three.js renderer (orthographic); reads core state and the active style pack (style.ts contract, style-active.ts accessor)
 src/audio/     Web Audio engine: plays the active style pack's sound table from the events (prototype 4); never imported by core
 src/input/     gamepad + keyboard -> actions
-src/dev/       tuning panel, debug overlays (dev builds only)
+src/dev/       tuning panel, debug overlays, run-phase jumps and enemy spawn registry (dev builds only; add new enemy kinds to spawn-registry.ts)
 src/ui/        menus, chatter, roster HUD (prototype 3)
 src/app/       bootstrap, fixed-timestep loop
 data/          content data, tuning defaults, quality presets, style packs (data/styles/<id>/)

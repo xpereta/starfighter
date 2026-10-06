@@ -1,7 +1,11 @@
 import type { RunConfig } from '../../../data/tuning/run';
+import { BATTLES } from '../../../data/content/battles';
 import { TRAIT_IDS } from '../../../data/content/traits';
 import { NO_HIT } from '../ai/fighter';
-import { resolveFighterKills, spawnWave } from '../ai/waves';
+import { resolveFighterKills, spawnBattleWave } from '../ai/waves';
+import { spawnCapitalBattle, stepCapitalBattle } from '../enemies/capital-battle';
+import type { BattleDef } from '../enemies/battles';
+import { clearEnemyState } from '../enemies/state';
 import { createCamera } from '../camera/camera';
 import { createShip } from '../flight/flight';
 import { createLockOn } from '../lockon/lockon';
@@ -53,6 +57,8 @@ export interface Run {
   waveStartTick: number;
   /** `stats.hitsTaken` already charged to the hull. */
   hitsSeen: number;
+  /** Seconds left of the short protection after an enemy bullet hit (`run.hitProtection`): bullets pass through. 0 = none. */
+  hitProtect: number;
   /** Enemies destroyed and pilots lost in the current battle (what the debrief reports). */
   battleKills: number;
   battleLost: number;
@@ -76,6 +82,7 @@ export function createRun(): Run {
     waveTotal: 0,
     waveStartTick: 0,
     hitsSeen: 0,
+    hitProtect: 0,
     battleKills: 0,
     battleLost: 0,
     candidates: [],
@@ -98,6 +105,37 @@ export function waveSizeIn(cfg: RunConfig, n: number): number {
 export function turretsIn(cfg: RunConfig, n: number): number {
   if (n < cfg.turretsFromBattle) return 0;
   return Math.max(0, Math.round(cfg.turretsBase + cfg.turretsGrowth * (n - cfg.turretsFromBattle)));
+}
+
+/**
+ * The plan of battle `n`: its row of the battle table (`data/content/battles.ts`) with the
+ * `authored` ramp, otherwise (the `classic` ramp, or a battle past the end of the table) the old
+ * fighter-only waves built from the run tuning (`wavesIn`, `waveSizeIn`, `turretsIn`).
+ */
+export function battleDefOf(cfg: RunConfig, n: number): BattleDef {
+  const authored = BATTLES[n - 1];
+  if (cfg.ramp === 'authored' && authored) return authored;
+  const size = waveSizeIn(cfg, n);
+  return {
+    waves: Array.from({ length: wavesIn(cfg, n) }, () => ({
+      groups: [{ kind: 'fighter', count: size }],
+    })),
+    turrets: turretsIn(cfg, n),
+  };
+}
+
+/** Brings in wave `run.wave` of the current battle from its plan (the last one if a tuning edit shortened the plan mid-battle). */
+export function spawnRunWave(world: World): void {
+  const { waves } = battleDefOf(world.tuning.run, world.run.battle);
+  spawnBattleWave(world, waves[Math.min(world.run.wave, waves.length) - 1]!);
+}
+
+/**
+ * The boss of battle `n` (1-based) under the current ramp: from the authored battle table, or
+ * undefined (the classic ramp has no boss). Reads the table directly: it runs every step of a battle.
+ */
+export function bossOf(cfg: RunConfig, n: number): 'capital' | undefined {
+  return cfg.ramp === 'authored' ? BATTLES[n - 1]?.boss : undefined;
 }
 
 /** Rows on the current menu screen: the highlighted `cursor` ranges over 0..rows-1. */
@@ -156,27 +194,36 @@ function clearField(world: World): void {
   world.squadron.formation = formation;
   world.fighters.length = 0;
   world.pods.length = 0;
+  clearEnemyState(world.enemies);
   const aspect = world.camera.aspect;
   Object.assign(world.camera, createCamera(world.ship, tuning.flight, tuning.camera));
   world.camera.aspect = aspect;
 }
 
 /** Starts battle `n`: a clean field (which also restores the squad's hp and the pilots' positions) and its turrets. */
-function startBattle(world: World, n: number): void {
+export function startBattle(world: World, n: number): void {
   const run = world.run;
   const cfg = world.tuning.run;
   clearField(world);
   const turrets = { ...world.tuning.arena, staticCount: 0, droneCount: 0, turretCount: 0 };
-  turrets.turretCount = turretsIn(cfg, n);
+  const plan = battleDefOf(cfg, n);
+  turrets.turretCount = plan.turrets;
   world.targets.splice(0, world.targets.length, ...createTargets(turrets, world.rng));
   run.phase = 'battle';
   run.cursor = 0;
   run.battle = n;
   run.wave = 0;
-  run.waveTotal = wavesIn(cfg, n);
+  run.waveTotal = plan.waves.length;
+  if (bossOf(cfg, n)) {
+    // A boss battle (prototype 5, track C): the boss is the objective, not the waves.
+    spawnCapitalBattle(world);
+    run.waveTotal = 1;
+    run.wave = 1;
+  }
   run.battleKills = 0;
   run.battleLost = 0;
   run.hitsSeen = world.stats.hitsTaken;
+  run.hitProtect = 0;
   if (n === 1) run.hull = cfg.playerHull;
   run.candidates = [];
   world.events.emit({ type: 'BattleStarted', battle: n });
@@ -200,18 +247,19 @@ function startRun(world: World): void {
   startBattle(world, 1);
 }
 
-function endRun(world: World, result: 'victory' | 'defeat'): void {
+export function endRun(world: World, result: 'victory' | 'defeat'): void {
   const run = world.run;
   run.phase = 'end';
   run.result = result;
   run.cursor = 0;
   run.candidates = [];
   run.wave = 0;
+  world.enemies.missiles.clear(); // no missiles frozen, drawn or hashed on the end screen
   world.events.emit({ type: 'RunEnded', result });
 }
 
 /** A battle's last wave is down: debrief (hull restored, a pick if there is a free slot) or, after the last battle, victory. */
-function clearBattle(world: World): void {
+export function clearBattle(world: World): void {
   const run = world.run;
   world.events.emit({ type: 'BattleCleared', battle: run.battle });
   markBattleFlown(world);
@@ -222,6 +270,7 @@ function clearBattle(world: World): void {
   run.phase = 'debrief';
   run.cursor = 0;
   run.wave = 0;
+  world.enemies.missiles.clear(); // none frozen on the debrief screen
   run.hull = world.tuning.run.playerHull;
   const free = activeCount(world.pilots) < world.tuning.pilots.squadMax;
   run.candidates = free ? generateCandidates(world) : [];
@@ -291,8 +340,8 @@ export function stepRun(world: World): void {
 
 /**
  * The battle itself, in place of the practice waves: kills and losses for the debrief, the player's
- * hull, the next wave (`wavesIn` of them, `waveSizeIn` fighters each), and the objective. Runs late in
- * the step, after enemy shots, so this step's damage is already applied.
+ * hull, the next wave (the groups of the battle table's wave, see `battleDefOf` and `spawnBattleWave`),
+ * and the objective. Runs late in the step, after enemy shots, so this step's damage is already applied.
  */
 export function stepRunBattle(world: World): void {
   const run = world.run;
@@ -310,6 +359,11 @@ export function stepRunBattle(world: World): void {
       return;
     }
   }
+  if (bossOf(world.tuning.run, run.battle)) {
+    // Boss battle: escorts and the objective come from the boss script; won when the capital ship is destroyed.
+    if (stepCapitalBattle(world)) clearBattle(world);
+    return;
+  }
   if (world.tuning.arena.enemiesFrozen) return; // debug freeze: no new waves
   let lastDeath = NO_HIT;
   for (const f of world.fighters) {
@@ -323,7 +377,7 @@ export function stepRunBattle(world: World): void {
   if (world.fighters.length > 0 && world.time - lastDeath < world.tuning.fighter.waveDelay) return;
   run.wave++;
   run.waveStartTick = world.tick;
-  spawnWave(world, waveSizeIn(world.tuning.run, run.battle));
+  spawnRunWave(world);
   world.events.emit({ type: 'WaveStarted', battle: run.battle, wave: run.wave });
 }
 
@@ -350,6 +404,7 @@ export function mixRun(mix: (n: number) => void, run: Run): void {
   mix(run.waveTotal);
   mix(run.waveStartTick);
   mix(run.hitsSeen);
+  mix(run.hitProtect);
   mix(run.battleKills);
   mix(run.battleLost);
   mix(run.candidates.length);

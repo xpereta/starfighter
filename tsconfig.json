@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "data", "*.ts"]
+  "include": ["src", "tests", "data", "scripts/style-lab", "*.ts"]
 }

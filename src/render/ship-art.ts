@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { discTriangles, ringOutline, shadowFor } from './shape-geometry';
-import type { Point, ShipKind } from './style';
+import { buildParts } from './shape-parts';
+import { SHAPE_FALLBACK, type Point, type ShapeKind } from './style';
 import { activeStyle, styleRevision } from './style-active';
 
 /** Hard shadow tone: the fill colour times this. */
@@ -20,6 +21,9 @@ const Z_GLOW = 0.01;
 const Z_FILL = 0.02;
 const Z_SHADOW = 0.03;
 const Z_EYE = 0.04;
+/** Layered parts: below the shadow, and (glass and glow roles) above it but under the eye. */
+const Z_PARTS = 0.0205;
+const Z_LIGHTS = 0.0305;
 
 /** The player's shape is authored in radius units; this is its drawn size (about 100 u long). */
 export const PLAYER_SCALE = 60;
@@ -60,6 +64,22 @@ function trianglesGeometry(positions: number[]): THREE.BufferGeometry {
   return g;
 }
 
+/** A mesh of vertex-coloured triangles (x, y, z triples and linear RGB triples). */
+function partsMesh(
+  own: <T extends { dispose(): void }>(o: T) => T,
+  positions: number[],
+  colors: number[],
+  z: number,
+): THREE.Mesh {
+  const g = own(new THREE.BufferGeometry());
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+  const m = own(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  const out = new THREE.Mesh(g, m);
+  out.position.z = z;
+  return out;
+}
+
 const mesh = (g: THREE.BufferGeometry, m: THREE.Material, z: number): THREE.Mesh => {
   const out = new THREE.Mesh(g, m);
   out.position.z = z;
@@ -72,7 +92,7 @@ const mesh = (g: THREE.BufferGeometry, m: THREE.Material, z: number): THREE.Mesh
  * rebuilt when the style revision or the drawn size changes (a theme edit in the panel), never per
  * frame otherwise. `color` gives the fill colour (faction colour from the palette).
  */
-export function createShipArt(kind: ShipKind, color: () => number): ShipArt {
+export function createShipArt(kind: ShapeKind, color: () => number): ShipArt {
   const group = new THREE.Group();
   group.visible = false;
   let built = '';
@@ -91,7 +111,9 @@ export function createShipArt(kind: ShipKind, color: () => number): ShipArt {
   const build = (scale: number): void => {
     clear();
     const style = activeStyle();
-    const def = style.ships[kind]!;
+    const fallback = SHAPE_FALLBACK[kind];
+    const def = style.ships[kind] ?? (fallback ? style.ships[fallback] : undefined);
+    if (!def) return; // an optional kind this pack has no shape for: nothing to draw
     const theme = style.theme;
     const own = <T extends { dispose(): void }>(o: T): T => {
       owned.push(o);
@@ -107,12 +129,42 @@ export function createShipArt(kind: ShipKind, color: () => number): ShipArt {
       depthWrite: false,
     };
 
+    const layered = !!def.parts?.length;
+    // A layered ship is one vertex-coloured mesh: outline, fill, parts, lights and eye together
+    // (depth orders them), so it costs one draw call plus the shadow and the glow.
+    const solid: { positions: number[]; colors: number[] } = { positions: [], colors: [] };
+    const addSolid = (tris: ArrayLike<number>, hex: number, z: number): void => {
+      const c = new THREE.Color(hex);
+      for (let i = 0; i < tris.length; i += 3) {
+        solid.positions.push(tris[i]!, tris[i + 1]!, z);
+        solid.colors.push(c.r, c.g, c.b);
+      }
+    };
+    const addShape = (
+      points: readonly Point[],
+      hole: readonly Point[] | undefined,
+      hex: number,
+      z: number,
+    ): void => {
+      const g = new THREE.ShapeGeometry(shapeOf(points, hole));
+      const pos = g.getAttribute('position');
+      const idx = g.getIndex();
+      const flatTris: number[] = [];
+      const count = idx ? idx.count : pos.count;
+      for (let i = 0; i < count; i++) {
+        const v = idx ? idx.getX(i) : i;
+        flatTris.push(pos.getX(v), pos.getY(v), 0);
+      }
+      g.dispose();
+      addSolid(flatTris, hex, z);
+    };
     if (theme.outlineWidth > 0) {
       // Width is in world units: divide by the drawn size to get shape units.
       const w = theme.outlineWidth / Math.max(scale, 1e-6);
       const tris = ringOutline(def.polygon, w, true);
       if (def.hole) tris.push(...ringOutline(def.hole, w, false));
-      group.add(mesh(own(trianglesGeometry(tris)), flat(theme.outlineColor), Z_OUTLINE));
+      if (layered) addSolid(tris, theme.outlineColor, Z_OUTLINE);
+      else group.add(mesh(own(trianglesGeometry(tris)), flat(theme.outlineColor), Z_OUTLINE));
     }
     if (theme.glow > 0 && def.glow?.length) {
       const core: number[] = [];
@@ -121,24 +173,51 @@ export function createShipArt(kind: ShipKind, color: () => number): ShipArt {
         core.push(...discTriangles(x, y, GLOW_RADIUS, GLOW_SEGMENTS));
         halo.push(...discTriangles(x, y, GLOW_RADIUS * HALO_SCALE, GLOW_SEGMENTS));
       }
-      const bright = new THREE.Color(fill).lerp(new THREE.Color(0xffffff), GLOW_WHITE).getHex();
-      haloMaterial = flat(fill, glowParams);
+      const tint = def.glowColor ?? fill;
+      const bright = new THREE.Color(tint).lerp(new THREE.Color(0xffffff), GLOW_WHITE).getHex();
+      haloMaterial = flat(tint, glowParams);
       glowMaterial = flat(bright, glowParams);
       group.add(mesh(own(trianglesGeometry(halo)), haloMaterial, Z_GLOW));
       group.add(mesh(own(trianglesGeometry(core)), glowMaterial, Z_GLOW + 0.001));
     }
-    const body = new THREE.ShapeGeometry(shapeOf(def.polygon, def.hole));
-    group.add(mesh(own(body), flat(fill), Z_FILL));
+    if (layered) {
+      addShape(def.polygon, def.hole, fill, Z_FILL);
+      const built = buildParts(def, fill, theme.partColors, Z_PARTS, Z_LIGHTS);
+      for (const part of [built.body, built.lights]) {
+        solid.positions.push(...part.positions);
+        solid.colors.push(...part.colors);
+      }
+    } else {
+      const body = new THREE.ShapeGeometry(shapeOf(def.polygon, def.hole));
+      group.add(mesh(own(body), flat(fill), Z_FILL));
+    }
     if (def.shadow && theme.shadowShare > 0) {
       const cut = shadowFor(def.shadow, theme.shadowShare);
       if (cut.length >= 3) {
-        const tone = new THREE.Color(fill).multiplyScalar(SHADOW_TONE).getHex();
-        group.add(mesh(own(new THREE.ShapeGeometry(shapeOf(cut))), flat(tone), Z_SHADOW));
+        if (layered) {
+          // Parts carry their own colours, so the shade is a translucent darkening over all of them.
+          group.add(
+            mesh(
+              own(new THREE.ShapeGeometry(shapeOf(cut))),
+              flat(0x000000, { transparent: true, opacity: 1 - SHADOW_TONE, depthWrite: false }),
+              Z_SHADOW,
+            ),
+          );
+        } else {
+          const tone = new THREE.Color(fill).multiplyScalar(SHADOW_TONE).getHex();
+          group.add(mesh(own(new THREE.ShapeGeometry(shapeOf(cut))), flat(tone), Z_SHADOW));
+        }
       }
     }
     if (def.eye) {
-      group.add(mesh(own(new THREE.ShapeGeometry(shapeOf(def.eye))), flat(theme.eyeColor), Z_EYE));
+      if (layered) addShape(def.eye, undefined, theme.eyeColor, Z_EYE);
+      else
+        group.add(
+          mesh(own(new THREE.ShapeGeometry(shapeOf(def.eye))), flat(theme.eyeColor), Z_EYE),
+        );
     }
+    if (layered && solid.positions.length)
+      group.add(partsMesh(own, solid.positions, solid.colors, 0));
   };
 
   return {

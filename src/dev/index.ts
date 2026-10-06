@@ -26,6 +26,7 @@ export function createDevTools(world: World, container: HTMLElement): DevTools {
       if (sinceReadout >= READOUT_INTERVAL) {
         sinceReadout = 0;
         panel.soundReadout.update(w);
+        panel.devActions.update(w);
       }
     },
     dispose() {

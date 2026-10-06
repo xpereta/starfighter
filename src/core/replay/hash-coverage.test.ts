@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
+import { clearEnemyState } from '../enemies/state';
+import { SHIP_GUNSHIP, type Fighter } from '../ai/fighter';
+import { spawnGunship } from '../ai/gunship';
+import { spawnLancer } from '../ai/lancer';
 import { spawnFighter } from '../ai/waves';
 import { createWorld, stepWorld, type World } from '../world/world';
 import { hashWorld } from './hash';
@@ -29,6 +33,8 @@ function busyWorld(): World {
   stepWorld(w, dt); // creates the wingmen
   spawnFighter(w, 900, 200, Math.PI);
   spawnFighter(w, -700, -300, 0);
+  spawnGunship(w, -1500, 900, 0); // a gunship, with mounts
+  spawnLancer(w, -1500, 600, 0);
   for (let i = 0; i < 40; i++) {
     w.actions.fire = i % 2 === 0;
     stepWorld(w, dt);
@@ -70,12 +76,38 @@ function busyWorld(): World {
     battle: 0,
     rescued: false,
   });
+  // Prototype 5 stubs: an enemy missile, a wing and a capital ship with two parts (all inert).
+  w.enemies.missiles.spawn();
+  w.enemies.wings.push({ shape: 'v', leader: 0, members: [1], broken: false, born: 3 });
+  w.enemies.nextMissileUid = 3;
+  w.enemies.capital = {
+    x: 10,
+    y: 20,
+    heading: 0.5,
+    vx: 1,
+    vy: 2,
+    coreExposed: false,
+    hullRadius: 700,
+    phase: 0,
+    time: 3,
+    startDistance: 4000,
+    chainTime: 0,
+    wingsSent: 1,
+    lancersSent: false,
+    lastHitBy: 0,
+    parts: [
+      { hp: 5, maxHp: 6, alive: true, cooldown: 0.5, burstLeft: 2 },
+      { hp: 3, maxHp: 4, alive: true, cooldown: 1, burstLeft: 0 },
+    ],
+  };
   w.run.battle = 2;
   w.run.wave = 1;
   w.squadron.cue = 'no-target';
   w.squadron.cueTimer = 0.5;
   return w;
 }
+
+const gunshipOf = (w: World): Fighter => w.fighters.find((f) => f.shipType === SHIP_GUNSHIP)!;
 
 /** Changes one value and says how to put it back, or null when it cannot be perturbed. */
 function perturb(obj: Record<string, unknown>, key: string): (() => void) | null {
@@ -95,7 +127,8 @@ function perturb(obj: Record<string, unknown>, key: string): (() => void) | null
           : old === 'static'
             ? 'circle'
             : 'static';
-  } else if (key === 'kind') obj[key] = old === 'drone' ? 'turret' : 'drone';
+  } else if (key === 'shape') obj[key] = old === 'v' ? 'line' : 'v';
+  else if (key === 'kind') obj[key] = old === 'drone' ? 'turret' : 'drone';
   else if (key === 'phase') obj[key] = old === 'battle' ? 'debrief' : 'battle';
   else if (key === 'result') obj[key] = old === 'none' ? 'victory' : 'none';
   else if (key === 'trait') obj[key] = old === 'bold' ? 'steady' : 'bold';
@@ -153,6 +186,17 @@ describe('every gameplay field is in the replay hash', () => {
       ),
       ...missing(w, 'fighter', w.fighters[0] as unknown as Record<string, unknown>),
       ...missing(w, 'fighter.ship', w.fighters[0]!.ship as unknown as Record<string, unknown>),
+      ...missing(w, 'gunship', gunshipOf(w) as unknown as Record<string, unknown>),
+      ...missing(w, 'mount', gunshipOf(w).mounts[0] as unknown as Record<string, unknown>),
+      ...missing(
+        w,
+        'lancer',
+        w.fighters.find((f) => f.lancer)!.lancer as unknown as Record<string, unknown>,
+      ),
+      ...missing(w, 'enemies', w.enemies as unknown as Record<string, unknown>),
+      ...missing(w, 'wing', w.enemies.wings[0] as unknown as Record<string, unknown>),
+      ...missing(w, 'capital', w.enemies.capital as unknown as Record<string, unknown>),
+      ...missing(w, 'part', w.enemies.capital!.parts[1] as unknown as Record<string, unknown>),
     ];
     expect(gaps).toEqual([]);
   });
@@ -164,6 +208,7 @@ describe('every gameplay field is in the replay hash', () => {
       ['bullets', w.bullets],
       ['enemyShots', w.enemyShots],
       ['missiles', w.missiles],
+      ['enemyMissiles', w.enemies.missiles],
     ] as const) {
       expect(pool.count, `${name} has an item`).toBeGreaterThan(0);
       const base = hashWorld(w);
@@ -176,6 +221,28 @@ describe('every gameplay field is in the replay hash', () => {
       }
     }
     expect(gaps).toEqual([]);
+  });
+
+  it('the enemy state arrays (wing members, the part list) and an empty state adds nothing', () => {
+    const w = busyWorld();
+    const a = hashWorld(w);
+    const gs = gunshipOf(w);
+    const g0 = hashWorld(w);
+    gs.mounts.pop();
+    expect(hashWorld(w), 'a mount list').not.toBe(g0);
+    w.enemies.wings[0]!.members.push(2);
+    expect(hashWorld(w)).not.toBe(a);
+    const b = hashWorld(w);
+    w.enemies.capital!.parts.push({ hp: 1, maxHp: 1, alive: true, cooldown: 0, burstLeft: 0 });
+    expect(hashWorld(w)).not.toBe(b);
+    // Emptied, the stubs give the hash of a world that never had them (they write nothing).
+    const withStubs = hashWorld(busyWorld());
+    const emptied = busyWorld();
+    clearEnemyState(emptied.enemies);
+    expect(hashWorld(emptied)).not.toBe(withStubs);
+    expect(emptied.enemies.missiles.count).toBe(0);
+    expect(emptied.enemies.wings).toHaveLength(0);
+    expect(emptied.enemies.capital).toBeNull();
   });
 
   it('the random number generator state, lock arrays and the target list', () => {

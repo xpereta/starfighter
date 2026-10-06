@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
 import { createWorld, stepWorld, type World } from '../world/world';
-import { spawnFighter, stepWaves } from './waves';
+import { spawnBattleWave, spawnFighter, stepWaves } from './waves';
 
 const DT = 1 / 60;
 
@@ -113,5 +113,17 @@ describe('waves', () => {
     killAll(world);
     stepWaves(world);
     expect(world.stats.kills).toBe(before + 4);
+  });
+});
+
+describe('battle wave groups', () => {
+  it('a lancer group spawns that many missile fighters, a sized wing that many fighters', () => {
+    const world = worldWith(0);
+    spawnBattleWave(world, { groups: [{ kind: 'lancer', count: 2 }] });
+    expect(world.fighters.filter((f) => f.alive && f.lancer)).toHaveLength(2);
+    const before = living(world);
+    spawnBattleWave(world, { groups: [{ kind: 'wing', count: 1, size: 3 }] });
+    expect(living(world) - before).toBe(3);
+    expect(world.enemies.wings).toHaveLength(1);
   });
 });
