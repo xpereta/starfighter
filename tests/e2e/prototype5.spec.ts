@@ -75,7 +75,7 @@ test.describe('prototype 5: one journey through the new enemies', () => {
     await page.waitForTimeout(600);
     await shot(page, 'gunship');
 
-    // The missile fighter (the squad may shoot it down before it fires: the missile test below is in practice).
+    // The missile fighter (the squad may shoot it down before it fires: `lancer.spec.ts` covers the missile and its warning in practice).
     await button(page, 'Clear all enemies (X)').click();
     await button(page, 'Spawn Missile fighter').click();
     await expect(status(page, /1 fighters/)).toBeVisible();
@@ -93,21 +93,4 @@ test.describe('prototype 5: one journey through the new enemies', () => {
     await page.waitForTimeout(500);
     expect(errors).toEqual([]);
   });
-});
-
-test('a spawned missile fighter fires and the MISSILE warning and the enemy missile show (practice)', async ({
-  page,
-}) => {
-  test.setTimeout(90_000);
-  const errors = errorsOf(page);
-  await page.goto('/?dev&practice');
-  await expect(panel(page)).toBeVisible();
-  await open(page, 'Spawn').click();
-  await button(page, 'Clear all enemies (X)').click();
-  await button(page, 'Spawn Missile fighter').click();
-  await expect(status(page, /1 fighters/)).toBeVisible();
-  await expect(status(page, /[1-9]\d* enemy missiles/)).toBeVisible({ timeout: 45_000 });
-  await page.waitForTimeout(700); // the warning is drawn while the missile flies
-  await shot(page, 'lancer-missile-warning');
-  expect(errors).toEqual([]);
 });
