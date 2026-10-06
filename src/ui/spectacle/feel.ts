@@ -74,6 +74,7 @@ export function resetFeel(s: FeelState): void {
 const ENEMY_IMPACT: Partial<Record<string, ImpactKey>> = {
   drone: 'drone',
   fighter: 'fighter',
+  gunship: 'gunship',
   turret: 'turret',
   static: 'static',
   wingman: 'wingman',
@@ -140,6 +141,14 @@ export function feedFeel(
         break;
       case 'MissileImpact':
         apply(s, f.impacts.missileImpact, f, st);
+        break;
+      case 'PartDestroyed':
+        apply(s, f.impacts.capitalPart, f, st);
+        if (e.role === 'core') s.flash = Math.max(s.flash, 0.6);
+        break;
+      case 'CapitalDestroyed':
+        apply(s, f.impacts.capital, f, st);
+        s.flash = 1;
         break;
       case 'Hit':
         apply(s, f.impacts.hit, f, st);

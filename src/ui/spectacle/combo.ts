@@ -81,32 +81,42 @@ export function feedCombo(
   events: readonly GameEvent[],
   pilotName: (id: number) => string | undefined,
   def: PresentationDef,
+  /** Whether the fighter with this entity id is a missile fighter (it is a plain fighter in the events). */
+  isLancer: (entityId: number) => boolean = () => false,
 ): void {
   const named: string[] = [];
   const fresh: FeedEntry[] = [];
+  /** One kill: the streak, the score (with the multiplier), the feed line and a tier call. */
+  const kill = (label: string, basePoints: number): void => {
+    c.count++;
+    c.best = Math.max(c.best, c.count);
+    c.timer = def.combo.window;
+    c.pop = 1;
+    const points = Math.round(basePoints * multiplierOf(c.count, def.combo));
+    c.score += points;
+    fresh.push({ text: `${label} DESTROYED`, by: 'YOU', points, age: 0, streak: c.count });
+    const tier = tierOf(c.count, def.combo);
+    if (tier && c.count > c.announced && def.combo.tiers.some((t) => t.at === c.count)) {
+      c.call = tier;
+      c.callTimer = CALL_SECONDS;
+    }
+    c.announced = Math.max(c.announced, c.count);
+  };
   for (const e of events) {
     if (e.type === 'BattleStarted' && e.battle === 1) resetCombo(c);
     else if (e.type === 'Killed' && ENEMY(e.kind)) {
-      c.count++;
-      c.best = Math.max(c.best, c.count);
-      c.timer = def.combo.window;
-      c.pop = 1;
-      const points = Math.round(def.points[e.kind] * multiplierOf(c.count, def.combo));
+      if (e.kind === 'fighter' && isLancer(e.entityId))
+        kill(def.enemies.lancer.label, def.enemies.lancer.points);
+      else kill(def.killLabels[e.kind], def.points[e.kind]);
+    } else if (e.type === 'PartDestroyed') {
+      // A capital-ship part: its own feed line and points, and it keeps a streak alive, but it is not a kill (the ship is, below).
+      const part = def.enemies.capital.parts[e.role];
+      const points = Math.round(part.points * (c.count > 0 ? multiplierOf(c.count, def.combo) : 1));
       c.score += points;
-      const entry: FeedEntry = {
-        text: `${def.killLabels[e.kind]} DESTROYED`,
-        by: 'YOU',
-        points,
-        age: 0,
-        streak: c.count,
-      };
-      fresh.push(entry);
-      const tier = tierOf(c.count, def.combo);
-      if (tier && c.count > c.announced && def.combo.tiers.some((t) => t.at === c.count)) {
-        c.call = tier;
-        c.callTimer = CALL_SECONDS;
-      }
-      c.announced = Math.max(c.announced, c.count);
+      if (c.count > 0) c.timer = def.combo.window;
+      fresh.push({ text: `${part.label} DESTROYED`, by: 'YOU', points, age: 0, streak: c.count });
+    } else if (e.type === 'CapitalDestroyed') {
+      kill(def.enemies.capital.label, def.enemies.capital.points);
     } else if (e.type === 'PilotKill') {
       const name = pilotName(e.pilotId);
       if (name) named.push(name);

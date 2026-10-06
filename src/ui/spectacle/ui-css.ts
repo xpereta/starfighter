@@ -87,6 +87,52 @@ export const SX_CSS = `
 }
 .sx-warning[hidden] { display: none; }
 
+/* ---- enemy cues: capital ship bar, MISSILE warning, wing banner (prototype 5) ---- */
+.sx-capital, .sx-alertwrap, .sx-cuewrap { zoom: var(--sx-ui-scale, 1); }
+.sx-capital { margin-top: 10px; width: min(560px, 62vw); }
+.sx-capbox {
+  background: var(--panel); border-top: 3px solid var(--hot); padding: 6px 22px 9px;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 100%, 0 100%);
+}
+.sx-capbox.exposed { border-top-color: var(--gold); }
+.sx-capbox .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.sx-capbox .name { font: 900 italic 13px/1 var(--display); letter-spacing: 0.14em; color: var(--hot); }
+.sx-capbox .caption { font: 800 10px/1 var(--display); letter-spacing: 0.2em; font-style: italic; color: var(--gold); }
+.sx-capbox.dying .caption { color: var(--hot); animation: sx-blink 0.5s steps(2) infinite; }
+.sx-capbox .segs { display: flex; align-items: stretch; height: 13px; transform: skewX(-22deg); }
+.sx-capbox .cell { position: relative; flex-basis: 0; margin-left: 3px; background: rgba(143, 163, 214, 0.2); }
+.sx-capbox .cell:first-child { margin-left: 0; }
+.sx-capbox .cell b { position: absolute; inset: 0 auto 0 0; background: var(--hot); box-shadow: 0 0 7px var(--hot); }
+.sx-capbox .cell.turret b { background: #b06cff; box-shadow: 0 0 7px #b06cff; }
+.sx-capbox .cell.armour b { background: #9aa4b8; box-shadow: 0 0 6px #9aa4b8; }
+.sx-capbox .cell.engine b, .sx-capbox .cell.bridge b { background: #ff7a5a; box-shadow: 0 0 7px #ff7a5a; }
+.sx-capbox .cell.core b { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+.sx-capbox .cell.covered b { opacity: 0.5; }
+.sx-capbox .cell.dead { background: repeating-linear-gradient(45deg, rgba(143, 163, 214, 0.25) 0 3px, transparent 3px 6px); }
+.sx-capbox .cell.dead b { display: none; }
+.sx-capbox .cell.core { outline: 2px solid var(--gold); outline-offset: 1px; }
+.sx-capbox .cell.shield::after { content: ''; position: absolute; left: 0; right: 0; bottom: -6px; height: 3px; background: var(--gold); }
+.sx-corecall {
+  margin-top: 8px; display: inline-flex; gap: 12px; align-items: center; padding: 5px 22px; background: var(--gold); color: #1a1200;
+  font: 900 italic 17px/1 var(--display); letter-spacing: 0.16em; animation: sx-blink 0.45s steps(2) infinite;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+.sx-corecall .tri { font-size: 11px; }
+.sx-alertwrap { margin-top: 10px; display: block; }
+.sx-alert {
+  display: inline-flex; gap: 12px; align-items: center; padding: 6px 24px; background: var(--panel); border-top: 3px solid var(--hot); color: var(--hot);
+  font: 900 italic 18px/1 var(--display); letter-spacing: 0.16em; animation: sx-blink 0.7s steps(2) infinite;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
+}
+.sx-alert .arrow { font-size: 12px; letter-spacing: -0.2em; }
+.sx-alert.urgent { background: var(--hot); color: #fff; animation-duration: 0.28s; }
+.sx-cuewrap { margin-top: 10px; display: block; }
+.sx-cue {
+  display: inline-block; padding: 5px 30px; background: var(--panel); border-top: 3px solid var(--gold); color: var(--gold);
+  font: 900 italic 16px/1 var(--display); letter-spacing: 0.22em; animation: sx-slide-right 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 100%, 0 100%);
+}
+
 /* ---- top right: score, streak, kill feed ---- */
 .sx-tr { position: absolute; right: 22px; top: 16px; display: grid; gap: 8px; justify-items: end; width: min(280px, 42vw); }
 .sx-tr .sx-panel { width: 100%; }
@@ -266,7 +312,7 @@ body.sxb-calm .sx-root *, body.sxb-calm .sx-root *::before, body.sxb-calm .sx-ro
   .sx-root *, .sx-root *::before, .sx-root *::after { animation: none !important; transition: none !important; }
 }
 /* the classic parts the spectacle layer takes over */
-body.sxb-hud #run-hud .roster, body.sxb-hud #run-hud .objective { display: none; }
+body.sxb-hud #run-hud .roster, body.sxb-hud #run-hud .objective, body.sxb-hud #run-hud .cue { display: none; }
 body.sxb-comms #run-hud .chatter { display: none; }
 body.sxb-menus #run-menu { display: none !important; }
 `;

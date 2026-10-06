@@ -312,8 +312,8 @@ export function createHud(container: HTMLElement, options: HudOptions = {}): Hud
       if (text) {
         drawFlight(world);
         drawStatus(world);
-        drawCapitalBar(g, world, screen); // prototype 5, track C: only while a capital ship is on the field
       }
+      if (text) drawCapitalBar(g, world, screen); // prototype 5, track C: only while a capital ship is on the field
     },
     dispose() {
       window.removeEventListener('resize', resize);

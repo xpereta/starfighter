@@ -1,3 +1,4 @@
+import type { PartRole } from '../../core/enemies/capital-parts';
 import type { EntityKind } from '../../core/world/target';
 import type { PresetName } from './settings';
 
@@ -39,6 +40,10 @@ export const IMPACT_KEYS = [
   'turret',
   'static',
   'wingman',
+  // Prototype 5: a gunship kill, one capital-ship part going, and the capital ship's end.
+  'gunship',
+  'capitalPart',
+  'capital',
   'salvo',
   'missileImpact',
   'hit',
@@ -101,6 +106,27 @@ export interface PortraitPalette {
   accents: readonly number[];
 }
 
+export interface EnemiesDef {
+  /** A missile fighter (lancer) is a fighter in the events; the feed names and scores it apart. */
+  lancer: { label: string; points: number };
+  capital: {
+    /** The whole ship (its core going) and every part, by role. */
+    label: string;
+    points: number;
+    parts: Record<PartRole, { label: string; points: number }>;
+  };
+  /** Words of the cues: the MISSILE warning, the wing banner, the core call-out, the capital bar caption. */
+  cues: {
+    missile: string;
+    missiles: string;
+    wing: string;
+    coreExposed: string;
+    coreShielded: string;
+    breakingUp: string;
+    capitalBar: string;
+  };
+}
+
 export interface PresentationDef {
   /** The style flag: false keeps the classic HUD and menus whatever the panel says. */
   enabled: boolean;
@@ -114,6 +140,8 @@ export interface PresentationDef {
   /** Kill-feed names of what was destroyed. */
   killLabels: Record<EntityKind, string>;
   portraits: PortraitPalette;
+  /** Prototype 5 enemies: kill-feed names and score of the missile fighter and the capital ship, and the call-outs. */
+  enemies: EnemiesDef;
   /** Seconds a banner or title card takes: slide in, hold, slide out. */
   banner: { in: number; hold: number; out: number };
   /** Seconds a comm window slides in and out. */
@@ -163,6 +191,32 @@ export function validatePresentation(p: PresentationDef): string[] {
     finite(`feel.impacts.${k}.punch`, i.punch, 0, 1);
     finite(`feel.impacts.${k}.shake`, i.shake, 0, 1);
     finite(`feel.impacts.${k}.freeze`, i.freeze, 0, 0.5);
+  }
+  const text = (name: string, v: string | undefined): void => {
+    if (typeof v !== 'string' || v.trim().length === 0 || v.length > 40)
+      errors.push(`${name} must be a short text`);
+  };
+  const en = p.enemies;
+  if (!en) errors.push('enemies is missing');
+  else {
+    text('enemies.lancer.label', en.lancer?.label);
+    finite('enemies.lancer.points', en.lancer?.points, 0, 100000);
+    text('enemies.capital.label', en.capital?.label);
+    finite('enemies.capital.points', en.capital?.points, 0, 100000);
+    for (const role of ['turret', 'engine', 'armour', 'bridge', 'core'] as const) {
+      text(`enemies.capital.parts.${role}.label`, en.capital?.parts?.[role]?.label);
+      finite(`enemies.capital.parts.${role}.points`, en.capital?.parts?.[role]?.points, 0, 100000);
+    }
+    for (const k of [
+      'missile',
+      'missiles',
+      'wing',
+      'coreExposed',
+      'coreShielded',
+      'breakingUp',
+      'capitalBar',
+    ] as const)
+      text(`enemies.cues.${k}`, en.cues?.[k]);
   }
   finite('feel.maxZoom', p.feel.maxZoom, 0, 0.3);
   finite('feel.punchDecay', p.feel.punchDecay, 0.5, 40);

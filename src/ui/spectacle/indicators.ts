@@ -1,4 +1,5 @@
 import type { HudConfig } from '../../../data/tuning/hud';
+import { SHIP_GUNSHIP } from '../../core/ai/fighter';
 import type { World } from '../../core/world/world';
 import { createEdgeIndicator, distanceStyle, edgeIndicator } from '../../render/hud/layout';
 
@@ -9,7 +10,17 @@ import { createEdgeIndicator, distanceStyle, edgeIndicator } from '../../render/
  * Pure (no DOM); reads the world, never changes it.
  */
 
-export type IndicatorKind = 'fighter' | 'drone' | 'turret' | 'static' | 'wingman' | 'pod';
+export type IndicatorKind =
+  | 'fighter'
+  | 'gunship'
+  | 'lancer'
+  | 'capital'
+  | 'missile'
+  | 'drone'
+  | 'turret'
+  | 'static'
+  | 'wingman'
+  | 'pod';
 
 export interface Indicator {
   kind: IndicatorKind;
@@ -39,17 +50,22 @@ export function distanceLabel(d: number): string {
 
 const KIND_PRIORITY: Record<IndicatorKind, number> = {
   pod: 0,
-  fighter: 1,
-  wingman: 2,
-  turret: 3,
-  drone: 4,
-  static: 5,
+  missile: 1,
+  capital: 2,
+  gunship: 3,
+  lancer: 4,
+  fighter: 5,
+  wingman: 6,
+  turret: 7,
+  drone: 8,
+  static: 9,
 };
 
 /** Sort order of the cap: threats and pods first, then by kind, then by nearness. */
 export function compareIndicators(a: Indicator, b: Indicator): number {
   if (a.threat !== b.threat) return a.threat ? -1 : 1;
   if ((a.kind === 'pod') !== (b.kind === 'pod')) return a.kind === 'pod' ? -1 : 1;
+  if ((a.kind === 'capital') !== (b.kind === 'capital')) return a.kind === 'capital' ? -1 : 1;
   return a.distance - b.distance || KIND_PRIORITY[a.kind] - KIND_PRIORITY[b.kind];
 }
 
@@ -95,8 +111,19 @@ export function collectIndicators(
     if (!f.alive) continue;
     const chasing = f.targetIndex === -1;
     const near = Math.hypot(f.x - ship.x, f.y - ship.y) < THREAT_RANGE;
-    add('fighter', f, chasing && near);
+    const kind: IndicatorKind =
+      f.shipType === SHIP_GUNSHIP ? 'gunship' : f.lancer ? 'lancer' : 'fighter';
+    add(kind, f, chasing && near);
   }
+  const cap = world.enemies.capital;
+  if (cap && cap.phase !== 2) {
+    // One arrow for the whole ship, at its centre (its hull is the radius), always flagged: nothing else is as big.
+    add('capital', { x: cap.x, y: cap.y, radius: cap.hullRadius }, false, 'CAPITAL SHIP');
+  }
+  // Enemy missiles home on the player: every one that is off screen gets an arrow, flagged as a threat.
+  const missiles = world.enemies.missiles;
+  for (let i = 0; i < missiles.count; i++)
+    add('missile', { x: missiles.data.x[i]!, y: missiles.data.y[i]!, radius: 20 }, true);
   for (const pod of world.pods) {
     if (pod.alive) add('pod', { x: pod.x, y: pod.y, radius: world.tuning.rescue.podRadius }, false);
   }

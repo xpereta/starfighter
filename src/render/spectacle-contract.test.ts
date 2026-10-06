@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { styles } from '../../data/styles';
 import { spectacle as packSpectacle } from '../../data/styles/anime-spectacle/spectacle';
-import { checkStyle } from './style';
+import { checkStyle, SHIP_KINDS } from './style';
 import { buildStyles } from './style-active';
 import {
   mergeSpectacle,
@@ -26,8 +26,27 @@ describe('the spectacle section of the style contract', () => {
     expect(built['anime-80s']!.pack.spectacle).toBeNull();
     expect(built['realistic']!.pack.spectacle).toBeNull();
     expect(built['anime-spectacle']!.pack.spectacle).not.toBeNull();
-    // Parent parts are inherited untouched.
-    expect(built['anime-spectacle']!.pack.ships).toEqual(built['anime-80s']!.pack.ships);
+    // The parent's ships are inherited untouched; the Prototype 5 kinds are drawn by the pack itself.
+    const p5 = [
+      'gunship',
+      'lancer',
+      'capital',
+      'capitalTurret',
+      'capitalEngine',
+      'capitalArmour',
+      'capitalBridge',
+      'capitalCore',
+    ] as const;
+    const ships = built['anime-spectacle']!.pack.ships;
+    const parentShips = built['anime-80s']!.pack.ships;
+    for (const k of SHIP_KINDS) {
+      if ((p5 as readonly string[]).includes(k)) expect(ships[k], k).not.toEqual(parentShips[k]);
+      else expect(ships[k], k).toEqual(parentShips[k]);
+    }
+    for (const k of p5) {
+      expect(ships[k]!.polygon.length, k).toBeGreaterThan(8);
+      expect(built['anime-spectacle']!.pack.deaths[k], k).toBeDefined();
+    }
     // Deaths are the pack's own: the parent's made longer and scattered over every direction.
     const own = built['anime-spectacle']!.pack.deaths.fighter!;
     const parent = built['anime-80s']!.pack.deaths.fighter!;

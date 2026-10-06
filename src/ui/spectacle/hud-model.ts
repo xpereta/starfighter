@@ -1,4 +1,8 @@
+import { WING_CUE } from '../../../data/content/cues';
 import { TRAITS } from '../../../data/content/traits';
+import { createCapitalBar, fillCapitalBar } from '../../core/enemies/capital-hud';
+import type { PartRole } from '../../core/enemies/capital-parts';
+import { createMissileWarning, missileWarning } from '../../core/enemies/enemy-missiles-warning';
 import { lockLimit } from '../../core/lockon/lockon';
 import { livingWingmen } from '../../core/squadron/squadron';
 import type { World } from '../../core/world/world';
@@ -10,6 +14,7 @@ import {
   throttleState,
 } from '../../render/hud/layout';
 import { lockPanel } from '../../render/hud/locks';
+import { cueText } from '../cues';
 import { splitName } from './comm';
 import type { Combo } from './combo';
 import { multiplierOf, streakFill, tierOf } from './combo';
@@ -34,6 +39,36 @@ export interface RosterCard {
   fallen: boolean;
 }
 
+/** One part of the capital ship's bar (see `core/enemies/capital-hud.ts`). */
+export interface CapitalSegment {
+  role: PartRole;
+  /** 0..1 of its hit points left; 0 when destroyed. */
+  fraction: number;
+  alive: boolean;
+  /** A standing plate shields it. */
+  covered: boolean;
+  isCore: boolean;
+  /** A plate that still shields the core. */
+  coversCore: boolean;
+}
+
+/** The capital ship's health bar of parts, its caption and whether the core is bare. */
+export interface CapitalModel {
+  segments: CapitalSegment[];
+  label: string;
+  caption: string;
+  exposed: boolean;
+  dying: boolean;
+  plates: { standing: number; total: number };
+}
+
+/** The MISSILE warning line: text with the nearest missile's time, and whether impact is close. */
+export interface MissileModel {
+  text: string;
+  count: number;
+  urgent: boolean;
+}
+
 export interface HudModel {
   inRun: boolean;
   hull: { pips: Pip[]; low: boolean; critical: boolean; text: string };
@@ -55,6 +90,12 @@ export interface HudModel {
   squad: { wingmen: string; formation: string; order: string | null; cue: string | null } | null;
   roster: RosterCard[];
   warning: string | null;
+  /** Prototype 5 enemy cues, all null when there is nothing to say. */
+  missile: MissileModel | null;
+  /** WING INBOUND while a new wing is arriving. */
+  cue: string | null;
+  /** The capital ship's bar, while one is on the field. */
+  capital: CapitalModel | null;
   trial: string | null;
   combo: {
     active: boolean;
@@ -83,6 +124,57 @@ export function pips(value: number, max: number): Pip[] {
 /** `x2.5`: the multiplier as shown (one decimal only when it has one). */
 export function multiplierText(m: number): string {
   return `x${Number.isInteger(m) ? m : m.toFixed(1)}`;
+}
+
+const warning = createMissileWarning();
+const capitalBar = createCapitalBar();
+/** Seconds to impact at or below which the MISSILE warning turns urgent. */
+export const MISSILE_URGENT_ETA = 1.5;
+
+/** The MISSILE line (null when no enemy missile is in flight). */
+export function missileModel(world: World, def: PresentationDef): MissileModel | null {
+  const w = missileWarning(world, warning);
+  if (!w.active) return null;
+  const words = def.enemies.cues;
+  const head = w.count > 1 ? `${words.missiles} ${w.count}` : words.missile;
+  const eta = Number.isFinite(w.eta) ? `  ${w.eta.toFixed(1)}s` : '';
+  return { text: `${head}${eta}`, count: w.count, urgent: w.eta <= MISSILE_URGENT_ETA };
+}
+
+/** The capital ship's bar, or null with no ship, after it died or outside a battle (as the classic bar). */
+export function capitalModel(world: World, def: PresentationDef): CapitalModel | null {
+  const cap = world.enemies.capital;
+  if (!cap || cap.phase === 2) return null;
+  if (world.run.mode === 'run' && world.run.phase !== 'battle') return null;
+  const bar = fillCapitalBar(capitalBar, cap);
+  const words = def.enemies.cues;
+  const caption =
+    bar.phase !== 0
+      ? words.breakingUp
+      : bar.coreExposed
+        ? words.coreExposed
+        : `${words.coreShielded}  ${bar.corePlates.standing}/${bar.corePlates.total}`;
+  return {
+    segments: bar.segments.map((g) => ({
+      role: g.role,
+      fraction: g.fraction,
+      alive: g.alive,
+      covered: g.covered,
+      isCore: g.isCore,
+      coversCore: g.coversCore,
+    })),
+    label: words.capitalBar,
+    caption,
+    exposed: bar.coreExposed && bar.phase === 0,
+    dying: bar.phase !== 0,
+    plates: { standing: bar.corePlates.standing, total: bar.corePlates.total },
+  };
+}
+
+/** The text cue (WING INBOUND), in the style's words. */
+export function cueModel(world: World, def: PresentationDef): string | null {
+  const text = cueText(world);
+  return text === WING_CUE ? def.enemies.cues.wing : text;
 }
 
 export function buildHudModel(world: World, combo: Combo, def: PresentationDef): HudModel {
@@ -188,6 +280,9 @@ export function buildHudModel(world: World, combo: Combo, def: PresentationDef):
         : null,
     roster,
     warning: ship.outside ? 'RETURN TO ARENA' : null,
+    missile: missileModel(world, def),
+    cue: cueModel(world, def),
+    capital: capitalModel(world, def),
     trial: trialText,
     combo: {
       active: combo.count > 0,

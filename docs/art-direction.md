@@ -85,6 +85,8 @@ One source of truth per effect, applied in `src/app/main.ts` (`syncSpectacleTrac
 
 Screenshots of the combination: `docs/reference/spectacle-combined/` (`scripts/spectacle-combined-shots.mjs`).
 
+Prototype 5 enemies (gunship, lancer and its missile with spiral smoke, wing members, the capital ship and its parts) have anime ships, deaths, plumes, nav lights, blasts per destroyed part, a capital-scale final blast, sounds for every event (missile launch and hit, part destroyed, core exposed, capital destroyed, wing broken, enemy shots), the anime MISSILE warning, WING INBOUND banner, capital parts bar and CORE EXPOSED call-out; the classic cues are skipped while the spectacle HUD is on. Screenshots: `docs/reference/spectacle-combined/p5-*.png` (`scripts/spectacle-p5-shots.mjs`). Known limit: the capital hull is 2.9:1 against the backdrop in the contrast audit, as in its parent `anime-80s` (it reads through its ink outline and parts).
+
 ---
 
 # Used future (`used-future`)

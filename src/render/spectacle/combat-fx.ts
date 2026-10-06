@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { SpectacleQuality } from '../../../data/spectacle-quality';
+import type { PartRole } from '../../core/enemies/capital-parts';
+import type { EnemyKindId } from '../../core/enemies/kinds';
 import type { GameEvent } from '../../core/events/events';
 import { createRng, type Rng } from '../../core/rng/rng';
 import type { World } from '../../core/world/world';
@@ -61,6 +63,26 @@ const FLASH_LIFE = 0.09;
 const FIREBALL_LIFE = 0.6;
 const RING_LIFE = 0.55;
 const CHAIN_DELAY_MIN = 0.1;
+/** The capital ship's last blast is drawn at this share of its hull radius (the recipe's sizes are in radii of that). */
+const CAPITAL_BLAST_SHARE = 0.45;
+/** Capital part blasts by role (x the part's radius): engines, the bridge and the core go off bigger. */
+const PART_SCALE: Record<PartRole, number> = {
+  turret: 1,
+  armour: 1,
+  engine: 1.3,
+  bridge: 1.5,
+  core: 2.2,
+};
+/** Sparks and glints never fly faster than a 160 u thing would throw them, so a capital blast does not empty the screen. */
+const SPARK_RADIUS_CAP = 160;
+/** Warp-in ring size (u) by enemy kind. */
+const SPAWN_RING: Record<EnemyKindId, number> = {
+  fighter: 70,
+  lancer: 80,
+  gunship: 110,
+  capital: 520,
+};
+const ENEMY_MISSILE_RADIUS = 36;
 
 const kindIndex = (k: BlastKind): number => BLAST_KINDS.indexOf(k);
 
@@ -226,8 +248,16 @@ export function createCombatFx(
   }
 
   /** A full blast at (x, y): `radius` is the size of the thing that died (u). */
-  function blast(r: BlastRecipe, ri: number, x: number, y: number, radius: number): void {
+  function blast(
+    r: BlastRecipe,
+    ri: number,
+    x: number,
+    y: number,
+    radius: number,
+    zoomScale = 1,
+  ): void {
     const k = spectacleSettings.intensity;
+    const flyRadius = Math.min(radius, SPARK_RADIUS_CAP);
     if (r.flash > 0) {
       addElement(FLASH, ri, x, y, r.flash * radius, FLASH_LIFE + 0.03 * Math.min(r.flash, 4));
     }
@@ -251,7 +281,7 @@ export function createCombatFx(
       );
     const sparks = Math.round(r.sparks * Math.max(0.3, k));
     for (let i = 0; i < sparks; i++) {
-      const speed = radius * rng.range(4, 14) * (0.5 + 0.5 * rng.next());
+      const speed = flyRadius * rng.range(4, 14) * (0.5 + 0.5 * rng.next());
       addSpark(
         SPARK,
         ri,
@@ -270,7 +300,7 @@ export function createCombatFx(
         x + rng.range(-0.5, 0.5) * radius,
         y + rng.range(-0.5, 0.5) * radius,
         rng.range(0, Math.PI * 2),
-        radius * rng.range(0.6, 3),
+        flyRadius * rng.range(0.6, 3),
         rng.range(0.9, 2.1) * tempo(),
         rng.range(6, 13),
       );
@@ -298,7 +328,7 @@ export function createCombatFx(
         last,
       );
     }
-    if (r.zoom > 0) hooks.punch(r.zoom * k);
+    if (r.zoom > 0) hooks.punch(r.zoom * k * zoomScale);
   }
 
   /** One little blast of a chain reaction (the last one is bigger, with a ring pair and a burst of sparks). */
@@ -395,7 +425,52 @@ export function createCombatFx(
           const ri = kindIndex(kind);
           blast(def.recipes[kind], ri, e.x, e.y, e.radius);
           // Capital-scale kills shake the colour channels too.
-          hooks.hit(kind === 'turret' ? 0.9 : kind === 'wingman' ? 0.6 : 0.25);
+          hooks.hit(
+            kind === 'turret' ? 0.9 : kind === 'wingman' ? 0.6 : kind === 'gunship' ? 0.5 : 0.25,
+          );
+        } else if (e.type === 'PartDestroyed') {
+          // A capital-ship part: one punchy blast each, bigger for engines, the bridge and the core.
+          const ri = kindIndex('capitalPart');
+          const big = e.role === 'core' || e.role === 'bridge';
+          blast(
+            def.recipes.capitalPart,
+            ri,
+            e.x,
+            e.y,
+            e.radius * PART_SCALE[e.role],
+            big ? 1 : 0.4,
+          );
+          hooks.hit(e.role === 'core' ? 0.9 : big ? 0.5 : 0.25);
+        } else if (e.type === 'CoreExposed') {
+          // The core is bare: a gold-white call ring and a flash that say "now".
+          const ri = kindIndex('capitalPart');
+          addElement(FLASH, ri, e.x, e.y, 150, 0.2);
+          addElement(RING, ri, e.x, e.y, 340, 0.8 * tempo());
+          addElement(RING, ri, e.x, e.y, 220, 0.6 * tempo());
+          hooks.hit(0.4);
+        } else if (e.type === 'CapitalDestroyed') {
+          // The finale: the pack's biggest blast over the hull, a shock that reaches past the screen and a long colour fringe.
+          blast(
+            def.recipes.capital,
+            kindIndex('capital'),
+            e.x,
+            e.y,
+            e.radius * CAPITAL_BLAST_SHARE,
+          );
+          hooks.hit(1);
+        } else if (e.type === 'EnemyMissileHit') {
+          const ri = kindIndex('enemyMissile');
+          const r = def.recipes.enemyMissile;
+          if (e.hit === 'player') blast(r, ri, e.x, e.y, ENEMY_MISSILE_RADIUS);
+          else blast(r, ri, e.x, e.y, ENEMY_MISSILE_RADIUS * 0.6, 0);
+        } else if (e.type === 'EnemySpawned') {
+          // A warp-in: a thin ring and a flash where it appears (a capital ship's is huge).
+          const ri = kindIndex('hit');
+          const size = SPAWN_RING[e.kind];
+          addElement(FLASH, ri, e.x, e.y, size * 0.5, 0.12);
+          addElement(RING, ri, e.x, e.y, size, 0.5 * tempo());
+        } else if (e.type === 'WingBroken') {
+          hooks.hit(0.2);
         } else if (e.type === 'Hit') {
           const missile = e.impulse >= world.tuning.missiles.missileHitImpulse;
           if (!missile)

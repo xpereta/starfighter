@@ -515,6 +515,165 @@ export const sounds: Partial<SoundTable> = {
     },
   ),
   PilotKill: 'silent', // the kill itself already sounds
+  // ---- Prototype 5: enemy variety, in the pack's cinematic voice -------------------------------------
+  // A ship arrives: a short, quiet warp-in (a rising shimmer and a soft thump), many at once so it stays small.
+  EnemySpawned: sfx(
+    [
+      noise('bandpass', 700, 5200, 0.3, 0.45, {
+        attack: 0.12,
+        filter: { type: 'bandpass', freq: 700, freqEnd: 5200, q: 3 },
+      }),
+      tone('sine', 420, 1500, 0.28, 0.2, { attack: 0.1, filter: lowpass(3500) }),
+      thump(90, 45, 0.25, 0.35, { delay: 0.14 }),
+    ],
+    {
+      volume: 0.22,
+      pitchRandom: 0.15,
+      minGap: 0.18,
+      maxVoices: 2,
+      spatial: AROUND,
+      reverb: 0.3,
+      preDelay: 0.02,
+    },
+  ),
+  // An enemy missile leaves its rail: a hard launch thump, a rising ignition rush (red-alert whoosh) and a two-beep
+  // warning klaxon that cuts through the mix (the audible half of the MISSILE warning).
+  EnemyMissileFired: sfx(
+    [
+      thump(65, 150, 0.3, 0.8, { attack: 0.01, distortion: 0.25 }),
+      noise('bandpass', 500, 5000, 0.7, 0.7, {
+        attack: 0.15,
+        filter: { type: 'bandpass', freq: 500, freqEnd: 5000, q: 2 },
+      }),
+      tone('sawtooth', 150, 700, 0.6, 0.3, { attack: 0.18, filter: lowpass(1400, 4000, 2) }),
+      tone('square', 1320, 1320, 0.09, 0.4, { delay: 0.05, filter: lowpass(3200) }),
+      tone('square', 1320, 1320, 0.09, 0.4, { delay: 0.22, filter: lowpass(3200) }),
+      tone('square', 990, 990, 0.14, 0.38, { delay: 0.39, filter: lowpass(3200) }),
+      noise('highpass', 4500, 6000, 0.5, 0.15, { delay: 0.1, attack: 0.15 }),
+    ],
+    {
+      volume: 0.42,
+      pitchRandom: 0.05,
+      minGap: 0.3,
+      maxVoices: 2,
+      spatial: AROUND,
+      reverb: 0.3,
+      preDelay: 0.02,
+      duckLoops: { amount: 0.25, time: 0.6 },
+    },
+  ),
+  // An enemy missile ends: on you, a heavy thud and tearing noise; spent on your roll or burnt out, the same shape a lot smaller.
+  EnemyMissileHit: sfx(
+    [
+      noise('highpass', 5500, 1800, 0.08, 0.55, { attack: 0.001 }),
+      thump(100, 36, 0.6, 0.9, { distortion: 0.35, hold: 0.03 }),
+      roar(2200, 150, 0.9, 0.7, { hold: 0.05 }),
+      crack(1700, 330, 0.25, 0.45, { delay: 0.08 }),
+      noise('lowpass', 800, 90, 1.4, 0.35, { waveform: 'pink', delay: 0.08, attack: 0.1 }),
+    ],
+    {
+      volume: 0.46,
+      pitchRandom: 0.1,
+      minGap: 0.06,
+      maxVoices: 3,
+      spatial: BIG,
+      reverb: 0.4,
+      preDelay: 0.025,
+      duck: { amount: 0.3, time: 0.8 },
+    },
+  ),
+  // One part of the capital ship goes: a deep boom, a roar of fire and a metallic rain, with a rolling tail.
+  PartDestroyed: sfx(
+    [
+      noise('highpass', 5500, 1400, 0.12, 0.65, { attack: 0.001 }),
+      thump(95, 28, 1.4, 1, { distortion: 0.35, hold: 0.06 }),
+      thump(52, 20, 2.0, 0.7, { delay: 0.03, attack: 0.02, hold: 0.1 }),
+      roar(2400, 110, 1.6, 0.85, { hold: 0.1 }),
+      crack(2100, 420, 0.3, 0.5, { delay: 0.1 }),
+      ...ring(180, 0.08, 1.2, 0.22),
+      crack(1400, 280, 0.35, 0.4, { delay: 0.28 }),
+      noise('lowpass', 800, 70, 2.4, 0.45, { waveform: 'pink', delay: 0.15, attack: 0.25 }),
+    ],
+    {
+      volume: 0.58,
+      pitchRandom: 0.12,
+      minGap: 0.1,
+      maxVoices: 4,
+      spatial: BIG,
+      duck: { amount: 0.45, time: 1.3 },
+      duckLoops: { amount: 0.4, time: 1.0 },
+      reverb: 0.5,
+      preDelay: 0.035,
+    },
+  ),
+  // The core is bare: a rising two-note alarm with a gold ring and a sub swell, so the player hears "now".
+  CoreExposed: sfx(
+    [
+      tone('square', 880, 880, 0.12, 0.35, { filter: lowpass(4200) }),
+      tone('square', 1320, 1320, 0.2, 0.35, { delay: 0.14, filter: lowpass(4200) }),
+      tone('square', 1760, 1760, 0.34, 0.33, { delay: 0.3, filter: lowpass(4200) }),
+      ...ring(1320, 0.3, 1.0, 0.25),
+      thump(60, 90, 0.5, 0.5, { attack: 0.2 }),
+      noise('highpass', 5000, 6500, 0.5, 0.12, { delay: 0.3, attack: 0.1 }),
+    ],
+    {
+      volume: 0.44,
+      maxVoices: 1,
+      minGap: 0.6,
+      reverb: 0.35,
+      preDelay: 0.02,
+      duck: { amount: 0.25, time: 0.8 },
+    },
+  ),
+  // A wing breaks formation: a cut radio call, a sharp metallic snap and a falling whistle as the line scatters.
+  WingBroken: sfx(
+    [
+      squelch(0, 0.05, 0.4),
+      crack(3200, 900, 0.1, 0.5, { delay: 0.06 }),
+      ...ring(1400, 0.06, 0.4, 0.2),
+      tone('sawtooth', 1800, 260, 0.45, 0.2, { delay: 0.08, filter: bandpass(1400, 500, 6) }),
+      thump(140, 70, 0.15, 0.4, { delay: 0.06 }),
+    ],
+    { volume: 0.34, maxVoices: 1, minGap: 0.5, reverb: 0.25, preDelay: 0.015 },
+  ),
+  // THE finale: the capital ship ends. A held silence-breaking flash, a chest-caving sub boom, a fireball roar that lasts seconds,
+  // a ring of cracks and groans as the hull folds, secondary blasts rolling over it and a very long wash. Ducks everything.
+  CapitalDestroyed: sfx(
+    [
+      noise('highpass', 7000, 1200, 0.3, 0.8, { attack: 0.001 }),
+      thump(70, 18, 3.0, 1, { distortion: 0.4, attack: 0.006, hold: 0.25 }),
+      thump(40, 14, 3.4, 0.9, { delay: 0.05, attack: 0.04, hold: 0.4 }),
+      roar(3200, 90, 3.2, 1, { hold: 0.4 }),
+      crack(2600, 500, 0.5, 0.6, { delay: 0.12 }),
+      thump(75, 24, 1.2, 0.8, { delay: 0.45, distortion: 0.35 }),
+      crack(1800, 320, 0.4, 0.55, { delay: 0.6 }),
+      thump(60, 20, 1.4, 0.8, { delay: 0.95, distortion: 0.35 }),
+      crack(1500, 260, 0.45, 0.5, { delay: 1.2 }),
+      thump(50, 18, 1.6, 0.75, { delay: 1.5, distortion: 0.3 }),
+      tone('sawtooth', 220, 40, 2.2, 0.3, {
+        delay: 0.3,
+        attack: 0.3,
+        distortion: 0.3,
+        filter: lowpass(900, 120, 2),
+      }),
+      noise('lowpass', 1100, 50, 5.5, 0.6, {
+        waveform: 'pink',
+        delay: 0.3,
+        attack: 0.6,
+        hold: 0.8,
+      }),
+    ],
+    {
+      volume: 0.85,
+      pitchRandom: 0.04,
+      minGap: 2,
+      maxVoices: 1,
+      duck: { amount: 0.85, time: 4.5 },
+      duckLoops: { amount: 0.8, time: 4 },
+      reverb: 0.7,
+      preDelay: 0.05,
+    },
+  ),
   // A pod's beacon: sonar pings in the space.
   PodSpawned: sfx(
     [

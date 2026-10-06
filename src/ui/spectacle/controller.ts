@@ -2,6 +2,7 @@ import type { GameEvent } from '../../core/events/events';
 import { viewSize } from '../../core/camera/view';
 import type { World } from '../../core/world/world';
 import type { ChatterLine } from '../chatter';
+import { FIGHTER_ID_BASE } from '../../core/world/lockable';
 import { buildScreen, menuDataFromWorld, menuVisible } from '../menu-model';
 import { spectacleOn } from './active';
 import {
@@ -112,6 +113,9 @@ export function createSpectacle(
     battles: world?.tuning.run.battleCount ?? 1,
     pilotName: pilotName(world),
   });
+  /** A missile fighter is a plain `fighter` in the events: the kill feed finds out from the fighter list. */
+  const lancerOf = (world: World | null) => (id: number) =>
+    world?.fighters[id - FIGHTER_ID_BASE]?.lancer != null;
   const pulses = new Map<number, number>();
   const indicators: Indicator[] = [];
   let out: FeelOutput = feelOutput(feel, def, spectacle, 0, 1.6);
@@ -148,7 +152,7 @@ export function createSpectacle(
   const inject = (events: readonly GameEvent[]): void => {
     if (!spectacleOn()) return;
     feedFeel(feel, events, def, spectacle);
-    feedCombo(combo, events, pilotName(latest), def);
+    feedCombo(combo, events, pilotName(latest), def, lancerOf(latest));
     feedBanners(banners, events, bannerContext(latest), def);
   };
   setPreviewTarget(inject);
@@ -162,7 +166,7 @@ export function createSpectacle(
       if (!spectacleOn()) return off();
       wasOn = true;
       const events = world.events.events;
-      feedCombo(combo, events, pilotName(world), def);
+      feedCombo(combo, events, pilotName(world), def, lancerOf(world));
       if (world.run.mode === 'run' && menuVisible(world.run)) {
         resetFeel(feel); // nothing in flight behind a menu
         clearBanners(banners);

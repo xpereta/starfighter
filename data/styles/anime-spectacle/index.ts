@@ -1,7 +1,7 @@
 import type { StyleInput } from '../../../src/render/style';
 import { deaths } from './deaths';
 import { explosions } from '../anime-80s/explosions';
-import { ships } from '../anime-80s/ships';
+import { ships } from './ships';
 import { loops, music, sounds } from './sounds';
 import { spectacle } from './spectacle';
 import { manifest } from './style';

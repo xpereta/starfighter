@@ -70,7 +70,10 @@ export function createSpectacleParts(
       const s = spec();
       if (!s) return;
       for (const e of events) {
-        if (e.type === 'Killed') backdrop?.excite(e.kind === 'turret' ? 1 : 0.4);
+        if (e.type === 'Killed')
+          backdrop?.excite(e.kind === 'turret' || e.kind === 'gunship' ? 1 : 0.4);
+        else if (e.type === 'PartDestroyed') backdrop?.excite(e.role === 'core' ? 1 : 0.5);
+        else if (e.type === 'CapitalDestroyed') backdrop?.excite(1);
       }
       if (spectacleSettings.ships) shipFx?.consume(events);
       if (s.combat) combat?.consume(events, s.combat);

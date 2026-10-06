@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import type { SpectacleQuality } from '../../../data/spectacle-quality';
+import { SHIP_GUNSHIP } from '../../core/ai/fighter';
+import { CAPITAL_PARTS } from '../../../data/content/capital';
+import { partCenter, scaleOf } from '../../core/enemies/capital';
 import type { GameEvent } from '../../core/events/events';
 import { clamp } from '../../core/math';
 import { getLockable } from '../../core/world/lockable';
@@ -45,15 +48,35 @@ export interface ShipFx {
 
 /** Ribbon keys: category * KEY_STRIDE + id. */
 const KEY_STRIDE = 100000;
-const CAT = { wingtip: 1, wingman: 2, fighter: 3, missile: 4, roll: 5, exhaust: 6 } as const;
+const CAT = {
+  wingtip: 1,
+  wingman: 2,
+  fighter: 3,
+  missile: 4,
+  roll: 5,
+  exhaust: 6,
+  enemyMissile: 7,
+} as const;
 /** Longest any ribbon point lives (s); each kind fades over its own shorter life. */
 const MAX_LIFE = 3;
 const PLUME_PLAYER = 0x8fdcff;
 const PLUME_FIGHTER = 0xff9a50;
+/** Prototype 5 enemies: a gunship burns amber and wide, a missile fighter a long hot pink, the capital ship's engines a huge orange. */
+const PLUME_GUNSHIP = 0xffb030;
+const PLUME_LANCER = 0xff6aa0;
+const PLUME_CAPITAL = 0xff8a3c;
+const ENEMY_MISSILE_SMOKE = 0xffd0c0;
+const ENEMY_MISSILE_FLAME = 0xff7a4a;
 const SMOKE = 0xdfe9ff;
 const FLAME = 0xffd9a0;
 const LAUNCH_LIFE = 0.25;
 const LAUNCH_CAP = 16;
+/** Pulse halo drawn around every enemy missile, so the red alert is also in the picture (radius, u). */
+const MISSILE_HALO = 26;
+/** Capital-ship engine plumes: length and width in part radii. */
+const CAPITAL_PLUME_LENGTH = 5;
+const CAPITAL_PLUME_WIDTH = 0.7;
+
 const LOCK_TRACK_CAP = 16;
 const BRACKET_SNAP = 14;
 const NAV_SEGMENTS = 10;
@@ -82,6 +105,54 @@ export function wingtips(kind: ShipKind): { left: [number, number]; right: [numb
   return { left, right };
 }
 
+/** How an enemy kind differs from the default drawing: plume length and width, nav light colours and size. */
+interface Look {
+  length: number;
+  width: number;
+  /** null = no nav lights (plain fighters stay clean so the enemy keeps its contrast). */
+  lights: { port: number; starboard: number; strobe: number } | null;
+  lightScale: number;
+}
+const LOOK_PLAIN: Look = { length: 1, width: 1, lights: null, lightScale: 1 };
+const LOOK_GUNSHIP: Look = {
+  length: 0.8,
+  width: 1.1,
+  lights: { port: 0xff3050, starboard: 0xff7a30, strobe: 0xffe0a0 },
+  lightScale: 0.8,
+};
+const LOOK_LANCER: Look = {
+  length: 1.35,
+  width: 0.75,
+  lights: { port: 0xff3050, starboard: 0xff6aa0, strobe: 0xffffff },
+  lightScale: 0.6,
+};
+/** A wing flies with lit tips that blink together; the leader strobes white with a red tip. */
+const LOOK_WING: Look = {
+  length: 1.1,
+  width: 1,
+  lights: { port: 0xffd23f, starboard: 0xffd23f, strobe: 0xffd23f },
+  lightScale: 0.5,
+};
+const LOOK_WING_LEADER: Look = {
+  length: 1.1,
+  width: 1.15,
+  lights: { port: 0xffd23f, starboard: 0xff3050, strobe: 0xffffff },
+  lightScale: 0.7,
+};
+
+const tipCache = new WeakMap<object, { left: [number, number]; right: [number, number] }>();
+/** `wingtips`, remembered per shape (the nav lights ask for it every frame for every enemy). */
+function tipsOf(kind: ShipKind): { left: [number, number]; right: [number, number] } {
+  const shape = activeStyle().ships[kind];
+  if (!shape) return wingtips(kind);
+  let tips = tipCache.get(shape);
+  if (!tips) {
+    tips = wingtips(kind);
+    tipCache.set(shape, tips);
+  }
+  return tips;
+}
+
 const smooth = (a: number, b: number, x: number): number => {
   const t = clamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
@@ -91,7 +162,12 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
   const group = new THREE.Group();
   const ribbons: RibbonSet = createRibbonSet(quality.ribbons, quality.ribbonPoints);
   const ribbonVerts = quality.ribbons * quality.ribbonPoints * 18;
-  const glow: GlowBatch = createGlowBatch(6000 + ribbonVerts + LAUNCH_CAP * 400, 8, 'add', 0.55);
+  const glow: GlowBatch = createGlowBatch(
+    12000 + ribbonVerts + LAUNCH_CAP * 400 + world.enemies.missiles.capacity * 300,
+    8,
+    'add',
+    0.55,
+  );
   const smoke: GlowBatch = createGlowBatch(ribbonVerts + 3000, 7, 'alpha', 0.54);
   group.add(smoke.mesh, glow.mesh);
 
@@ -100,6 +176,8 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
     y: new Float32Array(LAUNCH_CAP),
     a: new Float32Array(LAUNCH_CAP),
     age: new Float32Array(LAUNCH_CAP),
+    /** 1 = an enemy launch (red-orange, smaller). */
+    hot: new Uint8Array(LAUNCH_CAP),
   };
   let launchCount = 0;
   const lockKey = new Int32Array(LOCK_TRACK_CAP).fill(-1);
@@ -108,7 +186,107 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
   let plumes = 0;
   let exhaustThrust = 0;
   let bracketCount = 0;
-  const wing = { left: [-0.5, 0.8] as [number, number], right: [-0.5, -0.8] as [number, number] };
+
+  /** One engine flame at a nozzle: coloured outer flame, white-hot core and a pulsing heat halo. `level` is 0..1 of full thrust. */
+  function plumeAt(
+    nx: number,
+    ny: number,
+    c: number,
+    s: number,
+    len: number,
+    width: number,
+    color: number,
+    seed: number,
+    time: number,
+    level: number,
+    shimmer: number,
+  ): void {
+    toLinear(color, rgb);
+    // Outer flame: coloured, fading to nothing at the tip.
+    colA[0] = rgb[0]! * 1.3;
+    colA[1] = rgb[1]! * 1.3;
+    colA[2] = rgb[2]! * 1.3;
+    colA[3] = 0.6;
+    colB[0] = rgb[0]!;
+    colB[1] = rgb[1]!;
+    colB[2] = rgb[2]!;
+    colB[3] = 0;
+    glow.streak(nx, ny, nx - c * len, ny - s * len, width, width * 0.1, colA, colB);
+    // White-hot core, shorter.
+    colA[0] = colA[1] = colA[2] = 2.2;
+    colA[3] = 0.9;
+    colB[0] = colB[1] = colB[2] = 1.4;
+    colB[3] = 0;
+    glow.streak(nx, ny, nx - c * len * 0.5, ny - s * len * 0.5, width * 0.45, 0, colA, colB);
+    // Heat shimmer: a pulsing soft halo at the nozzle.
+    if (shimmer > 0) {
+      const pulse = 0.65 + 0.35 * Math.sin(time * 9 + seed * 3);
+      colA[0] = rgb[0]! * 1.2;
+      colA[1] = rgb[1]! * 1.2;
+      colA[2] = rgb[2]! * 1.2;
+      colA[3] = 0.2 * shimmer * pulse * level;
+      colB[3] = 0;
+      colB[0] = rgb[0]!;
+      colB[1] = rgb[1]!;
+      colB[2] = rgb[2]!;
+      glow.disc(nx - c * width, ny - s * width, width * 2.4, 10, 0, colA, colB);
+    }
+    plumes++;
+  }
+
+  /** Two wingtip lamps and a tail strobe at a ship (`size` u, colours from the look or the pack). */
+  function lightsAt(
+    kind: ShipKind,
+    x: number,
+    y: number,
+    c: number,
+    s: number,
+    scale: number,
+    seed: number,
+    time: number,
+    size: number,
+    hz: number,
+    colors: { port: number; starboard: number; strobe: number },
+  ): void {
+    const tips = tipsOf(kind);
+    for (let k = 0; k < 2; k++) {
+      const [lx, ly] = k === 0 ? tips.left : tips.right;
+      const nx = x + scale * (lx * c - ly * s);
+      const ny = y + scale * (lx * s + ly * c);
+      toLinear(k === 0 ? colors.port : colors.starboard, rgb);
+      const pulse = 0.75 + 0.25 * Math.sin(time * 3 + seed + k * 2);
+      colA[0] = rgb[0]! * 2;
+      colA[1] = rgb[1]! * 2;
+      colA[2] = rgb[2]! * 2;
+      colA[3] = 0.95 * pulse;
+      colB[0] = rgb[0]!;
+      colB[1] = rgb[1]!;
+      colB[2] = rgb[2]!;
+      colB[3] = 0;
+      glow.disc(nx, ny, size * 0.45, NAV_SEGMENTS, 0, colA, colA);
+      colA[3] = 0.4 * pulse;
+      glow.disc(nx, ny, size * 1.8, NAV_SEGMENTS, 0, colA, colB);
+    }
+    // A strobe at the tail: short sharp pulses.
+    if (hz > 0) {
+      const pulse = Math.pow(Math.max(0, Math.sin((time * hz + seed * 0.13) * Math.PI * 2)), 14);
+      if (pulse > 0.02) {
+        const tx = x - scale * 0.7 * c;
+        const ty = y - scale * 0.7 * s;
+        toLinear(colors.strobe, rgb);
+        colA[0] = rgb[0]! * 3;
+        colA[1] = rgb[1]! * 3;
+        colA[2] = rgb[2]! * 3;
+        colA[3] = pulse;
+        colB[0] = rgb[0]!;
+        colB[1] = rgb[1]!;
+        colB[2] = rgb[2]!;
+        colB[3] = 0;
+        glow.disc(tx, ty, size * 2.6, NAV_SEGMENTS, 0, colA, colB);
+        glow.star(tx, ty, size * 4.5, size * 0.18, 0.4, colA, colB);
+      }
+    }
+  }
 
   /** Plume, halo and nav lights for one ship; `scale` is its drawn size (u per shape unit). */
   function drawShip(
@@ -123,6 +301,7 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
     def: ShipFxDef,
     time: number,
     lights: boolean,
+    look: Look = LOOK_PLAIN,
   ): void {
     const shape = activeStyle().ships[kind];
     const c = Math.cos(heading);
@@ -135,88 +314,125 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
         p.flicker *
           0.14 *
           (Math.sin(time * 47 + seed * 5) * 0.5 + Math.sin(time * 31 + seed) * 0.5);
-      const len = p.length * scale * level * flick;
-      const width = p.width * scale;
-      toLinear(plumeColor, rgb);
+      const len = p.length * scale * level * flick * look.length;
+      const width = p.width * scale * look.width;
       for (const [gx, gy] of shape.glow) {
         const nx = x + scale * (gx * c - gy * s);
         const ny = y + scale * (gx * s + gy * c);
-        const tx = nx - c * len;
-        const ty = ny - s * len;
-        // Outer flame: coloured, fading to nothing at the tip.
-        colA[0] = rgb[0]! * 1.3;
-        colA[1] = rgb[1]! * 1.3;
-        colA[2] = rgb[2]! * 1.3;
-        colA[3] = 0.6;
+        plumeAt(nx, ny, c, s, len, width, plumeColor, seed, time, level, p.shimmer);
+      }
+    }
+    if (def.navLights.size > 0) {
+      if (lights) {
+        lightsAt(
+          kind,
+          x,
+          y,
+          c,
+          s,
+          scale,
+          seed,
+          time,
+          def.navLights.size,
+          def.navLights.blinkHz,
+          def.navLights,
+        );
+      } else if (look.lights) {
+        lightsAt(
+          kind,
+          x,
+          y,
+          c,
+          s,
+          scale,
+          seed,
+          time,
+          def.navLights.size * look.lightScale,
+          def.navLights.blinkHz,
+          look.lights,
+        );
+      }
+    }
+  }
+
+  /** The capital ship: a huge flame from each living engine, blinking hull lights, a pulsing gold glow on a bare core and embers on wrecks. */
+  function drawCapital(def: ShipFxDef, time: number): void {
+    const cap = world.enemies.capital;
+    if (!cap || cap.phase === 2) return;
+    const sc = scaleOf(cap);
+    const c = Math.cos(cap.heading);
+    const s = Math.sin(cap.heading);
+    const at = { x: 0, y: 0 };
+    CAPITAL_PARTS.forEach((part, i) => {
+      const st = cap.parts[i]!;
+      partCenter(at, cap, part);
+      const r = part.radius * sc;
+      if (part.role === 'engine' && st.alive && cap.phase === 0 && def.plume.length > 0) {
+        // Slow, heavy thrust; a hurt engine sputters.
+        const hurt = st.hp < st.maxHp * 0.5;
+        const sputter = hurt ? 0.75 + 0.25 * Math.sin(time * 23 + i * 3) : 1;
+        const back = ((part.length ?? 0) / 2 + part.radius) * sc;
+        const level = 0.7 * sputter;
+        const len = CAPITAL_PLUME_LENGTH * r * level * (1 + 0.06 * Math.sin(time * 31 + i));
+        plumeAt(
+          at.x - c * back * 0.8,
+          at.y - s * back * 0.8,
+          c,
+          s,
+          len,
+          CAPITAL_PLUME_WIDTH * r,
+          PLUME_CAPITAL,
+          i,
+          time,
+          level,
+          def.plume.shimmer,
+        );
+      } else if (!st.alive || st.hp < st.maxHp * 0.5) {
+        // A burning wreck or a hurt part: a small flickering ember glow.
+        const f = 0.55 + 0.45 * Math.sin(time * 17 + i * 2.3) * Math.sin(time * 7 + i);
+        toLinear(st.alive ? 0xff9a3a : 0xff4a2a, rgb);
+        colA[0] = rgb[0]! * 1.8;
+        colA[1] = rgb[1]! * 1.8;
+        colA[2] = rgb[2]! * 1.8;
+        colA[3] = (st.alive ? 0.35 : 0.5) * f;
         colB[0] = rgb[0]!;
         colB[1] = rgb[1]!;
         colB[2] = rgb[2]!;
         colB[3] = 0;
-        glow.streak(nx, ny, tx, ty, width, width * 0.1, colA, colB);
-        // White-hot core, shorter.
-        colA[0] = colA[1] = colA[2] = 2.2;
+        glow.disc(at.x, at.y, r * (st.alive ? 0.9 : 0.7), 12, 0, colA, colB);
+      }
+      if (part.role === 'core' && st.alive && cap.coreExposed) {
+        // The core is bare: a gold-white pulse, faster than a heartbeat.
+        const pulse = 0.5 + 0.5 * Math.sin(time * 7);
+        toLinear(0xffd23f, rgb);
+        colA[0] = rgb[0]! * 2.4;
+        colA[1] = rgb[1]! * 2.4;
+        colA[2] = rgb[2]! * 2.4;
+        colA[3] = 0.55 + 0.3 * pulse;
+        colB[0] = rgb[0]!;
+        colB[1] = rgb[1]!;
+        colB[2] = rgb[2]!;
+        colB[3] = 0;
+        glow.disc(at.x, at.y, r * (1.5 + 0.5 * pulse), 18, 0, colA, colB);
         colA[3] = 0.9;
-        colB[0] = colB[1] = colB[2] = 1.4;
-        colB[3] = 0;
-        glow.streak(nx, ny, nx - c * len * 0.5, ny - s * len * 0.5, width * 0.45, 0, colA, colB);
-        // Heat shimmer: a pulsing soft halo at the nozzle.
-        if (p.shimmer > 0) {
-          const pulse = 0.65 + 0.35 * Math.sin(time * 9 + seed * 3);
-          colA[0] = rgb[0]! * 1.2;
-          colA[1] = rgb[1]! * 1.2;
-          colA[2] = rgb[2]! * 1.2;
-          colA[3] = 0.2 * p.shimmer * pulse * level;
-          colB[3] = 0;
-          colB[0] = rgb[0]!;
-          colB[1] = rgb[1]!;
-          colB[2] = rgb[2]!;
-          glow.disc(nx - c * width, ny - s * width, width * 2.4, 10, 0, colA, colB);
-        }
-        plumes++;
+        glow.ring(at.x, at.y, r * (1.05 + 0.25 * pulse), r * 0.07, 28, colA, colB);
       }
-    }
-    if (lights && def.navLights.size > 0) {
-      const size = def.navLights.size;
-      const tips = [wing.left, wing.right];
-      for (let k = 0; k < 2; k++) {
-        const [lx, ly] = tips[k]!;
-        const nx = x + scale * (lx * c - ly * s);
-        const ny = y + scale * (lx * s + ly * c);
-        toLinear(k === 0 ? def.navLights.port : def.navLights.starboard, rgb);
-        const pulse = 0.75 + 0.25 * Math.sin(time * 3 + seed + k * 2);
-        colA[0] = rgb[0]! * 2;
-        colA[1] = rgb[1]! * 2;
-        colA[2] = rgb[2]! * 2;
-        colA[3] = 0.95 * pulse;
-        colB[0] = rgb[0]!;
-        colB[1] = rgb[1]!;
-        colB[2] = rgb[2]!;
-        colB[3] = 0;
-        glow.disc(nx, ny, size * 0.45, NAV_SEGMENTS, 0, colA, colA);
-        colA[3] = 0.4 * pulse;
-        glow.disc(nx, ny, size * 1.8, NAV_SEGMENTS, 0, colA, colB);
-      }
-      // A white strobe on the tail: short sharp pulses.
-      const hz = def.navLights.blinkHz;
-      if (hz > 0) {
-        const pulse = Math.pow(Math.max(0, Math.sin((time * hz + seed * 0.13) * Math.PI * 2)), 14);
-        if (pulse > 0.02) {
-          const tx = x - scale * 0.7 * c;
-          const ty = y - scale * 0.7 * s;
-          toLinear(def.navLights.strobe, rgb);
-          colA[0] = rgb[0]! * 3;
-          colA[1] = rgb[1]! * 3;
-          colA[2] = rgb[2]! * 3;
-          colA[3] = pulse;
-          colB[0] = rgb[0]!;
-          colB[1] = rgb[1]!;
-          colB[2] = rgb[2]!;
-          colB[3] = 0;
-          glow.disc(tx, ty, size * 2.6, NAV_SEGMENTS, 0, colA, colB);
-          glow.star(tx, ty, size * 4.5, size * 0.18, 0.4, colA, colB);
-        }
-      }
-    }
+    });
+    // Hull lights: red at the port tip, amber at the starboard tip, a strobe at the stern.
+    if (def.navLights.size > 0)
+      lightsAt(
+        'capital',
+        cap.x,
+        cap.y,
+        c,
+        s,
+        cap.hullRadius,
+        7,
+        time,
+        def.navLights.size * 2.2,
+        def.navLights.blinkHz * 0.5,
+        { port: 0xff3050, starboard: 0xff7a30, strobe: 0xffffff },
+      );
   }
 
   /** The faint swept sheet between the two wingtip trails: quads aligned from the newest point back. */
@@ -298,6 +514,14 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
           launch.y[i] = e.y;
           launch.a[i] = e.angle;
           launch.age[i] = 0;
+          launch.hot[i] = 0;
+        } else if (e.type === 'EnemyMissileFired' && launchCount < LAUNCH_CAP) {
+          const i = launchCount++;
+          launch.x[i] = e.x;
+          launch.y[i] = e.y;
+          launch.a[i] = e.angle;
+          launch.age[i] = 0;
+          launch.hot[i] = 1;
         } else if (e.type === 'LockAcquired') {
           let slot = -1;
           for (let i = 0; i < LOCK_TRACK_CAP; i++) {
@@ -348,6 +572,18 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
           rgb[1]!,
           rgb[2]!,
         );
+      // Enemy missiles (prototype 5): smoke strands in a warm grey, so they read apart from yours.
+      const em = world.enemies.missiles;
+      toLinear(ENEMY_MISSILE_SMOKE, rgb);
+      for (let i = 0; i < em.count; i++)
+        ribbons.push(
+          CAT.enemyMissile * KEY_STRIDE + em.data.uid[i]!,
+          em.data.x[i]!,
+          em.data.y[i]!,
+          rgb[0]!,
+          rgb[1]!,
+          rgb[2]!,
+        );
       const rolling = ship.evadeTimer > 0;
       if (rolling && def.rollStreak.length > 0) {
         toLinear(0xcfeeff, rgb);
@@ -372,8 +608,6 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
         });
       }
       const w = wingtips('player');
-      wing.left = w.left;
-      wing.right = w.right;
       if (trailDef.width > 0) {
         const c = Math.cos(ship.heading);
         const s = Math.sin(ship.heading);
@@ -454,20 +688,35 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
       });
       world.fighters.forEach((fi, i) => {
         if (!fi.alive) return;
+        // Prototype 5: the gunship and the missile fighter have shapes, flames and lamps of their own; a wing flies lit.
+        const gunship = fi.shipType === SHIP_GUNSHIP;
+        const inWing = fi.wingId >= 0 && world.enemies.wings[fi.wingId]?.broken === false;
+        const kind: ShipKind = gunship ? 'gunship' : fi.lancer ? 'lancer' : 'fighter';
+        const look = gunship
+          ? LOOK_GUNSHIP
+          : fi.lancer
+            ? LOOK_LANCER
+            : inWing
+              ? fi.wingSlot < 0
+                ? LOOK_WING_LEADER
+                : LOOK_WING
+              : LOOK_PLAIN;
         drawShip(
-          'fighter',
+          kind,
           fi.x,
           fi.y,
           fi.ship.heading,
           fi.radius,
           clamp(0.35 + 0.65 * speedOf(fi.ship.speed), 0, 1),
           9 + i,
-          PLUME_FIGHTER,
+          gunship ? PLUME_GUNSHIP : fi.lancer ? PLUME_LANCER : PLUME_FIGHTER,
           def,
           f.time,
           false,
+          look,
         );
       });
+      drawCapital(def, f.time);
 
       // Trails.
       const trailFade = smooth(trailDef.from, Math.min(1, trailDef.from + 0.2), f.speedFactor);
@@ -489,6 +738,29 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
         colB[3] = 0;
         glow.streak(mx, my, mx - Math.cos(a) * 34, my - Math.sin(a) * 34, 9, 0, colA, colB);
       }
+      // Enemy missiles: a bigger red-orange flame, and a pulsing halo that quickens the closer one gets.
+      for (let i = 0; i < em.count; i++) {
+        const mx = em.data.x[i]!;
+        const my = em.data.y[i]!;
+        const a = Math.atan2(em.data.vy[i]!, em.data.vx[i]!);
+        const near = clamp(1 - Math.hypot(mx - ship.x, my - ship.y) / 1400, 0, 1);
+        toLinear(ENEMY_MISSILE_FLAME, rgb);
+        colA[0] = rgb[0]! * 2.2;
+        colA[1] = rgb[1]! * 2.2;
+        colA[2] = rgb[2]! * 2.2;
+        colA[3] = 0.95;
+        colB[0] = rgb[0]!;
+        colB[1] = rgb[1]!;
+        colB[2] = rgb[2]!;
+        colB[3] = 0;
+        glow.streak(mx, my, mx - Math.cos(a) * 52, my - Math.sin(a) * 52, 12, 0, colA, colB);
+        const pulse = 0.5 + 0.5 * Math.sin(f.time * (6 + 14 * near) + em.data.uid[i]!);
+        colA[3] = 0.28 + 0.3 * pulse;
+        glow.disc(mx, my, MISSILE_HALO * (0.8 + 0.4 * pulse), 12, 0, colA, colB);
+        colA[0] = colA[1] = colA[2] = 2.6;
+        colA[3] = 1;
+        glow.disc(mx, my, 4.5, 8, 0, colA, colA);
+      }
       for (let i = launchCount - 1; i >= 0; i--) {
         launch.age[i]! += f.dt;
         const t = launch.age[i]! / LAUNCH_LIFE;
@@ -499,12 +771,13 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
             launch.y[i] = launch.y[last]!;
             launch.a[i] = launch.a[last]!;
             launch.age[i] = launch.age[last]!;
+            launch.hot[i] = launch.hot[last]!;
           }
           continue;
         }
         const k = 1 - t;
-        const r = missileDef.flash * (0.35 + 0.9 * (1 - k * k));
-        toLinear(FLAME, rgb);
+        const r = missileDef.flash * (0.35 + 0.9 * (1 - k * k)) * (launch.hot[i] ? 0.8 : 1);
+        toLinear(launch.hot[i] ? ENEMY_MISSILE_FLAME : FLAME, rgb);
         colA[0] = rgb[0]! * 2.4;
         colA[1] = rgb[1]! * 2.4;
         colA[2] = rgb[2]! * 2.4;
@@ -598,6 +871,18 @@ export function createShipFx(world: World, quality: SpectacleQuality): ShipFx {
           amplitude: def.missiles.amplitude,
           turns: 1.5,
           phase: id * 1.7,
+        });
+      } else if (cat === CAT.enemyMissile) {
+        drawRibbon(smoke, ribbons, slot, {
+          life: missileLife,
+          width: 3.2,
+          tailWidth: 8,
+          alpha: 0.6,
+          gain: 1,
+          strands: def.missiles.spirals,
+          amplitude: def.missiles.amplitude * 1.15,
+          turns: 1.7,
+          phase: id * 2.3,
         });
       } else if (cat === CAT.wingman) {
         drawRibbon(glow, ribbons, slot, {

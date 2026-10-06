@@ -36,6 +36,14 @@ function kindColor(kind: IndicatorKind, colors: UiColors): string {
   switch (kind) {
     case 'fighter':
       return css(palette.fighter);
+    case 'gunship':
+      return '#ffb030';
+    case 'lancer':
+      return '#ff6aa0';
+    case 'capital':
+      return css(palette.enemy);
+    case 'missile':
+      return colors.hot;
     case 'drone':
       return css(palette.enemy);
     case 'turret':
@@ -59,6 +67,55 @@ function shape(g: CanvasRenderingContext2D, kind: IndicatorKind, s: number): voi
       g.lineTo(-k * 0.7, k * 0.8);
       g.lineTo(-k * 0.25, 0);
       g.lineTo(-k * 0.7, -k * 0.8);
+      break;
+    }
+    case 'gunship': {
+      // A fat double arrow with side sponsons: the armoured one.
+      const k = s * 1.15;
+      g.moveTo(k * 1.2, 0);
+      g.lineTo(k * 0.2, k * 0.95);
+      g.lineTo(-k * 0.5, k * 0.95);
+      g.lineTo(-k * 0.2, k * 0.35);
+      g.lineTo(-k * 0.8, k * 0.35);
+      g.lineTo(-k * 0.8, -k * 0.35);
+      g.lineTo(-k * 0.2, -k * 0.35);
+      g.lineTo(-k * 0.5, -k * 0.95);
+      g.lineTo(k * 0.2, -k * 0.95);
+      break;
+    }
+    case 'lancer': {
+      // A needle with two small fins: the missile fighter.
+      const k = s * 1.1;
+      g.moveTo(k * 1.7, 0);
+      g.lineTo(-k * 0.4, k * 0.45);
+      g.lineTo(-k * 0.15, 0);
+      g.lineTo(-k * 0.4, -k * 0.45);
+      break;
+    }
+    case 'capital': {
+      // The biggest shape: a notched slab with a ram prow.
+      const k = s * 1.5;
+      g.moveTo(k * 1.3, 0);
+      g.lineTo(k * 0.7, k * 0.9);
+      g.lineTo(-k * 1, k * 0.9);
+      g.lineTo(-k * 1.3, k * 0.45);
+      g.lineTo(-k * 0.6, 0);
+      g.lineTo(-k * 1.3, -k * 0.45);
+      g.lineTo(-k, -k * 0.9);
+      g.lineTo(k * 0.7, -k * 0.9);
+      break;
+    }
+    case 'missile': {
+      // A warhead with a flame tail.
+      const k = s * 0.8;
+      g.moveTo(k, 0);
+      g.lineTo(0, k * 0.55);
+      g.lineTo(-k * 0.6, k * 0.3);
+      g.lineTo(-k * 1.3, k * 0.6);
+      g.lineTo(-k, 0);
+      g.lineTo(-k * 1.3, -k * 0.6);
+      g.lineTo(-k * 0.6, -k * 0.3);
+      g.lineTo(0, -k * 0.55);
       break;
     }
     case 'turret': {

@@ -1,7 +1,9 @@
+import { createMissileWarning, missileWarning } from '../../core/enemies/enemy-missiles-warning';
 import { getLockable } from '../../core/world/lockable';
 import type { World } from '../../core/world/world';
 import { drawLockRings } from '../../render/hud/locks-hud';
-import { worldToScreen } from '../../render/hud/layout';
+import { createEdgeIndicator, edgeIndicator, worldToScreen } from '../../render/hud/layout';
+import { markerPulse, MARKER_RADIUS, warningArrow } from '../../render/hud/missile-warning';
 import { createLockRing, lockRingAt, sweepEnd, type LockRing } from '../../render/hud/locks';
 import { drawOrderMarker } from '../../render/hud/order-marker';
 import { drawPodRings } from '../../render/hud/pods-hud';
@@ -317,6 +319,117 @@ function drawPods(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
   }
 }
 
+const warning = createMissileWarning();
+const edge = createEdgeIndicator();
+const arrowAt = { x: 0, y: 0, angle: 0 };
+const missileBody = { x: 0, y: 0, radius: 20 };
+
+/** A chevron arrow pointing along `angle` (canvas angle), `s` px long. */
+function chevron(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  angle: number,
+  s: number,
+): void {
+  g.save();
+  g.translate(x, y);
+  g.rotate(angle);
+  g.beginPath();
+  g.moveTo(s, 0);
+  g.lineTo(-s * 0.6, s * 0.85);
+  g.lineTo(-s * 0.2, 0);
+  g.lineTo(-s * 0.6, -s * 0.85);
+  g.closePath();
+  g.restore();
+}
+
+/**
+ * The MISSILE warning in the anime idiom (prototype 5): a hot slanted-diamond marker with a throbbing
+ * ring on every enemy missile on screen, a chevron arrow on a ring around the ship pointing at the
+ * nearest one, and, when the indicator layer is off, an edge arrow for each one off screen (with the
+ * indicators on they draw those). The text line is in the DOM HUD. Not subdued: this is a safety cue.
+ */
+function drawMissileWarning(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
+  const { world } = i;
+  const w = missileWarning(world, warning);
+  if (!w.active) return;
+  const hot = i.colors.hot;
+  const pool = world.enemies.missiles;
+  const margin = world.tuning.hud.edgeMargin;
+  const pulse = markerPulse(world.time, w.eta);
+  g.save();
+  g.lineCap = 'round';
+  g.lineJoin = 'miter';
+  for (let n = 0; n < pool.count; n++) {
+    missileBody.x = pool.data.x[n]!;
+    missileBody.y = pool.data.y[n]!;
+    if (edgeIndicator(edge, missileBody, i.center, i.view, i.screen, margin)) {
+      if (spectacle.indicators) continue;
+      chevron(g, edge.x, edge.y, edge.angle, 13);
+      g.fillStyle = hot;
+      g.fill();
+      g.lineWidth = 2;
+      g.strokeStyle = INK;
+      g.stroke();
+      continue;
+    }
+    worldToScreen(p, missileBody.x, missileBody.y, i.center, i.view, i.screen);
+    const r = MARKER_RADIUS * (0.9 + 0.35 * pulse);
+    // A throbbing ring, and a slanted diamond that turns slowly around the missile.
+    g.strokeStyle = INK;
+    g.lineWidth = 6;
+    g.beginPath();
+    g.arc(p.x, p.y, r, 0, Math.PI * 2);
+    g.stroke();
+    glow(g, hot, 12);
+    g.strokeStyle = hot;
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.arc(p.x, p.y, r, 0, Math.PI * 2);
+    g.stroke();
+    noGlow(g);
+    g.save();
+    g.translate(p.x, p.y);
+    g.rotate(i.time * 1.4);
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 2;
+    const d = r * 1.35;
+    g.beginPath();
+    g.moveTo(0, -d);
+    g.lineTo(d * 0.7, 0);
+    g.lineTo(0, d);
+    g.lineTo(-d * 0.7, 0);
+    g.closePath();
+    g.globalAlpha = 0.65;
+    g.stroke();
+    g.restore();
+  }
+  // The arrow beside the ship toward the nearest missile, on a thin dashed ring.
+  worldToScreen(p, world.ship.x, world.ship.y, i.center, i.view, i.screen);
+  warningArrow(arrowAt, p.x, p.y, w.angle);
+  g.save();
+  g.setLineDash([3, 7]);
+  g.strokeStyle = 'rgba(255, 61, 110, 0.4)';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.arc(p.x, p.y, Math.hypot(arrowAt.x - p.x, arrowAt.y - p.y), 0, Math.PI * 2);
+  g.stroke();
+  g.restore();
+  chevron(g, arrowAt.x, arrowAt.y, arrowAt.angle, 14 + 3 * pulse);
+  g.strokeStyle = INK;
+  g.lineWidth = 5;
+  g.stroke();
+  glow(g, hot, 14);
+  g.fillStyle = hot;
+  g.fill();
+  noGlow(g);
+  g.lineWidth = 1.5;
+  g.strokeStyle = '#ffffff';
+  g.stroke();
+  g.restore();
+}
+
 /** Draws the world-anchored layer. The caller clears the canvas first. */
 export function drawWorldLayer(g: CanvasRenderingContext2D, i: WorldLayerInput): void {
   if (i.dramatic) {
@@ -331,4 +444,5 @@ export function drawWorldLayer(g: CanvasRenderingContext2D, i: WorldLayerInput):
     drawPodRings(g, i.world, i.center, i.view, i.screen);
   }
   drawOrderMarker(g, i.world, i.center, i.view, i.screen);
+  drawMissileWarning(g, i);
 }

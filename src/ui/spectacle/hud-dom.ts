@@ -11,7 +11,8 @@ import {
   setStyle,
   setText,
 } from './dom';
-import type { HudModel, RosterCard } from './hud-model';
+import { SEGMENT_WEIGHT } from '../../render/hud/capital-bar';
+import type { CapitalModel, HudModel, RosterCard } from './hud-model';
 import type { PresentationDef } from './presentation';
 
 /**
@@ -86,7 +87,30 @@ export function createSpectacleHud(
   objectiveWrap.append(objective);
   const trial = el('div', 'sx-trial');
   const warning = el('div', 'sx-warning', 'RETURN TO ARENA');
-  top.append(objectiveWrap, trial, warning);
+  // Prototype 5 enemy cues: the capital ship's bar of parts, the MISSILE warning and the wing banner.
+  const capitalWrap = el('div', 'sx-capital');
+  const capitalGlow = el('div', 'sx-glow hot');
+  const capitalBox = el('div', 'sx-capbox');
+  const capitalHead = el('div', 'head');
+  const capitalLabel = el('span', 'name');
+  const capitalCaption = el('span', 'caption');
+  capitalHead.append(capitalLabel, capitalCaption);
+  const capitalSegs = el('div', 'segs');
+  capitalBox.append(capitalHead, capitalSegs);
+  capitalGlow.append(capitalBox);
+  const coreCall = el('div', 'sx-corecall');
+  coreCall.append(el('span', 'tri', '\u25B6'), el('span', 'txt'), el('span', 'tri', '\u25C0'));
+  capitalWrap.append(capitalGlow, coreCall);
+  const alertWrap = el('div', 'sx-glow hot sx-alertwrap');
+  const alert = el('div', 'sx-alert');
+  const alertArrow = el('span', 'arrow', '\u25B6\u25B6');
+  const alertText = el('span', 'txt');
+  alert.append(alertArrow, alertText);
+  alertWrap.append(alert);
+  const cueWrap = el('div', 'sx-glow gold sx-cuewrap');
+  const cueEl = el('div', 'sx-cue');
+  cueWrap.append(cueEl);
+  top.append(objectiveWrap, trial, warning, capitalWrap, alertWrap, cueWrap);
 
   // Top right: score, streak, feed.
   const tr = el('div', 'sx-tr');
@@ -166,6 +190,8 @@ export function createSpectacleHud(
   let shownBanner: Banner | null = null;
   let bannerEl: HTMLElement | null = null;
   let lastCall = '';
+  let lastCapitalKey = '';
+  const capitalCells: { cell: HTMLElement; fill: HTMLElement }[] = [];
 
   function drawRoster(cards: readonly RosterCard[], portraits: boolean): void {
     const key = rosterKey(cards, portraits);
@@ -217,6 +243,44 @@ export function createSpectacleHud(
       bannerEl.style.transform = `translate(${(dir * s.off * travel).toFixed(1)}vw, ${y.toFixed(1)}px)`;
       bannerEl.style.opacity = s.alpha.toFixed(2);
     }
+  }
+
+  /** The capital ship's bar: one cell per part, wide for the core, a gold underline on the plates that still shield it. */
+  function drawCapital(m: CapitalModel | null): void {
+    setHidden(capitalWrap, m === null);
+    if (!m) return;
+    const key = m.segments.map((g) => g.role).join('|');
+    if (key !== lastCapitalKey) {
+      lastCapitalKey = key;
+      capitalCells.length = 0;
+      capitalSegs.replaceChildren(
+        ...m.segments.map((g, i) => {
+          const cell = el('i', `cell ${g.role}`);
+          const fill = el('b');
+          cell.append(fill);
+          cell.style.flexGrow = String(SEGMENT_WEIGHT[g.role]);
+          // A little extra space where the role changes.
+          if (i > 0 && m.segments[i - 1]!.role !== g.role) cell.style.marginLeft = '8px';
+          capitalCells.push({ cell, fill });
+          return cell;
+        }),
+      );
+    }
+    m.segments.forEach((g, i) => {
+      const c = capitalCells[i];
+      if (!c) return;
+      setClass(c.cell, 'dead', !g.alive);
+      setClass(c.cell, 'covered', g.covered);
+      setClass(c.cell, 'core', g.isCore);
+      setClass(c.cell, 'shield', g.coversCore && g.alive);
+      setStyle(c.fill, 'width', `${(g.fraction * 100).toFixed(1)}%`);
+    });
+    setText(capitalLabel, m.label);
+    setText(capitalCaption, m.caption);
+    setClass(capitalBox, 'exposed', m.exposed);
+    setClass(capitalBox, 'dying', m.dying);
+    setHidden(coreCall, !m.exposed);
+    if (m.exposed) setText(coreCall.children[1] as HTMLElement, m.caption);
   }
 
   function drawComms(
@@ -300,6 +364,16 @@ export function createSpectacleHud(
         setHidden(trial, m.trial === null);
         if (m.trial) setText(trial, m.trial);
         setHidden(warning, m.warning === null);
+
+        // Enemy cues: the capital ship's bar, the MISSILE warning and the wing banner.
+        drawCapital(m.capital);
+        setHidden(alertWrap, m.missile === null);
+        if (m.missile) {
+          setText(alertText, m.missile.text);
+          setClass(alert, 'urgent', m.missile.urgent);
+        }
+        setHidden(cueWrap, m.cue === null);
+        if (m.cue) setText(cueEl, m.cue);
 
         // Score.
         setText(scoreValue, m.score);

@@ -1,0 +1,295 @@
+import type { Point, ShapeDef, ShipShapes } from '../../../src/render/style';
+import { ships as parent } from '../anime-80s/ships';
+
+/**
+ * The Prototype 5 ships in the anime idiom (cel fill, ink outline, a sensor eye, a shadow cut and
+ * engine glow points), added to the parent's set. Radius units, nose along +x like the rest. The
+ * enemies stay angular and a little asymmetric; the capital ship is a Yamato-style battleship hull
+ * with its parts drawn on top (their shapes are in part radius units, a capsule is stretched along
+ * the ship: x runs half its length, y its radius).
+ *
+ * - gunship: an H-shaped gunboat: a spine with a visor and two gun pods, four nozzles.
+ * - lancer: a needle-nosed missile fighter, canards, swept wings that end in missile pods.
+ * - capital: ram prow, stepped armour shoulders, gun bays, a notched stern.
+ * - parts: twin-barrel turret, nacelle with a hot throat, stepped armour plate, command bridge with
+ *   a lit window band, gear-shaped reactor with a glowing core.
+ */
+
+/** The shadow shape: the silhouette pulled in 10%, as the parent's ships do. */
+const shade = (p: readonly Point[]): Point[] => p.map(([x, y]) => [x * 0.9, y * 0.9]);
+
+function ship(def: Omit<ShapeDef, 'shadow'>): ShapeDef {
+  return { ...def, shadow: shade(def.polygon) };
+}
+
+export const ships: ShipShapes = {
+  ...parent,
+  gunship: ship({
+    polygon: [
+      [1.25, 0],
+      [0.8, 0.16],
+      [0.45, 0.3],
+      [-0.1, 0.3],
+      [-0.1, 0.55],
+      [0.9, 0.55],
+      [1.05, 0.72],
+      [0.95, 1.0],
+      [0.2, 1.05],
+      [-0.5, 1.0],
+      [-0.6, 0.8],
+      [-0.45, 0.5],
+      [-0.6, 0.36],
+      [-0.95, 0.32],
+      [-1.0, 0.12],
+      [-0.9, 0],
+      [-1.0, -0.12],
+      [-0.95, -0.34],
+      [-0.6, -0.36],
+      [-0.45, -0.5],
+      [-0.6, -0.8],
+      [-0.5, -1.0],
+      [0.2, -1.0],
+      [0.95, -0.95],
+      [1.05, -0.72],
+      [0.9, -0.55],
+      [-0.1, -0.55],
+      [-0.1, -0.3],
+      [0.45, -0.3],
+      [0.8, -0.16],
+    ],
+    eye: [
+      [0.95, 0],
+      [0.6, 0.1],
+      [0.3, 0],
+      [0.6, -0.1],
+    ],
+    glow: [
+      [-0.98, 0.15],
+      [-0.98, -0.15],
+      [-0.58, 0.85],
+      [-0.58, -0.85],
+    ],
+  }),
+  lancer: ship({
+    polygon: [
+      [1.65, 0],
+      [1.15, 0.08],
+      [0.8, 0.12],
+      [0.62, 0.34],
+      [0.42, 0.14],
+      [0.1, 0.2],
+      [-0.15, 0.85],
+      [0.05, 0.95],
+      [-0.35, 1.0],
+      [-0.5, 0.85],
+      [-0.38, 0.5],
+      [-0.7, 0.42],
+      [-1.0, 0.28],
+      [-1.0, 0.1],
+      [-0.85, 0],
+      [-1.0, -0.1],
+      [-1.0, -0.3],
+      [-0.72, -0.4],
+      [-0.4, -0.5],
+      [-0.52, -0.88],
+      [-0.3, -1.0],
+      [0, -0.92],
+      [-0.18, -0.8],
+      [0.1, -0.2],
+      [0.42, -0.14],
+      [0.62, -0.3],
+      [0.8, -0.12],
+      [1.15, -0.08],
+    ],
+    eye: [
+      [0.95, 0],
+      [0.7, 0.07],
+      [0.5, 0],
+      [0.7, -0.07],
+    ],
+    glow: [
+      [-0.98, 0.2],
+      [-0.98, -0.2],
+    ],
+  }),
+  // The hull, in HULL radius units: a ram prow, stepped shoulders, gun bays and a notched stern.
+  capital: ship({
+    polygon: [
+      [0.98, 0],
+      [0.9, 0.05],
+      [0.78, 0.12],
+      [0.66, 0.2],
+      [0.56, 0.26],
+      [0.5, 0.34],
+      [0.4, 0.42],
+      [0.3, 0.44],
+      [0.26, 0.56],
+      [0.14, 0.62],
+      [-0.08, 0.62],
+      [-0.14, 0.54],
+      [-0.3, 0.52],
+      [-0.4, 0.42],
+      [-0.56, 0.4],
+      [-0.64, 0.33],
+      [-0.84, 0.36],
+      [-0.96, 0.3],
+      [-1.0, 0.14],
+      [-0.94, 0],
+      [-1.0, -0.14],
+      [-0.96, -0.3],
+      [-0.84, -0.36],
+      [-0.64, -0.33],
+      [-0.56, -0.4],
+      [-0.4, -0.42],
+      [-0.3, -0.52],
+      [-0.14, -0.54],
+      [-0.08, -0.62],
+      [0.14, -0.62],
+      [0.26, -0.56],
+      [0.3, -0.44],
+      [0.4, -0.42],
+      [0.5, -0.34],
+      [0.56, -0.26],
+      [0.66, -0.2],
+      [0.78, -0.12],
+      [0.9, -0.05],
+    ],
+    // A thin lit seam along the bow: the forward viewport.
+    eye: [
+      [0.7, 0],
+      [0.52, 0.03],
+      [0.2, 0],
+      [0.52, -0.03],
+    ],
+  }),
+  // Twin barrels on a round mount.
+  capitalTurret: ship({
+    polygon: [
+      [1.5, 0.22],
+      [0.8, 0.25],
+      [0.75, 0.7],
+      [0.45, 0.95],
+      [-0.1, 1.0],
+      [-0.65, 0.8],
+      [-0.9, 0.35],
+      [-0.9, -0.35],
+      [-0.65, -0.8],
+      [-0.1, -1.0],
+      [0.45, -0.95],
+      [0.75, -0.7],
+      [0.8, -0.25],
+      [1.5, -0.22],
+    ],
+    eye: [
+      [0.4, 0],
+      [0.1, 0.2],
+      [-0.25, 0],
+      [0.1, -0.2],
+    ],
+  }),
+  // A nacelle: the throat at the stern is the hot spot.
+  capitalEngine: ship({
+    polygon: [
+      [1, 0.5],
+      [0.7, 0.8],
+      [0.2, 0.85],
+      [-0.5, 0.8],
+      [-0.85, 1],
+      [-1, 0.8],
+      [-1, -0.8],
+      [-0.85, -1],
+      [-0.5, -0.8],
+      [0.2, -0.85],
+      [0.7, -0.8],
+      [1, -0.5],
+    ],
+    eye: [
+      [-0.7, 0.45],
+      [-0.95, 0.45],
+      [-0.95, -0.45],
+      [-0.7, -0.45],
+    ],
+    glow: [[-1, 0]],
+  }),
+  // A stepped armour plate.
+  capitalArmour: ship({
+    polygon: [
+      [1, -0.55],
+      [1, 0.55],
+      [0.78, 0.85],
+      [0.5, 1],
+      [-0.5, 1],
+      [-0.82, 0.8],
+      [-1, 0.5],
+      [-1, -0.5],
+      [-0.82, -0.8],
+      [-0.5, -1],
+      [0.5, -1],
+      [0.78, -0.85],
+    ],
+  }),
+  // The command bridge: an arrowhead with a lit window band.
+  capitalBridge: ship({
+    polygon: [
+      [1.15, 0],
+      [0.7, 0.45],
+      [0.3, 0.55],
+      [0.25, 0.95],
+      [-0.3, 1],
+      [-0.85, 0.75],
+      [-0.95, 0.3],
+      [-0.95, -0.3],
+      [-0.85, -0.75],
+      [-0.3, -1],
+      [0.25, -0.95],
+      [0.3, -0.55],
+      [0.7, -0.45],
+    ],
+    eye: [
+      [0.6, 0],
+      [0.3, 0.3],
+      [-0.1, 0.3],
+      [-0.1, -0.3],
+      [0.3, -0.3],
+    ],
+  }),
+  // The reactor: a gear with a glowing heart.
+  capitalCore: ship({
+    polygon: [
+      [1, 0],
+      [0.78, 0.3],
+      [0.87, 0.5],
+      [0.55, 0.62],
+      [0.5, 0.87],
+      [0.2, 0.78],
+      [0, 1],
+      [-0.2, 0.78],
+      [-0.5, 0.87],
+      [-0.55, 0.62],
+      [-0.87, 0.5],
+      [-0.78, 0.3],
+      [-1, 0],
+      [-0.78, -0.3],
+      [-0.87, -0.5],
+      [-0.55, -0.62],
+      [-0.5, -0.87],
+      [-0.2, -0.78],
+      [0, -1],
+      [0.2, -0.78],
+      [0.5, -0.87],
+      [0.55, -0.62],
+      [0.87, -0.5],
+      [0.78, -0.3],
+    ],
+    eye: [
+      [0.5, 0],
+      [0.35, 0.35],
+      [0, 0.5],
+      [-0.35, 0.35],
+      [-0.5, 0],
+      [-0.35, -0.35],
+      [0, -0.5],
+      [0.35, -0.35],
+    ],
+  }),
+};

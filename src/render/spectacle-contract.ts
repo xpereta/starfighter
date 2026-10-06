@@ -249,6 +249,12 @@ export const BLAST_KINDS = [
   'wingman',
   'missile',
   'hit',
+  // Prototype 5: the gunship's kill, the capital ship's parts (scaled by part size and role), the
+  // capital ship's last blast and an enemy missile ending on you.
+  'gunship',
+  'capitalPart',
+  'capital',
+  'enemyMissile',
 ] as const;
 export type BlastKind = (typeof BLAST_KINDS)[number];
 
