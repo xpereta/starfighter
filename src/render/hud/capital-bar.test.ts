@@ -55,7 +55,7 @@ describe('capital health bar data', () => {
     const { w, cap } = setup();
     const bar = createCapitalBar();
     const gun = defs.findIndex((d) => d.id === 'gun-mid-port');
-    damagePart(w, gun, defs[gun]!.hp / 2, 0);
+    damagePart(w, gun, cap.parts[gun]!.maxHp / 2, 0);
     fillCapitalBar(bar, cap);
     expect(bar.segments.find((s) => s.id === 'gun-mid-port')!.fraction).toBeCloseTo(0.5);
     for (let i = 0; i < defs.length; i++) if (defs[i]!.covers.includes('core')) killPart(w, i);

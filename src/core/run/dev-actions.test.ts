@@ -189,7 +189,7 @@ describe('waves and clearing', () => {
     devJumpTo(w, { kind: 'battle', n: 1 });
     devNextWave(w);
     expect(w.run.wave).toBe(1);
-    expect(enemyCounts(w).fighters).toBe(3);
+    expect(enemyCounts(w).fighters).toBe(2);
     devNextWave(w);
     expect(w.run.wave).toBe(2);
     expect(w.run.wave).toBe(w.run.waveTotal);

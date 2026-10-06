@@ -226,12 +226,12 @@ export function spawnWing(
 }
 
 /** `count` wings spread around the arena edge, each heading inward (like a fighter wave). */
-export function spawnWings(world: World, count: number): void {
+export function spawnWings(world: World, count: number, size?: number): void {
   const radius = world.tuning.flight.arenaRadius * world.tuning.fighter.spawnFraction;
   const base = world.rng.range(0, TAU);
   for (let k = 0; k < count; k++) {
     const angle = base + (k * TAU) / count + world.rng.range(-0.2, 0.2);
     const heading = angle + Math.PI + world.rng.range(-0.3, 0.3);
-    spawnWing(world, Math.cos(angle) * radius, Math.sin(angle) * radius, heading);
+    spawnWing(world, Math.cos(angle) * radius, Math.sin(angle) * radius, heading, size);
   }
 }

@@ -249,10 +249,33 @@ export const sounds: SoundTable = {
     maxVoices: 3,
     spatial: AROUND,
   }),
-  PartDestroyed: 'silent',
-  CoreExposed: 'silent',
+  // A part of the capital ship goes: a medium thud with noise.
+  PartDestroyed: sfx([noise('lowpass', 2600, 200, 0.4, 0.8), tone('sine', 150, 50, 0.4, 0.8)], {
+    volume: 0.45,
+    pitchRandom: 0.1,
+    minGap: 0.08,
+    maxVoices: 4,
+    spatial: AROUND,
+  }),
+  // The core is bare: a short rising two-tone alert.
+  CoreExposed: sfx(
+    [tone('sine', 520, 520, 0.12, 0.5), tone('sine', 780, 780, 0.2, 0.5, { delay: 0.14 })],
+    {
+      volume: 0.3,
+      maxVoices: 1,
+      minGap: 0.5,
+    },
+  ),
   WingBroken: 'silent',
-  CapitalDestroyed: 'silent',
+  // The capital ship ends: a long deep blast.
+  CapitalDestroyed: sfx(
+    [
+      noise('lowpass', 2400, 120, 2, 0.9),
+      tone('sine', 80, 25, 1.6, 1),
+      tone('sine', 55, 20, 1.4, 0.8, { delay: 0.5 }),
+    ],
+    { volume: 0.6, maxVoices: 1, minGap: 1, spatial: AROUND, duck: { amount: 0.4, time: 2 } },
+  ),
   Paused: sfx([tone('sine', 500, 250, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
   Resumed: sfx([tone('sine', 250, 500, 0.16, 0.6)], { volume: 0.3, maxVoices: 1, minGap: 0.2 }),
 };

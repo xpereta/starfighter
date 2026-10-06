@@ -42,7 +42,7 @@ export const capitalParams = {
     note: 'How far inside the arena edge the capital ship appears at the start of the battle. Parts always stay inside the arena.',
   },
   partHpScale: {
-    default: 1,
+    default: 0.5,
     min: 0.1,
     max: 10,
     step: 0.1,
@@ -50,7 +50,7 @@ export const capitalParams = {
     note: 'Multiplies the hit points of every part when the ship spawns. Higher = a longer boss fight; lower = a quick one.',
   },
   fireScale: {
-    default: 1,
+    default: 0.6,
     min: 0,
     max: 4,
     step: 0.1,
@@ -94,14 +94,14 @@ export const capitalParams = {
     note: 'Formation wings escorting the capital ship. The first arrives with it, the next ones follow after the delay below. Higher = the player cannot hover at the capital; lower = a duel.',
   },
   escortWingSize: {
-    default: 4,
+    default: 3,
     min: 2,
     max: 5,
     unit: 'fighters',
     note: 'Fighters in each escort wing (3 to 5 in the spec). Higher = a harder fight around the capital.',
   },
   escortWingDelay: {
-    default: 14,
+    default: 25,
     min: 0,
     max: 120,
     unit: 's',

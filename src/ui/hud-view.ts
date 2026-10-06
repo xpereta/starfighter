@@ -18,8 +18,8 @@ import { objectiveText, rosterRows, type RosterRow } from './roster';
  */
 export const ROSTER_TOP = PAD + 58;
 export const OBJECTIVE_TOP = PAD + 16;
-/** Enemy cues (WING INBOUND) sit under the centre warning line, clear of the objective. */
-export const CUE_TOP = PAD + 80;
+/** Enemy cues (WING INBOUND) sit under the centre warning line and the MISSILE warning text (baseline PAD + 86 = 110), clear of the objective. */
+export const CUE_TOP = PAD + 112;
 
 export const HUD_CSS = `
 #run-hud { position: fixed; inset: 0; z-index: 5; pointer-events: none; font: 600 14px/1.3 ui-monospace, Menlo, Consolas, monospace; color: #f2f6ff; }

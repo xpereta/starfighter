@@ -77,7 +77,7 @@ export function spawnWave(world: World, size = world.tuning.fighter.waveSize): v
 export function spawnGroup(world: World, group: BattleGroup): void {
   if (group.kind === 'fighter') spawnWave(world, group.count);
   else if (group.kind === 'gunship') spawnGunships(world, group.count);
-  else if (group.kind === 'wing') spawnWings(world, group.count);
+  else if (group.kind === 'wing') spawnWings(world, group.count, group.size);
   else if (group.kind === 'lancer') spawnLancers(world, group.count);
 }
 

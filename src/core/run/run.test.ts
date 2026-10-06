@@ -149,13 +149,13 @@ describe('a battle', () => {
   it('sends its waves one after another and counts them', () => {
     const w = inBattle();
     expect(w.run).toMatchObject({ battle: 1, wave: 1, waveTotal: 2 });
-    expect(w.fighters.filter((f) => f.alive)).toHaveLength(3);
+    expect(w.fighters.filter((f) => f.alive)).toHaveLength(2);
     clearWave(w);
     expect(w.run.wave).toBe(2);
-    // Battle 1's last wave: three fighters and one formation wing (the introduction).
-    expect(w.fighters.filter((f) => f.alive)).toHaveLength(3 + w.tuning.wings.size);
+    // Battle 1's last wave: one formation wing of 3 (the introduction).
+    expect(w.fighters.filter((f) => f.alive)).toHaveLength(3);
     expect(w.enemies.wings).toHaveLength(1);
-    expect(w.run.battleKills).toBe(3);
+    expect(w.run.battleKills).toBe(2);
   });
 
   it('the classic ramp sends plain fighter waves instead', () => {
@@ -442,6 +442,6 @@ describe('the battle table drives the run', () => {
     };
     press(w, 'menuSelect');
     stepWorld(w, DT);
-    expect(seen).toEqual(['fighter', 'fighter', 'fighter']);
+    expect(seen).toEqual(['fighter', 'fighter']);
   });
 });

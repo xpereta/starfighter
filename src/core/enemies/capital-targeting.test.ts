@@ -59,7 +59,7 @@ describe('lock-on on parts', () => {
     const id = w.lockon.locks[0]! - PART_ID_BASE;
     const body = getLockable(w, w.lockon.locks[0]!)!;
     expect(body.alive).toBe(true);
-    expect(body.hp).toBe(defs[id]!.hp);
+    expect(body.hp).toBe(defs[id]!.hp * w.tuning.capital.partHpScale);
   });
 
   it('holds at most lockPartCap parts, whatever the lock limit', () => {
@@ -114,7 +114,7 @@ describe('missiles on parts', () => {
     const plates = defs
       .map((d, i) => (d.covers.includes('core') ? i : -1))
       .filter((i) => i >= 0)
-      .map((i) => w.enemies.capital!.parts[i]!.hp < defs[i]!.hp);
+      .map((i) => w.enemies.capital!.parts[i]!.hp < w.enemies.capital!.parts[i]!.maxHp);
     expect(plates.some(Boolean)).toBe(true);
   });
 });

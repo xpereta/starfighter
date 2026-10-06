@@ -9,6 +9,7 @@ import {
   startRecording,
 } from '../../src/core/replay/replay';
 import { createRng } from '../../src/core/rng/rng';
+import { coreIndex, killPart } from '../../src/core/enemies/capital';
 import { devJumpTo, devNextWave } from '../../src/core/run/dev-actions';
 import { enterStartScreen, offerVeterans } from '../../src/core/run/run';
 import { createWorld, stepWorld, type World } from '../../src/core/world/world';
@@ -69,7 +70,12 @@ function playRun(
         a.evade = rng.next() < 0.1;
         a.launch = rng.next() < 0.05;
       }
-      if (options.assist && steps % 480 === 0) for (const f of world.fighters) f.hp = 0;
+      if (options.assist && steps % 480 === 0) {
+        for (const f of world.fighters) f.hp = 0;
+        // Battle 4: the boss. Its core goes too (the death chain then ends the battle).
+        const cap = world.enemies.capital;
+        if (cap && cap.phase === 0) killPart(world, coreIndex());
+      }
     } else {
       a.menuUp = a.menuDown = a.menuSelect = a.menuBack = false;
       if (steps % 6 === 0) {

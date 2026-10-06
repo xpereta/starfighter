@@ -23,3 +23,7 @@ Owns `src/core/enemies/capital*` (new: part damage routing, core exposure, AI, d
 3. Track A should land the spawn-from-kinds change before B and C wire their spawns; B and C may land in either order. If a track needs an A change, it asks for a small PR to main rather than copying code.
 4. Every new gameplay field goes into the hash with the audit test updated, every new event into every style pack, every new parameter with default, range, unit and note.
 5. Integration (the full battle ramp, tuning, e2e, reviewer pass) starts only when A, B and C are merged.
+
+## Integration (combined preview)
+Branch `p5/combined` merges the three tracks in the order A, B, C and wires them together: the battle table spawns lancers, the capital's escorts are real wings and lancers, a short post-hit protection for bullets (`run.hitProtection`), a tuned ramp and the audio/HUD placement checks. Decisions and numbers: `decisions.md` (2026-10-06) and the PR. Screenshots: `reference/prototype-5/`.
+
