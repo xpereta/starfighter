@@ -43,6 +43,8 @@ test.describe('dev panel: run phase and spawn', () => {
     await open(page, 'Spawn').click();
     for (const name of [
       'Spawn Fighter',
+      'Spawn Gunship',
+      'Spawn Formation wing',
       'Spawn Drone',
       'Spawn Turret',
       'Spawn Static dummy',
@@ -90,6 +92,58 @@ test.describe('dev panel: run phase and spawn', () => {
     await button(page, 'Spawn Fighter').click();
     await expect(status(page, /enemies alive: 4 fighters/)).toBeVisible();
     await page.waitForTimeout(500);
+    expect(errors).toEqual([]);
+  });
+
+  test('a spawned gunship appears, shoots, and the page has no console errors', async ({
+    page,
+  }) => {
+    const errors = errorsOf(page);
+    await open(page, 'Run phase').click();
+    await button(page, 'Jump: Battle 2').click();
+    await open(page, 'Debug').click();
+    await panel(page).locator('[data-param="arena.enemiesFrozen"]').click();
+    await open(page, 'Spawn').click();
+    await button(page, 'Clear all enemies (X)').click();
+    await button(page, 'Spawn Gunship').click();
+    await expect(status(page, /enemies alive: 1 fighters \(1 gunships\)/)).toBeVisible();
+    // Unfreeze: its turrets open fire on the player (the page must keep running without errors).
+    await panel(page).locator('[data-param="arena.enemiesFrozen"]').click();
+    await page.waitForTimeout(3000);
+    await expect(status(page, /\(1 gunships\)/)).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('a spawned formation wing arrives with the WING INBOUND cue', async ({ page }) => {
+    const errors = errorsOf(page);
+    await open(page, 'Run phase').click();
+    await button(page, 'Jump: Battle 1').click();
+    await open(page, 'Debug').click();
+    await panel(page).locator('[data-param="arena.enemiesFrozen"]').click();
+    await open(page, 'Spawn').click();
+    await button(page, 'Clear all enemies (X)').click();
+    await button(page, 'Spawn Formation wing').click();
+    await expect(status(page, /enemies alive: 4 fighters/)).toBeVisible();
+    await expect(page.locator('#run-hud .cue')).toContainText('WING INBOUND');
+    await page.waitForTimeout(500);
+    expect(errors).toEqual([]);
+  });
+
+  test('the authored ramp: battle 2 brings a gunship in wave 2, battle 3 wings and gunships', async ({
+    page,
+  }) => {
+    const errors = errorsOf(page);
+    await open(page, 'Run phase').click();
+    await open(page, 'Spawn').click();
+    await button(page, 'Jump: Battle 2').click(); // wave 1 arrives by itself: two fighters
+    await expect(status(page, /enemies alive: 2 fighters, 0 targets/)).toBeVisible();
+    await button(page, 'Next wave').click(); // wave 2: a fighter and the gunship (on top of wave 1)
+    await expect(status(page, /enemies alive: 4 fighters \(1 gunships\)/)).toBeVisible();
+    await button(page, 'Jump: Battle 3').click(); // wave 1: a wing of 3
+    await expect(status(page, /enemies alive: 3 fighters, 2 targets/)).toBeVisible();
+    await button(page, 'Next wave').click(); // wave 2: a gunship and the first lone lancer
+    await expect(status(page, /\(1 gunships\)/)).toBeVisible();
+    await page.waitForTimeout(1000);
     expect(errors).toEqual([]);
   });
 

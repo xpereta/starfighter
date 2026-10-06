@@ -2,7 +2,8 @@ import type { MissilesConfig } from '../../../data/tuning/missiles';
 import { clamp, DEG, TAU, wrapAngle } from '../math';
 import { createEffectiveConfig, effectiveSquadronConfig } from '../pilots/effective';
 import { livingWingmen } from '../squadron/squadron';
-import { forEachLockable, getLockable } from '../world/lockable';
+import { CAPITAL_PARTS, damagePart, distanceToPart } from '../enemies/capital';
+import { forEachLockable, getLockable, PART_ID_BASE } from '../world/lockable';
 import { createPool, type Pool } from '../world/pool';
 import type { World } from '../world/world';
 
@@ -189,13 +190,23 @@ function considerHit(
   const reach = radius + hit.radius;
   const d2 = (x - hit.x) * (x - hit.x) + (y - hit.y) * (y - hit.y);
   if (d2 > reach * reach) return;
+  // How far inside the body the missile is (<= 0 when touching): the deepest overlap wins. A part's
+  // visited radius is its bounding circle, so a capsule needs the exact distance to its surface.
+  let gap = Math.sqrt(d2) - reach;
+  if (id >= PART_ID_BASE) {
+    const cap = hit.world!.enemies.capital;
+    const def = CAPITAL_PARTS[id - PART_ID_BASE];
+    if (!cap || !def) return;
+    gap = distanceToPart(cap, def, hit.x, hit.y) - hit.radius;
+    if (gap > 0) return;
+  }
   // An immune body (a fighter in its evade roll) is passed through, as for bullets.
   if (getLockable(hit.world!, id)?.immune) {
     if (id === hit.homingId) hit.passedHoming = true;
     return;
   }
-  if (d2 < hit.bestDist) {
-    hit.bestDist = d2;
+  if (gap < hit.bestDist) {
+    hit.bestDist = gap;
     hit.bestId = id;
   }
 }
@@ -289,9 +300,15 @@ export function stepMissiles(world: World): void {
       d.targetId[i] = -1;
     }
     if (hit.bestId >= 0) {
-      const body = getLockable(world, hit.bestId)!;
-      body.hp -= cfg.missileDamage * d.damageScale[i]!;
-      body.lastHitBy = d.owner[i]!; // kill credit
+      const damage = cfg.missileDamage * d.damageScale[i]!;
+      if (hit.bestId >= PART_ID_BASE) {
+        // A part of the capital ship: the damage is routed (a covered part takes none).
+        damagePart(world, hit.bestId - PART_ID_BASE, damage, d.owner[i]!);
+      } else {
+        const body = getLockable(world, hit.bestId)!;
+        body.hp -= damage;
+        body.lastHitBy = d.owner[i]!; // kill credit
+      }
       const speed = Math.hypot(d.vx[i]!, d.vy[i]!) || 1;
       events.emit({
         type: 'Hit',

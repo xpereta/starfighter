@@ -256,6 +256,10 @@ export function stepEnemyShots(
   dt: number,
   /** The hull before this step's hits, only used to say how much is left in `PlayerDamaged` (0 in practice mode). */
   hullBefore = 0,
+  /** True while the player is inside the post-hit protection window: bullets pass through like during an evade roll. */
+  guarded = false,
+  /** True when the first hit of this step starts a protection window: no further bullet hits the ship this step. */
+  guardAfterHit = false,
 ): number {
   const { x, y, vx, vy, life } = shots.data;
   const reach = cfg.playerRadius + cfg.enemyShotRadius;
@@ -268,7 +272,7 @@ export function stepEnemyShots(
       shots.remove(i);
       continue;
     }
-    if (ship.invulnerable) continue;
+    if (ship.invulnerable || guarded || (guardAfterHit && hits > 0)) continue;
     const dx = x[i]! - ship.x;
     const dy = y[i]! - ship.y;
     if (dx * dx + dy * dy > reach * reach) continue;

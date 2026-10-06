@@ -94,6 +94,7 @@ export const RELATIONS: readonly Relation[] = [
   { group: 'arena', lo: 'staticSpawnMin', hi: 'staticSpawnMax' },
   { group: 'arena', lo: 'droneSpawnMin', hi: 'droneSpawnMax' },
   { group: 'arena', lo: 'turretSpawnMin', hi: 'turretSpawnMax' },
+  { group: 'lancer', lo: 'rangeMin', hi: 'rangeMax' },
 ];
 
 /** Clamps an edited value so every relation it takes part in still holds. The edited value moves, not its partner. */

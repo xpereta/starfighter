@@ -8,7 +8,11 @@ import { createPool, type Pool } from '../world/pool';
 
 // Enemy missiles (track B) ---------------------------------------------------------------
 
-/** Same shape as the player's missile pool, minus the lock: enemy missiles only ever chase the player. */
+/**
+ * Same shape as the player's missile pool, minus the lock: enemy missiles only ever chase the
+ * player. `phase` is the missile's age (s), `owner` the index of the lancer in `world.fighters`
+ * that fired it (-1 = none), `damage` the hull it takes from the player, fixed at launch.
+ */
 export type EnemyMissileFields =
   'uid' | 'x' | 'y' | 'vx' | 'vy' | 'heading' | 'speed' | 'phase' | 'life' | 'damage' | 'owner';
 export type EnemyMissilePool = Pool<EnemyMissileFields>;
@@ -45,6 +49,8 @@ export interface WingState {
   members: number[];
   /** True once the wing has broken formation (its fighters then act as ordinary fighters). */
   broken: boolean;
+  /** `world.time` when the wing arrived (the WING INBOUND cue is up for a few seconds after). */
+  born: number;
 }
 
 // Capital ship (track C) -----------------------------------------------------------------
@@ -52,8 +58,17 @@ export interface WingState {
 /** The live state of one part; its fixed data (position, radius, role) is in `CapitalPartDef`, same order. */
 export interface PartState {
   hp: number;
+  /** Hit points at spawn (hp scale applied), for the health bar. */
+  maxHp: number;
   alive: boolean;
+  /** Turrets: seconds until the next shot. */
+  cooldown: number;
+  /** Turrets: shots left in the current burst (0 = the next shot starts a new burst). */
+  burstLeft: number;
 }
+
+/** 0 = fighting, 1 = the core is dead and the death chain runs, 2 = destroyed (the battle is won). */
+export type CapitalPhase = 0 | 1 | 2;
 
 export interface CapitalState {
   x: number;
@@ -64,6 +79,20 @@ export interface CapitalState {
   parts: PartState[];
   /** True once no plate covers the core any more (emits `CoreExposed` once). */
   coreExposed: boolean;
+  /** Hull radius this ship was built with (u); the part data is scaled by `hullRadius / CAPITAL_DESIGN_RADIUS`. */
+  hullRadius: number;
+  phase: CapitalPhase;
+  /** Seconds since it appeared. */
+  time: number;
+  /** Distance to the player when it appeared (u), to tell how far its approach has gone. */
+  startDistance: number;
+  /** Seconds since the core died (phase 1). */
+  chainTime: number;
+  /** Escort wings sent so far, and whether the missile fighters have come (battle 4 script). */
+  wingsSent: number;
+  lancersSent: boolean;
+  /** Who last damaged the core: a pilot id, or 0 for the player (kill credit). */
+  lastHitBy: number;
 }
 
 // The container on the world -------------------------------------------------------------
@@ -73,10 +102,17 @@ export interface EnemyState {
   readonly wings: WingState[];
   /** null = no capital ship on the field. */
   capital: CapitalState | null;
+  /** The `uid` the next enemy missile gets (track B): a stable identity, since pool slots move on removal. */
+  nextMissileUid: number;
 }
 
 export function createEnemyState(missileCap: number): EnemyState {
-  return { missiles: createEnemyMissilePool(missileCap), wings: [], capital: null };
+  return {
+    missiles: createEnemyMissilePool(missileCap),
+    wings: [],
+    capital: null,
+    nextMissileUid: 0,
+  };
 }
 
 /** Empties everything (a respawn or a new battle). */
@@ -84,6 +120,7 @@ export function clearEnemyState(state: EnemyState): void {
   state.missiles.clear();
   state.wings.length = 0;
   state.capital = null;
+  state.nextMissileUid = 0;
 }
 
 /** Feeds the enemy state into the replay hash. Add every field you add to the types above. Writes nothing when empty. */
@@ -97,6 +134,10 @@ export function mixEnemies(mix: (n: number) => void, state: EnemyState): void {
       for (let i = 0; i < m.count; i++) mix(arr[i]!);
     }
   }
+  if (state.nextMissileUid > 0) {
+    mix(-4);
+    mix(state.nextMissileUid);
+  }
   if (state.wings.length > 0) {
     mix(-2);
     mix(state.wings.length);
@@ -104,6 +145,7 @@ export function mixEnemies(mix: (n: number) => void, state: EnemyState): void {
       mix(WING_SHAPES.indexOf(w.shape));
       mix(w.leader);
       mix(w.broken ? 1 : 0);
+      mix(w.born);
       mix(w.members.length);
       for (const i of w.members) mix(i);
     }
@@ -113,10 +155,17 @@ export function mixEnemies(mix: (n: number) => void, state: EnemyState): void {
     mix(-3);
     for (const v of [c.x, c.y, c.heading, c.vx, c.vy]) mix(v);
     mix(c.coreExposed ? 1 : 0);
+    for (const v of [c.hullRadius, c.phase, c.time, c.startDistance, c.chainTime]) mix(v);
+    mix(c.wingsSent);
+    mix(c.lancersSent ? 1 : 0);
+    mix(c.lastHitBy);
     mix(c.parts.length);
     for (const p of c.parts) {
       mix(p.hp);
+      mix(p.maxHp);
       mix(p.alive ? 1 : 0);
+      mix(p.cooldown);
+      mix(p.burstLeft);
     }
   }
 }

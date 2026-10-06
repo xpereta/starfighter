@@ -62,6 +62,8 @@ function position(event: GameEvent | null): { x: number; y: number } | null {
     case 'WingmanHit':
     case 'WingmanDown':
     case 'MissileImpact':
+    case 'EnemyMissileFired':
+    case 'EnemyMissileHit':
       return event;
     default:
       return null;

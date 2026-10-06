@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../../data/tuning';
 import type { Fighter } from '../ai/fighters';
+import { CAPITAL_PARTS } from '../../../data/content/capital';
+import { spawnCapitalAt } from '../enemies/capital-battle';
 import { createShip } from '../flight/flight';
 import type { Wingman } from '../squadron/squadron';
 import { DEG } from '../math';
@@ -631,5 +633,35 @@ describe('a launch spends the locks', () => {
     tick(w, true);
     expect(w.lockon.acquiringId).toBe(1);
     expect(w.lockon.progress).toBe(0.5);
+  });
+});
+
+describe('a missile touching two parts of the capital ship', () => {
+  it('hits the part whose surface it is deepest in, not the one with the nearer centre', () => {
+    const world = createWorld(1, createTuning());
+    world.targets.length = 0;
+    const cap = spawnCapitalAt(world, 1500, 0);
+    cap.heading = 0;
+    cap.vx = 0;
+    cap.vy = 0;
+    const front = CAPITAL_PARTS.findIndex((p) => p.id === 'plate-front');
+    const port = CAPITAL_PARTS.findIndex((p) => p.id === 'plate-port');
+    // (70, 65) in ship space: nearer the front plate's centre, but deeper inside the port plate's capsule.
+    const i = world.missiles.spawn();
+    const d = world.missiles.data;
+    d.x[i] = cap.x + 70;
+    d.y[i] = cap.y + 65;
+    d.vx[i] = 0;
+    d.vy[i] = 0;
+    d.speed[i] = 0;
+    d.heading[i] = 0;
+    d.life[i] = 5;
+    d.targetId[i] = -1;
+    d.damageScale[i] = 1;
+    const before = [cap.parts[front]!.hp, cap.parts[port]!.hp];
+    stepMissiles(world);
+    expect(world.missiles.count).toBe(0); // spent on a hit
+    expect(cap.parts[front]!.hp).toBe(before[0]);
+    expect(cap.parts[port]!.hp).toBeLessThan(before[1]!);
   });
 });

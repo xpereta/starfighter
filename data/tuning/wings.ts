@@ -1,8 +1,9 @@
 import { defaultsOf, type ParamDef } from '../../src/core/params/params';
 
 /**
- * Formation wing tuning (spec section 2), a STUB for track A: typed and validated, not yet read by
- * gameplay and not yet part of `Tuning`, the panel or the replay. Units: u, hp, s.
+ * Formation wing tuning (spec section 2), read live by `core/ai/wings.ts`. Units: u, hp, s.
+ * Size, slot spacing and the leader's extra hull are read when a wing spawns; the break rules
+ * and the cue are live.
  */
 export const wingsParams = {
   size: {
@@ -33,10 +34,24 @@ export const wingsParams = {
     unit: 'u',
     note: 'When the player gets this close, the wing breaks formation and fights as ordinary fighters. Higher = it breaks early; lower = it holds the formation until you are on top of it.',
   },
+  cueTime: {
+    default: 4,
+    min: 0,
+    max: 20,
+    step: 0.5,
+    unit: 's',
+    note: 'How long the WING INBOUND cue shows after a wing arrives (while it still holds formation). 0 = no cue.',
+  },
 } as const satisfies Record<string, ParamDef>;
 
-export type WingsConfig = { -readonly [K in keyof typeof wingsParams]: number };
+/** Which formation a wing flies: `mixed` picks one per wing from the seeded rng. */
+export type WingShapeSetting = 'mixed' | 'v' | 'line' | 'box';
+
+export type WingsConfig = { -readonly [K in keyof typeof wingsParams]: number } & {
+  /** Forces every wing into one formation (debug), or `mixed` for a random one per wing. */
+  shape: WingShapeSetting;
+};
 
 export function createWingsConfig(): WingsConfig {
-  return defaultsOf(wingsParams);
+  return { ...defaultsOf(wingsParams), shape: 'mixed' };
 }

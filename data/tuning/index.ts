@@ -11,11 +11,15 @@ import { createWeaponsConfig, type WeaponsConfig } from './weapons';
 import { createLockOnConfig, lockonParams, type LockOnConfig } from './lockon';
 import { createMissilesConfig, missilesParams, type MissilesConfig } from './missiles';
 import { createFighterConfig, fighterParams, type FighterConfig } from './fighter';
+import { createLancerConfig, lancerParams, type LancerConfig } from './lancer';
 import { createSquadronConfig, squadronParams, type SquadronConfig } from './squadron';
 import { createRunConfig, runParams, type RunConfig } from './run';
 import { createPilotsConfig, pilotsParams, type PilotsConfig } from './pilots';
 import { createRescueConfig, rescueParams, type RescueConfig } from './rescue';
 import { createChatterConfig, chatterParams, type ChatterConfig } from './chatter';
+import { createGunshipConfig, gunshipParams, type GunshipConfig } from './gunship';
+import { createWingsConfig, wingsParams, type WingsConfig } from './wings';
+import { capitalParams, createCapitalConfig, type CapitalConfig } from './capital';
 
 /** All live-tunable values. Core reads these through `world.tuning`; the dev panel edits them. */
 export interface Tuning {
@@ -27,11 +31,16 @@ export interface Tuning {
   lockon: LockOnConfig;
   missiles: MissilesConfig;
   fighter: FighterConfig;
+  lancer: LancerConfig;
   squadron: SquadronConfig;
   run: RunConfig;
   pilots: PilotsConfig;
   rescue: RescueConfig;
   chatter: ChatterConfig;
+  gunship: GunshipConfig;
+  wings: WingsConfig;
+  /** Prototype 5, track C: the capital ship. */
+  capital: CapitalConfig;
 }
 
 export function createTuning(): Tuning {
@@ -44,11 +53,15 @@ export function createTuning(): Tuning {
     lockon: createLockOnConfig(),
     missiles: createMissilesConfig(),
     fighter: createFighterConfig(),
+    lancer: createLancerConfig(),
     squadron: createSquadronConfig(),
     run: createRunConfig(),
     pilots: createPilotsConfig(),
     rescue: createRescueConfig(),
     chatter: createChatterConfig(),
+    gunship: createGunshipConfig(),
+    wings: createWingsConfig(),
+    capital: createCapitalConfig(),
   };
 }
 
@@ -62,11 +75,15 @@ export const tuningParams = {
   lockon: lockonParams,
   missiles: missilesParams,
   fighter: fighterParams,
+  lancer: lancerParams,
   squadron: squadronParams,
   run: runParams,
   pilots: pilotsParams,
   rescue: rescueParams,
   chatter: chatterParams,
+  gunship: gunshipParams,
+  wings: wingsParams,
+  capital: capitalParams,
 } as const;
 
 /** Non-numeric tuning values and the options they accept. */
@@ -79,15 +96,23 @@ export const tuningToggles: Record<keyof Tuning, Record<string, readonly (string
   lockon: {},
   missiles: {},
   fighter: { enemiesEvadeMissiles: [true, false] },
+  lancer: {},
   squadron: { slotAnchor: ['velocity', 'nose'] },
-  run: {},
+  run: { ramp: ['authored', 'classic'] },
   pilots: {},
   rescue: {},
   chatter: {},
+  gunship: {},
+  wings: { shape: ['mixed', 'v', 'line', 'box'] },
+  capital: {},
 };
 
 /** Plain-language tooltip for each toggle, keyed `group.name` (what it does, and what each option means). */
 export const tuningToggleNotes: Record<string, string> = {
+  'wings.shape':
+    'Formation every wing flies. Mixed = each wing gets a V, a line abreast or a box at random; or force one to compare. A V trails behind the leader, a line is abreast of it, a box wraps the leader.',
+  'run.ramp':
+    "Where each battle's enemies come from. Authored = the battle table (data/content/battles.ts: fighters, formation wings, gunships and so on); Classic = the old ramp of fighter-only waves from the wave and size numbers above (useful to compare, and for tests).",
   'flight.steering':
     'How the stick steers. Point = the ship turns toward the direction you push, and a centered stick keeps its heading; Rotate = left/right turns the ship like a plane, proportional to the push. Keyboard A/D always rotates.',
   'flight.evadeSidestep':

@@ -14,49 +14,49 @@ export const runParams = {
     min: 1,
     max: 8,
     unit: 'waves',
-    note: 'Enemy waves in the first battle. A battle is won when its last wave is cleared. Higher = longer, harder battles from the start.',
+    note: 'Classic ramp only (the authored battle table sets its own). Enemy waves in the first battle. A battle is won when its last wave is cleared. Higher = longer, harder battles from the start.',
   },
   wavesPerBattle: {
     default: 0.7,
     min: 0,
     max: 3,
     unit: 'waves',
-    note: 'Extra waves each battle adds on top of the first one (the total is rounded). 0.7 gives 2, 3, 3, 4 waves over four battles. Higher = battles grow longer faster.',
+    note: 'Classic ramp only (the authored battle table sets its own). Extra waves each battle adds on top of the first one (the total is rounded). 0.7 gives 2, 3, 3, 4 waves over four battles. Higher = battles grow longer faster.',
   },
   waveSizeBase: {
     default: 3,
     min: 1,
     max: 12,
     unit: 'fighters',
-    note: 'Enemy fighters in each wave of the first battle. Higher = a harder run from the start; lower = a gentler opening.',
+    note: 'Classic ramp only (the authored battle table sets its own). Enemy fighters in each wave of the first battle. Higher = a harder run from the start; lower = a gentler opening.',
   },
   waveGrowth: {
     default: 1,
     min: 0,
     max: 4,
     unit: 'fighters',
-    note: 'Fighters each wave gains per battle. With the first-battle size of 3 and a growth of 1, battle 4 sends waves of 6. Higher = a steeper climb; 0 = every battle has the same size waves.',
+    note: 'Classic ramp only (the authored battle table sets its own). Fighters each wave gains per battle. With the first-battle size of 3 and a growth of 1, battle 4 sends waves of 6. Higher = a steeper climb; 0 = every battle has the same size waves.',
   },
   turretsFromBattle: {
     default: 3,
     min: 1,
     max: 9,
     unit: 'battle',
-    note: 'The first battle that has gun turrets in the arena. Earlier battles have none. Higher = turrets arrive later.',
+    note: 'Classic ramp only (the authored battle table sets its own). The first battle that has gun turrets in the arena. Earlier battles have none. Higher = turrets arrive later.',
   },
   turretsBase: {
     default: 2,
     min: 0,
     max: 8,
     unit: 'turrets',
-    note: 'Turrets in the first battle that has them. 0 = no turrets in any battle.',
+    note: 'Classic ramp only (the authored battle table sets its own). Turrets in the first battle that has them. 0 = no turrets in any battle.',
   },
   turretsGrowth: {
     default: 1,
     min: 0,
     max: 4,
     unit: 'turrets',
-    note: 'Extra turrets for each battle after the first one that has turrets. Higher = more fire to dodge in the last battles.',
+    note: 'Classic ramp only (the authored battle table sets its own). Extra turrets for each battle after the first one that has turrets. Higher = more fire to dodge in the last battles.',
   },
   playerHull: {
     default: 5,
@@ -64,6 +64,14 @@ export const runParams = {
     max: 20,
     unit: 'hp',
     note: 'Your own hull. Each enemy bullet that hits you takes 1 (a roll in progress still protects you). At 0 the run ends in defeat. Restored in full at every debrief. Higher = more forgiving; lower = every hit counts.',
+  },
+  hitProtection: {
+    default: 0.35,
+    min: 0,
+    max: 2,
+    step: 0.05,
+    unit: 's',
+    note: 'After an enemy bullet hits you in a run, bullets pass through you for this long, so one burst cannot take several hull points in a row (the evade roll still works as before; missiles are not affected). 0 = every bullet that touches you hits. Higher = more forgiving against streams of fire.',
   },
   startingSquad: {
     default: 2,
@@ -74,8 +82,13 @@ export const runParams = {
   },
 } as const satisfies Record<string, ParamDef>;
 
-export type RunConfig = { -readonly [K in keyof typeof runParams]: number };
+export type RampMode = 'authored' | 'classic';
+
+export type RunConfig = { -readonly [K in keyof typeof runParams]: number } & {
+  /** `authored`: battles come from the battle table (`data/content/battles.ts`); `classic`: the old fighter-only ramp from the wave and size numbers here. */
+  ramp: RampMode;
+};
 
 export function createRunConfig(): RunConfig {
-  return defaultsOf(runParams);
+  return { ...defaultsOf(runParams), ramp: 'authored' };
 }

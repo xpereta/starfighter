@@ -88,10 +88,19 @@ export const SHIP_KINDS = [
   'player',
   'wingman',
   'fighter',
+  'gunship',
+  'lancer',
   'drone',
   'turret',
   'pod',
   'static',
+  // Prototype 5, track C: the capital ship's hull (drawn behind its parts) and one shape per part role.
+  'capital',
+  'capitalTurret',
+  'capitalEngine',
+  'capitalArmour',
+  'capitalBridge',
+  'capitalCore',
 ] as const;
 export type ShipKind = (typeof SHIP_KINDS)[number];
 
@@ -374,8 +383,6 @@ export const SOUND_EVENT_KEYS = Object.keys(SOUND_KEY_SET) as SoundEventKey[];
  */
 export const PENDING_SOUND_EVENTS: readonly SoundEventKey[] = [
   'EnemySpawned',
-  'EnemyMissileFired',
-  'EnemyMissileHit',
   'PartDestroyed',
   'CoreExposed',
   'WingBroken',

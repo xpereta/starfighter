@@ -13,3 +13,4 @@
 - **Events:** `LockAcquiring{targetId}`, `LockAcquired{targetId}`, `LockLost{targetId, reason}` (also for an acquiring target that is lost).
 - **Parameters:** `data/tuning/lockon.ts` (cone half-angle, range, lock time, grace, cap), in the panel's Lock-on section.
 - **Test:** `lockon.test.ts` (cone geometry, acquisition order, limit with 0-4 wingmen, grace/range/death loss, determinism, hash sensitivity); `tests/sim/lockon.sim.test.ts` (120 s random flight: locks always refer to living lockables).
+- **Parts of the capital ship (Prototype 5):** lockable ids from `PART_ID_BASE` (2000) are parts of the capital ship (`core/enemies/capital.ts`). Only parts that can be hit are visited (a core under its plates is not lockable), and the lock set holds at most `capital.lockPartCap` of them, so a salvo is not wasted on small parts; the nearest-to-nose rule is unchanged.
