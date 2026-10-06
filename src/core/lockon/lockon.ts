@@ -1,6 +1,6 @@
 import { DEG, wrapAngle } from '../math';
 import { livingWingmen } from '../squadron/squadron';
-import { forEachLockable, getLockable } from '../world/lockable';
+import { forEachLockable, getLockable, PART_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
 
 /**
@@ -60,6 +60,8 @@ const scan = {
   bestId: -1,
   bestAngle: Infinity,
   locks: [] as number[],
+  /** Whether the lock set already holds `lockPartCap` parts of the capital ship (no more part may be taken). */
+  partsFull: false,
 };
 
 function considerCandidate(
@@ -71,6 +73,7 @@ function considerCandidate(
   radius: number,
 ): void {
   if (scan.locks.includes(id)) return;
+  if (scan.partsFull && id >= PART_ID_BASE) return;
   if (Math.hypot(x - scan.fromX, y - scan.fromY) - radius > scan.range) return;
   const angle = angleOffNose(scan.heading, scan.fromX, scan.fromY, x, y, radius);
   if (angle > scan.halfAngle) return;
@@ -156,6 +159,10 @@ export function stepLockOn(world: World): void {
     scan.bestId = -1;
     scan.bestAngle = Infinity;
     scan.locks = lockon.locks;
+    // A salvo may lock at most `lockPartCap` parts of the capital ship, so it is not wasted on small parts.
+    let heldParts = 0;
+    for (const held of lockon.locks) if (held >= PART_ID_BASE) heldParts++;
+    scan.partsFull = heldParts >= world.tuning.capital.lockPartCap;
     forEachLockable(world, considerCandidate);
     if (scan.bestId >= 0) {
       lockon.acquiringId = scan.bestId;
