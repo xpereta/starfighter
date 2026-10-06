@@ -176,6 +176,36 @@ describe('turrets and enemy shots', () => {
     expect(shots.count).toBe(0);
   });
 
+  it('post-hit protection: a burst hits once, and a guarded ship is not hit', () => {
+    const cfg = turretCfg();
+    const ship = createShip(flight);
+    const shots = createEnemyShotPool(cfg);
+    const burst = (): void => {
+      for (let k = 0; k < 5; k++) {
+        const i = shots.spawn();
+        shots.data.x[i] = ship.x - 100 - k * 5;
+        shots.data.y[i] = ship.y;
+        shots.data.vx[i] = cfg.enemyShotSpeed;
+        shots.data.life[i] = cfg.enemyShotLife;
+      }
+    };
+    burst();
+    let hits = 0;
+    for (let i = 0; i < 60; i++)
+      hits += stepEnemyShots(shots, ship, cfg, createEventQueue(), DT, 5, hits > 0, true); // the world keeps the guard up between steps
+    expect(hits).toBe(1); // the rest of the burst flew through
+    shots.clear();
+    burst();
+    hits = 0;
+    for (let i = 0; i < 60; i++)
+      hits += stepEnemyShots(shots, ship, cfg, createEventQueue(), DT, 5, true, true);
+    expect(hits).toBe(0);
+    shots.clear();
+    burst();
+    for (let i = 0; i < 60; i++) hits += stepEnemyShots(shots, ship, cfg, createEventQueue(), DT);
+    expect(hits).toBe(5); // without protection every bullet hits
+  });
+
   it('expires shots after their life and never exceeds the pool cap', () => {
     const cfg = turretCfg({ enemyShotCap: 5, enemyShotLife: 1 });
     const shots = createEnemyShotPool(cfg);

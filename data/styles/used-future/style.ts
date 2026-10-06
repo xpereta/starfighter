@@ -28,5 +28,5 @@ export const manifest: StyleManifest = {
   ],
   status: 'idea',
   notes:
-    'Models are layered parts (src/render/style.ts: ShapeDef.parts). Every ship slot is designed, including wingman liveries (wingmanB, wingmanC) and the Prototype 5 slots (gunship, lancer, capital and its parts) which the game does not draw yet. Reference sheet: docs/reference/used-future/. The audit (scripts/contrast-audit.mjs) passes; the planet and sodium glare are kept dim on purpose so that every hull reads 3:1 against them. Sounds: only the three guns are overridden (blaster zaps), everything else is the realistic parent.',
+    'Models are layered parts (src/render/style.ts: ShapeDef.parts). Every ship slot is designed, including wingman liveries (wingmanB, wingmanC) and the Prototype 5 kinds (gunship, lancer, capital and its parts). Reference sheet: docs/reference/used-future/. The audit (scripts/contrast-audit.mjs) passes; the planet and sodium glare are kept dim on purpose so that every hull reads 3:1 against them. Sounds: only the three guns are overridden (blaster zaps), everything else is the realistic parent.',
 };

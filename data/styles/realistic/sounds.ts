@@ -552,12 +552,86 @@ export const sounds: SoundTable = {
   // Pause is a held breath: a short falling tone and a click; resume is the reverse.
   // Prototype 5 events: silent until the tracks give each a sound (see docs/p5-tracks.md).
   EnemySpawned: 'silent',
-  EnemyMissileFired: 'silent',
-  EnemyMissileHit: 'silent',
-  PartDestroyed: 'silent',
-  CoreExposed: 'silent',
+  // An enemy missile leaves the rail: a rising whoosh and a thump, and the cockpit's two-tone warning beep.
+  EnemyMissileFired: sfx(
+    [
+      noise('bandpass', 400, 3000, 0.7, 0.45, { waveform: 'pink', attack: 0.15 }),
+      thump(80, 40, 0.25, 0.6, { distortion: 0.3 }),
+      tone('sine', 1250, 1250, 0.1, 0.4, { delay: 0.05, attack: 0.005, filter: lowpass(3500) }),
+      tone('sine', 940, 940, 0.12, 0.4, { delay: 0.2, attack: 0.005, filter: lowpass(3500) }),
+    ],
+    {
+      volume: 0.32,
+      pitchRandom: 0.05,
+      minGap: 0.2,
+      maxVoices: 2,
+      spatial: AROUND,
+      reverb: 0.25,
+      preDelay: 0.02,
+    },
+  ),
+  // It ends: on the hull a heavy crunch, on a roll or a burn-out a shorter pop (one sound for all three).
+  EnemyMissileHit: sfx(
+    [
+      thump(110, 40, 0.4, 0.9, { distortion: 0.35 }),
+      crack(3600, 900, 0.07, 0.8),
+      noise('lowpass', 2000, 180, 0.5, 0.5, { waveform: 'pink' }),
+    ],
+    {
+      volume: 0.4,
+      pitchRandom: 0.1,
+      minGap: 0.05,
+      maxVoices: 3,
+      spatial: AROUND,
+      reverb: 0.3,
+      preDelay: 0.02,
+    },
+  ),
+  // A part of the capital ship goes: a medium blast with a metal groan (several can go in one volley).
+  PartDestroyed: sfx(
+    [
+      thump(90, 32, 0.6, 0.9, { distortion: 0.2 }),
+      crack(3200, 800, 0.1, 0.7),
+      noise('lowpass', 2200, 160, 0.7, 0.5, { waveform: 'pink' }),
+      tone('sawtooth', 110, 60, 0.5, 0.12, { delay: 0.06, filter: lowpass(600) }),
+    ],
+    {
+      volume: 0.45,
+      pitchRandom: 0.12,
+      minGap: 0.08,
+      maxVoices: 4,
+      spatial: BIG,
+      reverb: 0.45,
+    },
+  ),
+  // The core is bare: a short rising two-tone alert, so the player knows the shield is gone.
+  CoreExposed: sfx(
+    [
+      tone('sine', 520, 520, 0.12, 0.45, { attack: 0.005, filter: lowpass(3000) }),
+      tone('sine', 780, 780, 0.2, 0.45, { delay: 0.14, attack: 0.005, filter: lowpass(3000) }),
+    ],
+    { volume: 0.3, maxVoices: 1, minGap: 0.5 },
+  ),
   WingBroken: 'silent',
-  CapitalDestroyed: 'silent',
+  // The capital ship ends: a huge, long blast in three parts, the deepest sound in the pack.
+  CapitalDestroyed: sfx(
+    [
+      thump(60, 20, 1.6, 1, { attack: 0.006, distortion: 0.3 }),
+      crack(3000, 400, 0.2, 0.8),
+      noise('lowpass', 2400, 100, 2.4, 0.7, { waveform: 'pink' }),
+      thump(48, 18, 1.4, 0.8, { delay: 0.5, distortion: 0.25 }),
+      noise('lowpass', 800, 90, 3, 0.35, { waveform: 'brown', delay: 0.2, attack: 0.3 }),
+      thump(40, 16, 1.2, 0.7, { delay: 1.1, distortion: 0.2 }),
+    ],
+    {
+      volume: 0.6,
+      maxVoices: 1,
+      minGap: 1,
+      spatial: BIG,
+      reverb: 0.65,
+      duck: { amount: 0.5, time: 3 },
+    },
+  ),
   Paused: sfx(
     [tone('sine', 520, 260, 0.15, 0.5, { filter: lowpass(2000) }), click(0, 0.5, 0.012, 2500)],
     { volume: 0.15, maxVoices: 1, minGap: 0.2 },

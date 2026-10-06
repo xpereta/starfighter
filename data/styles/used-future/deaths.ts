@@ -160,7 +160,7 @@ export const deaths: DeathDefs = {
     momentum: 0.1,
     hitStop: 0.08,
   }),
-  capitalPlate: death({
+  capitalArmour: death({
     pieces: [3, 5],
     primary: { kind: 'large', size: 1.6 },
     secondary: [blast('small', [1, 3], [0.5, 0.9], [0.2, 1.2], 'piece', 0.5, 0.2)],

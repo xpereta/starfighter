@@ -189,7 +189,7 @@ describe('waves and clearing', () => {
     devJumpTo(w, { kind: 'battle', n: 1 });
     devNextWave(w);
     expect(w.run.wave).toBe(1);
-    expect(enemyCounts(w).fighters).toBe(3);
+    expect(enemyCounts(w).fighters).toBe(2);
     devNextWave(w);
     expect(w.run.wave).toBe(2);
     expect(w.run.wave).toBe(w.run.waveTotal);
@@ -215,7 +215,8 @@ describe('waves and clearing', () => {
 
     devJumpTo(w, { kind: 'battle', n: w.tuning.run.battleCount });
     devClearBattle(w);
-    stepWorld(w, DT);
+    // The last battle is the capital ship: its core dies at once and the death chain runs before the victory.
+    for (let i = 0; i < 60 * (w.tuning.capital.deathChainTime + 1); i++) stepWorld(w, DT);
     expect(w.run).toMatchObject({ phase: 'end', result: 'victory' });
   });
 
@@ -243,7 +244,7 @@ describe('waves and clearing', () => {
     devClearEnemies(w);
     stepWorld(w, DT);
     expect(w.targets).toHaveLength(0);
-    expect(enemyCounts(w)).toEqual({ fighters: 0, targets: 0 });
+    expect(enemyCounts(w)).toEqual({ fighters: 0, gunships: 0, targets: 0 });
     expect(w.enemyShots.count).toBe(0);
     expect(w.lockon.locks).toHaveLength(0);
   });

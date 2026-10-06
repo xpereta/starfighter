@@ -48,7 +48,7 @@ const ENTITY: Record<ShapeKind, EntityInfo> = {
   capital: { color: () => palette.fighter, radius: 700, side: 'enemy' },
   capitalTurret: { color: () => palette.turret, radius: 60, side: 'enemy' },
   capitalEngine: { color: () => palette.fighter, radius: 90, side: 'enemy' },
-  capitalPlate: { color: () => palette.fighter, radius: 110, side: 'enemy' },
+  capitalArmour: { color: () => palette.fighter, radius: 110, side: 'enemy' },
   capitalBridge: { color: () => palette.fighter, radius: 80, side: 'enemy' },
   capitalCore: { color: () => palette.enemyStatic, radius: 100, side: 'enemy' },
 };
@@ -218,7 +218,7 @@ const SHEET_ORDER: readonly SheetCell[] = [
   { kind: 'pod', px: 112, span: 1 },
   { kind: 'capitalTurret', px: 112, span: 1 },
   { kind: 'capitalEngine', px: 100, span: 1 },
-  { kind: 'capitalPlate', px: 100, span: 1 },
+  { kind: 'capitalArmour', px: 100, span: 1 },
   { kind: 'capitalBridge', px: 100, span: 1 },
   { kind: 'capitalCore', px: 100, span: 1 },
   { kind: 'capital', px: 350, span: 4 },

@@ -1,9 +1,12 @@
+import { SHIP_GUNSHIP } from '../ai/fighter';
 import { spawnWave } from '../ai/waves';
+import { CAPITAL_PARTS, coreIndex, coveredBy, killPart } from '../enemies/capital';
 import { createLockOn } from '../lockon/lockon';
 import { activeCount, addPilot, generatePilots } from '../pilots/pilots';
 import { maxHpOf } from '../pilots/effective';
 import type { World } from '../world/world';
-import { clearBattle, endRun, enterStartScreen, startBattle, waveSizeIn } from './run';
+import { escortHooks } from '../enemies/escorts';
+import { bossOf, clearBattle, endRun, enterStartScreen, spawnRunWave, startBattle } from './run';
 
 /**
  * Dev-only world edits for the debug panel (jump between run phases, force waves, clear enemies).
@@ -106,6 +109,7 @@ export function devJumpTo(world: World, target: JumpTarget): void {
         world.run.hull = 0;
         endRun(world, 'defeat');
       }
+      world.enemies.capital = null; // an end screen never keeps a live boss (or its bar) behind
       return;
     }
   }
@@ -118,13 +122,34 @@ export function nextBattleTarget(world: World): JumpTarget | null {
   return next <= world.tuning.run.battleCount ? { kind: 'battle', n: next } : null;
 }
 
-/** Number of enemies and targets alive (what a dev wants to read after a spawn or a clear). */
-export function enemyCounts(world: World): { fighters: number; targets: number } {
+/** Number of enemies and targets alive (`fighters` counts every flying enemy, `gunships` the gunships among them) (what a dev wants to read after a spawn or a clear). */
+export function enemyCounts(world: World): {
+  fighters: number;
+  gunships: number;
+  targets: number;
+} {
   let fighters = 0;
-  for (const f of world.fighters) if (f.alive) fighters++;
+  let gunships = 0;
+  for (const f of world.fighters) {
+    if (!f.alive) continue;
+    fighters++;
+    if (f.shipType === SHIP_GUNSHIP) gunships++;
+  }
   let targets = 0;
   for (const t of world.targets) if (t.alive) targets++;
-  return { fighters, targets };
+  return { fighters, gunships, targets };
+}
+
+/** One line about the capital ship for the dev panel ("capital: 17/17 parts, core shielded by 4 plates"), or '' without one. */
+export function capitalSummary(world: World): string {
+  const cap = world.enemies.capital;
+  if (!cap) return '';
+  const alive = cap.parts.filter((p) => p.alive).length;
+  const core = coreIndex();
+  const shield = cap.coreExposed
+    ? 'core exposed'
+    : `core shielded by ${coveredBy(CAPITAL_PARTS)[core]!.filter((j) => cap.parts[j]!.alive).length} plates`;
+  return `capital: ${alive}/${cap.parts.length} parts, ${cap.phase === 0 ? shield : cap.phase === 1 ? 'breaking up' : 'destroyed'}`;
 }
 
 /**
@@ -138,10 +163,16 @@ export function devNextWave(world: World): void {
     return;
   }
   if (!inRunBattle(world)) throw new Error('no battle is running');
+  const cap = world.enemies.capital;
+  if (bossOf(world.tuning.run, run.battle) && cap) {
+    // The boss battle has no waves: "next wave" sends the next escort wing at once.
+    escortHooks.sendWing(world, cap, world.tuning.capital.escortWingSize, cap.wingsSent++);
+    return;
+  }
   if (run.wave >= run.waveTotal) throw new Error('the last wave of this battle is already out');
   run.wave++;
   run.waveStartTick = world.tick;
-  spawnWave(world, waveSizeIn(world.tuning.run, run.battle));
+  spawnRunWave(world);
   world.events.emit({ type: 'WaveStarted', battle: run.battle, wave: run.wave });
 }
 
@@ -149,6 +180,9 @@ export function devNextWave(world: World): void {
 function killAll(world: World): void {
   for (const f of world.fighters) if (f.alive) f.hp = 0;
   for (const t of world.targets) if (t.alive) t.hp = 0;
+  // The capital ship: its core dies at once and the death chain runs (the battle is won when it ends).
+  const cap = world.enemies.capital;
+  if (cap && cap.phase === 0) killPart(world, coreIndex());
   world.enemyShots.clear();
 }
 
@@ -174,8 +208,11 @@ export function devClearBattle(world: World): void {
 export function devClearEnemies(world: World): void {
   for (const f of world.fighters) if (f.alive) f.hp = 0;
   world.targets.length = 0;
+  // Practice: the capital ship goes too. In a battle it stays (it is the objective: use Clear battle).
+  if (world.run.mode !== 'run') world.enemies.capital = null;
   world.enemyShots.clear();
   world.missiles.clear();
+  world.enemies.missiles.clear();
   Object.assign(world.lockon, createLockOn());
   world.trial.active = false;
   const sq = world.squadron;

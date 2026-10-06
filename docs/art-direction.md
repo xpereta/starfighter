@@ -100,7 +100,7 @@ All hulls are mid to light on purpose: the contrast audit (`scripts/contrast-aud
 - **Player (Stingray):** long needle nose, wings spread in attack position with a cannon at each tip, four nacelles at the wing roots, astromech socket; X-wing family. **Wingmen (Dart):** thin fuselage between two swept engine pods on pylons (A-wing and Y-wing family); three liveries on one silhouette.
 - **Fighter (Raider):** a pod between two hexagonal blades on struts (TIE family) with a sensor eye. **Lancer:** spear nose, forward-swept stub wings with missile racks. **Drone:** spiked probe droid, rust and brass.
 - **Turret:** bolted octagonal base with hazard edging, round housing and twin barrels. **Static:** dented hexagonal drum with hazard bands. **Pod:** round life pod with a porthole, thrusters and a sodium strobe.
-- **Gunship (Hauler):** slab-sided dropship with two armoured sponsons and gun turrets (the Aliens dropship). **Capital (Bulwark):** a long armoured wedge with spine plates, flank turret blisters, bridge tower and shield domes, lit window rows and a four-nozzle engine bank; its parts (`capitalTurret`, `capitalEngine`, `capitalPlate`, `capitalBridge`, `capitalCore`) have their own shapes ready for Prototype 5. The game draws the Prototype 5 slots only when the enemy tracks do.
+- **Gunship (Hauler):** slab-sided dropship with two armoured sponsons and gun turrets (the Aliens dropship). **Capital (Bulwark):** a long armoured wedge with spine plates, flank turret blisters, bridge tower and shield domes, lit window rows and a four-nozzle engine bank; its parts (`capitalTurret`, `capitalEngine`, `capitalArmour`, `capitalBridge`, `capitalCore`) have their own shapes; the game draws them since Prototype 5.
 
 ## Explosion vocabulary
 

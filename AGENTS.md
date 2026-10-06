@@ -15,7 +15,7 @@ Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 | `npm run lint`                   | ESLint (includes the core boundary rule)                                                                              |
 | `npm run format`                 | Prettier write (`format:check` to verify)                                                                             |
 | `npm run typecheck`              | `tsc --noEmit`                                                                                                        |
-| `npm run e2e`                    | Playwright smoke test (builds + serves `dist/`)                                                                       |
+| `npm run e2e`                    | Playwright tests (builds + serves `dist/`; `E2E_PORT=4180` avoids a stale server)                                     |
 | `npm run board`                  | sync the GitHub Project board (needs `gh` with the `project` scope)                                                   |
 | `npm run audio:measure`          | headless level check of the sound (after a build; see `src/audio/README.md`)                                          |
 | `npm run style:contrast`         | headless contrast audit of every style pack (ships, shots, UI colours vs the backdrop; `-- --strict` fails on a miss) |
@@ -26,6 +26,7 @@ Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 
 ```
 src/core/      gameplay, pure TS: flight/ weapons/ camera/ world/ events/ rng/ replay/ lockon/ ai/ enemies/ squadron/ run/ pilots/ meta/
+               (prototype 5: ai/ has wings, gunship and lancer; enemies/ has kinds, enemy missiles and the capital ship; the ramp is data/content/battles.ts)
 src/render/    Three.js renderer (orthographic); reads core state and the active style pack (style.ts contract, style-active.ts accessor)
 src/audio/     Web Audio engine: plays the active style pack's sound table from the events (prototype 4); never imported by core
 src/input/     gamepad + keyboard -> actions

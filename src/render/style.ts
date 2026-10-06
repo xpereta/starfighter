@@ -147,33 +147,29 @@ export const SHIP_KINDS = [
   'player',
   'wingman',
   'fighter',
+  'gunship',
+  'lancer',
   'drone',
   'turret',
   'pod',
   'static',
+  // Prototype 5, track C: the capital ship's hull (drawn behind its parts) and one shape per part role.
+  'capital',
+  'capitalTurret',
+  'capitalEngine',
+  'capitalArmour',
+  'capitalBridge',
+  'capitalCore',
 ] as const;
 export type ShipKind = (typeof SHIP_KINDS)[number];
 
 /**
  * Optional shape slots. `wingmanB` and `wingmanC` are liveries of the wingman: the second and third
  * wingman of the squadron use them when a pack gives them (else the plain `wingman` shape), so they
- * should keep the wingman's outer silhouette (deaths are cut from `wingman`). The rest are the kinds
- * that arrive with Prototype 5 (see specs/prototype-5-enemy-variety.md) and the parts of the capital
- * ship: a pack may give shapes and deaths for them; no pack has to, and the game does not draw them
- * until the enemy tracks do.
+ * should keep the wingman's outer silhouette (deaths are cut from `wingman`). The Prototype 5 kinds
+ * (gunship, lancer, the capital ship and its parts) are ordinary `SHIP_KINDS`.
  */
-export const EXTRA_SHAPE_KINDS = [
-  'wingmanB',
-  'wingmanC',
-  'gunship',
-  'lancer',
-  'capital',
-  'capitalTurret',
-  'capitalEngine',
-  'capitalPlate',
-  'capitalBridge',
-  'capitalCore',
-] as const;
+export const EXTRA_SHAPE_KINDS = ['wingmanB', 'wingmanC'] as const;
 export type ExtraShapeKind = (typeof EXTRA_SHAPE_KINDS)[number];
 
 /** Every id a pack may give a shape or a death sequence for. */
@@ -537,8 +533,6 @@ export const SOUND_EVENT_KEYS = Object.keys(SOUND_KEY_SET) as SoundEventKey[];
  */
 export const PENDING_SOUND_EVENTS: readonly SoundEventKey[] = [
   'EnemySpawned',
-  'EnemyMissileFired',
-  'EnemyMissileHit',
   'PartDestroyed',
   'CoreExposed',
   'WingBroken',

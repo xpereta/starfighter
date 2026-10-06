@@ -542,7 +542,7 @@ const plateHalf: Point[] = [
   [-1.0, 0.6],
   [-1.0, 0],
 ];
-const capitalPlate: ShapeDef = {
+const capitalArmour: ShapeDef = {
   polygon: sym(plateHalf),
   shadow: lowerHalf(plateHalf),
   parts: [
@@ -739,7 +739,7 @@ export const bigShips = {
   capital,
   capitalTurret,
   capitalEngine,
-  capitalPlate,
+  capitalArmour,
   capitalBridge,
   capitalCore,
 };

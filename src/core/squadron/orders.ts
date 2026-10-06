@@ -1,6 +1,7 @@
 import { wrapAngle } from '../math';
 import { stepSeconds } from '../world/clock';
-import { FIGHTER_ID_BASE } from '../world/lockable';
+import { forEachPart, nextPartTarget } from '../enemies/capital';
+import { FIGHTER_ID_BASE, PART_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
 import { livingWingmen, type Squadron } from './squadron';
 import { bodyOf } from './wingmen';
@@ -30,6 +31,8 @@ export function nearestToNose(world: World, range: number): number {
   world.targets.forEach((t, i) => {
     if (t.alive && t.kind !== 'static') consider(i, t.x, t.y);
   });
+  // Parts of the capital ship that can be hit (a covered core cannot be marked): the part the nose points at.
+  forEachPart(world, consider);
   return best;
 }
 
@@ -102,6 +105,10 @@ export function stepOrders(world: World): void {
   if (sq.order === 'attack') {
     sq.orderTimer -= stepSeconds(world);
     const body = bodyOf(world, sq.orderTargetId);
-    if (sq.orderTimer <= 0 || !body || !body.alive) endOrder(sq);
+    if (sq.orderTimer > 0 && sq.orderTargetId >= PART_ID_BASE && (!body || !body.alive)) {
+      // A part of the capital ship went down: the order moves on (nearest turret, else the nearest part).
+      sq.orderTargetId = nextPartTarget(world, body?.x ?? world.ship.x, body?.y ?? world.ship.y);
+      if (sq.orderTargetId < 0) endOrder(sq);
+    } else if (sq.orderTimer <= 0 || !body || !body.alive) endOrder(sq);
   }
 }
