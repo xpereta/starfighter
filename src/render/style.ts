@@ -900,7 +900,7 @@ export function validateDeaths(deaths: DeathDefs): string[] {
   const errors: string[] = [];
   for (const [kind, def] of Object.entries(deaths)) {
     const at = `deaths.${kind}`;
-    if (!isKind(SHIP_KINDS, kind)) {
+    if (!isKind(SHAPE_KINDS, kind)) {
       errors.push(`${at} is not a ship kind`);
       continue;
     }
