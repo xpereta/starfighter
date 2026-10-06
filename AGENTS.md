@@ -6,21 +6,22 @@ Browser game (top-down 2D space dogfighting roguelite): Vite + TypeScript (stric
 
 Node version: see `.nvmrc` (24 LTS). `npm install` also installs the git hooks.
 
-| Command                          | What it does                                                                                                          |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                    | Vite dev server                                                                                                       |
-| `npm run build`                  | typecheck + production build into `dist/`                                                                             |
-| `npm test`                       | unit tests (Vitest, `src/**/*.test.ts`)                                                                               |
-| `npm run test:sim`               | headless simulation tests (`tests/sim`)                                                                               |
-| `npm run lint`                   | ESLint (includes the core boundary rule)                                                                              |
-| `npm run format`                 | Prettier write (`format:check` to verify)                                                                             |
-| `npm run typecheck`              | `tsc --noEmit`                                                                                                        |
-| `npm run e2e`                    | Playwright tests (builds + serves `dist/`; `E2E_PORT=4180` avoids a stale server)                                     |
-| `npm run board`                  | sync the GitHub Project board (needs `gh` with the `project` scope)                                                   |
-| `npm run audio:measure`          | headless level check of the sound (after a build; see `src/audio/README.md`)                                          |
-| `npm run style:contrast`         | headless contrast audit of every style pack (ships, shots, UI colours vs the backdrop; `-- --strict` fails on a miss) |
-| `npm run style:sheet -- <style>` | headless reference sheet of a pack's ships, large, on its backdrop                                                    |
-| `npm run style:frame-time`       | headless frame cost of a busy scene per style pack (compare packs, not absolute)                                      |
+| Command                                 | What it does                                                                                                                 |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                           | Vite dev server                                                                                                              |
+| `npm run build`                         | typecheck + production build into `dist/`                                                                                    |
+| `npm test`                              | unit tests (Vitest, `src/**/*.test.ts`)                                                                                      |
+| `npm run test:sim`                      | headless simulation tests (`tests/sim`)                                                                                      |
+| `npm run lint`                          | ESLint (includes the core boundary rule)                                                                                     |
+| `npm run format`                        | Prettier write (`format:check` to verify)                                                                                    |
+| `npm run typecheck`                     | `tsc --noEmit`                                                                                                               |
+| `npm run e2e`                           | Playwright tests (builds + serves `dist/`; `E2E_PORT=4180` avoids a stale server)                                            |
+| `npm run board`                         | sync the GitHub Project board (needs `gh` with the `project` scope)                                                          |
+| `npm run audio:measure`                 | headless level check of the sound (after a build; see `src/audio/README.md`)                                                 |
+| `npm run style:contrast`                | headless contrast audit of every style pack (ships, shots, UI colours vs the backdrop; `-- --strict` fails on a miss)        |
+| `npm run style:sheet -- <style>`        | headless reference sheet of a pack's ships, large, on its backdrop                                                           |
+| `npm run style:frame-time`              | headless frame cost of a busy scene per style pack (compare packs, not absolute)                                             |
+| `node scripts/ingame-shots.mjs <style>` | headless in-game screenshots (dev spawns: gunship, wing, lancer missile, capital) into `docs/reference/<style>/ingame-*.png` |
 
 ## Module map
 

@@ -32,6 +32,10 @@ interface EntityInfo {
   side: 'friend' | 'enemy' | 'neutral';
 }
 
+/** Colour between a and b (capital.ts mixes the hull colour into the background). */
+const mix = (a: number, b: number, t: number): number =>
+  new THREE.Color(a).lerp(new THREE.Color(b), t).getHex();
+
 /** How the game draws each shape slot: faction colour and size (see fighters.ts, wingmen.ts, targets.ts, pods.ts, renderer.ts). */
 const ENTITY: Record<ShapeKind, EntityInfo> = {
   player: { color: () => palette.friendly, radius: 60, side: 'friend' },
@@ -45,12 +49,12 @@ const ENTITY: Record<ShapeKind, EntityInfo> = {
   pod: { color: () => palette.pod, radius: 22, side: 'neutral' },
   gunship: { color: () => palette.fighter, radius: 70, side: 'enemy' },
   lancer: { color: () => palette.fighter, radius: 28, side: 'enemy' },
-  capital: { color: () => palette.fighter, radius: 700, side: 'enemy' },
+  capital: { color: () => mix(palette.enemy, palette.background, 0.8), radius: 700, side: 'enemy' },
   capitalTurret: { color: () => palette.turret, radius: 60, side: 'enemy' },
   capitalEngine: { color: () => palette.fighter, radius: 90, side: 'enemy' },
-  capitalArmour: { color: () => palette.fighter, radius: 110, side: 'enemy' },
-  capitalBridge: { color: () => palette.fighter, radius: 80, side: 'enemy' },
-  capitalCore: { color: () => palette.enemyStatic, radius: 100, side: 'enemy' },
+  capitalArmour: { color: () => palette.enemyStatic, radius: 110, side: 'enemy' },
+  capitalBridge: { color: () => palette.pod, radius: 80, side: 'enemy' },
+  capitalCore: { color: () => palette.enemy, radius: 100, side: 'enemy' },
 };
 
 /** Screen the game is judged on: the 1280x800 reference of the camera tuning. */
@@ -85,8 +89,7 @@ let renderer: THREE.WebGLRenderer | null = null;
 let scene: THREE.Scene;
 let camera: THREE.OrthographicCamera;
 let background: Background;
-let bullets: { player: BulletRenderer; enemy: BulletRenderer; missile: BulletRenderer } | null =
-  null;
+let bullets: Record<Shot, BulletRenderer> | null = null;
 const shipGroup = new THREE.Group();
 const pools = new Map<ShapeKind, ShipArt[]>();
 let size = { width: 0, height: 0 };
@@ -139,11 +142,14 @@ const shots = (pts: readonly (readonly [number, number])[], heading: number): Sh
   },
 });
 
+type Shot = 'player' | 'enemy' | 'missile' | 'enemyMissile';
+const SHOTS: readonly Shot[] = ['player', 'enemy', 'missile', 'enemyMissile'];
+
 /** Draws the backdrop (always) and the given ships and shots; the camera sits at the origin. */
 function draw(
   viewWidth: number,
   placed: readonly Placed[],
-  shotSpots?: { kind: 'player' | 'enemy' | 'missile'; at: readonly (readonly [number, number])[] },
+  shotSpots?: { kind: Shot; at: readonly (readonly [number, number])[] },
 ): void {
   const r = renderer!;
   const viewHeight = (viewWidth * size.height) / size.width;
@@ -171,11 +177,21 @@ function draw(
   if (!bullets) {
     const mk = (color: number, length: number, width: number): BulletRenderer =>
       createBulletRenderer(64, color, { length, width });
-    bullets = { player: mk(1, 22, 5), enemy: mk(1, 14, 14), missile: mk(1, 26, 8) };
+    bullets = {
+      player: mk(1, 22, 5),
+      enemy: mk(1, 14, 14),
+      missile: mk(1, 26, 8),
+      enemyMissile: mk(1, 34, 11), // renderer.ts: the enemy missiles, drawn in the enemy colour
+    };
     for (const b of Object.values(bullets)) scene.add(b.object);
   }
-  const colors = { player: palette.projectile, enemy: palette.enemyShot, missile: palette.missile };
-  for (const k of ['player', 'enemy', 'missile'] as const) {
+  const colors: Record<Shot, number> = {
+    player: palette.projectile,
+    enemy: palette.enemyShot,
+    missile: palette.missile,
+    enemyMissile: palette.enemy,
+  };
+  for (const k of SHOTS) {
     (bullets[k].object.material as THREE.MeshBasicMaterial).color.setHex(colors[k]);
     bullets[k].update(shotSpots && shotSpots.kind === k ? shots(shotSpots.at, 0.3) : shots([], 0));
   }
@@ -359,11 +375,12 @@ function audit(styleId: string): { rows: AuditRow[]; text: TextRow[]; markers: T
   const rows: AuditRow[] = [];
   const { width, height } = SCREEN;
   const backgroundLum: number[] = [];
-  const entities: { name: string; kind?: ShapeKind; shot?: 'player' | 'enemy' | 'missile' }[] = [
+  const entities: { name: string; kind?: ShapeKind; shot?: Shot }[] = [
     ...SHAPE_KINDS.filter(has).map((k) => ({ name: k, kind: k })),
     { name: 'shot: player bullet', shot: 'player' },
     { name: 'shot: enemy bullet', shot: 'enemy' },
     { name: 'shot: missile', shot: 'missile' },
+    { name: 'shot: enemy missile', shot: 'enemyMissile' },
   ];
   let bgSample: Uint8Array | null = null;
   for (const zoom of ZOOMS) {
@@ -410,7 +427,11 @@ function audit(styleId: string): { rows: AuditRow[]; text: TextRow[]; markers: T
       rows.push({
         style: styleId,
         entity: e.name,
-        side: e.kind ? ENTITY[e.kind].side : e.shot === 'enemy' ? 'enemy' : 'friend',
+        side: e.kind
+          ? ENTITY[e.kind].side
+          : e.shot === 'enemy' || e.shot === 'enemyMissile'
+            ? 'enemy'
+            : 'friend',
         zoom: Math.round(zoom),
         worst,
         meanRatio: results.reduce((s, r) => s + r.ratio, 0) / results.length,
