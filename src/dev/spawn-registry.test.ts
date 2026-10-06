@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createTuning } from '../../data/tuning';
+import { SHIP_FIGHTER, SHIP_GUNSHIP } from '../core/ai/fighter';
 import { createWorld } from '../core/world/world';
 import type { EntityKind } from '../core/world/target';
 import {
@@ -14,6 +15,7 @@ import {
 /** Every enemy kind of the world. Typed as a full record so adding a kind to `EntityKind` breaks the build until it is listed here (and so needs a registry entry). */
 const ENEMY_KINDS: Record<Exclude<EntityKind, 'wingman'>, true> = {
   fighter: true,
+  gunship: true,
   drone: true,
   turret: true,
   static: true,
@@ -21,7 +23,13 @@ const ENEMY_KINDS: Record<Exclude<EntityKind, 'wingman'>, true> = {
 
 const countOf = (w: ReturnType<typeof createWorld>, kind: SpawnKind): number => {
   if (kind === 'pod') return w.pods.length;
-  if (kind === 'fighter') return w.fighters.filter((f) => f.alive).length;
+  if (kind === 'wing') return w.enemies.wings.length;
+  if (kind === 'fighter')
+    return w.fighters.filter((f) => f.alive && f.shipType === SHIP_FIGHTER && !f.lancer).length;
+  if (kind === 'gunship')
+    return w.fighters.filter((f) => f.alive && f.shipType === SHIP_GUNSHIP).length;
+  if (kind === 'lancer') return w.fighters.filter((f) => f.alive && f.lancer).length;
+  if (kind === 'capital') return w.enemies.capital ? 1 : 0;
   return w.targets.filter((t) => t.kind === kind).length;
 };
 
@@ -29,6 +37,8 @@ describe('spawn registry', () => {
   it('has an entry for every enemy kind in the world, and the rescue pod', () => {
     const kinds = SPAWN_REGISTRY.map((e) => e.kind);
     for (const kind of Object.keys(ENEMY_KINDS)) expect(kinds).toContain(kind);
+    expect(kinds).toContain('wing');
+    expect(kinds).toContain('lancer');
     expect(kinds).toContain('pod');
   });
 
@@ -45,7 +55,8 @@ describe('spawn registry', () => {
       for (const count of SPAWN_COUNTS) {
         const before = countOf(w, entry.kind);
         expect(spawnAhead(w, entry, count)).toBe(count);
-        expect(countOf(w, entry.kind)).toBe(before + count);
+        // There is only ever one capital ship: a new one replaces the old.
+        expect(countOf(w, entry.kind)).toBe(entry.kind === 'capital' ? 1 : before + count);
       }
     },
   );

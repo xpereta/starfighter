@@ -5,6 +5,8 @@ import { checkInteger, checkOneOf } from './validate';
 export interface BattleGroup {
   kind: EnemyGroupId;
   count: number;
+  /** `wing` only: fighters in each wing of this group (3 to 5); default `wings.size`. */
+  size?: number;
 }
 
 /** One wave of a battle: all its groups arrive at once; the next wave starts when none are left alive. */
@@ -41,6 +43,10 @@ export function validateBattleTable(table: BattleTable, kinds?: EnemyKindTable):
       for (const g of wave.groups) {
         checkOneOf(`${wat}.kind`, g.kind, ENEMY_GROUP_IDS);
         checkInteger(`${wat}.count of ${g.kind}`, g.count, 1, 30);
+        if (g.size !== undefined) {
+          if (g.kind !== 'wing') throw new Error(`${wat}: only a wing group has a size`);
+          checkInteger(`${wat}.size of a wing`, g.size, 3, 5);
+        }
         if (kinds && g.kind !== 'wing' && kinds[g.kind].fromBattle > b + 1) {
           throw new Error(
             `${wat} uses ${g.kind}, which only appears from battle ${kinds[g.kind].fromBattle}`,

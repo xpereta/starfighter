@@ -13,7 +13,7 @@ export interface Collider {
 
 export type TargetKind = 'static' | 'drone' | 'turret';
 /** Anything that can be destroyed with a `Killed` event. */
-export type EntityKind = TargetKind | 'fighter' | 'wingman';
+export type EntityKind = TargetKind | 'fighter' | 'gunship' | 'wingman';
 export type TargetMode = 'static' | 'straight' | 'circle';
 
 /** Arena target: static drone, moving drone (straight or orbiting) or turret. */

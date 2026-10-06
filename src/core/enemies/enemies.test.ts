@@ -140,6 +140,15 @@ describe('battle table validation', () => {
     b.boss = 'capital';
     expect(() => validateBattleTable([b], ENEMY_KINDS)).not.toThrow();
   });
+  it('a wing group may name its size (3 to 5), nothing else may', () => {
+    const b = battle();
+    b.waves.push({ groups: [{ kind: 'wing', count: 1, size: 3 }] });
+    expect(() => validateBattleTable([b], ENEMY_KINDS)).not.toThrow();
+    b.waves[1]!.groups[0]!.size = 7;
+    expect(() => validateBattleTable([b], ENEMY_KINDS)).toThrow(/size/);
+    b.waves[1]!.groups[0] = { kind: 'fighter', count: 1, size: 3 };
+    expect(() => validateBattleTable([b], ENEMY_KINDS)).toThrow(/only a wing/);
+  });
   it('rejects bad ones', () => {
     expect(() => validateBattleTable([])).toThrow(/empty/);
     expect(() => validateBattleTable([{ waves: [], turrets: 0 }])).toThrow(/no waves/);

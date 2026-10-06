@@ -188,7 +188,7 @@ describe('death effects: pooled and capped', () => {
     hitStop: (s: number) => void stops.push(s),
   };
 
-  function kills(n: number, kind: 'fighter' | 'turret' | 'wingman'): GameEvent[] {
+  function kills(n: number, kind: 'fighter' | 'gunship' | 'turret' | 'wingman'): GameEvent[] {
     const events: GameEvent[] = [];
     for (let i = 0; i < n; i++)
       events.push({
@@ -235,6 +235,19 @@ describe('death effects: pooled and capped', () => {
     fx.consume(kills(5, 'fighter'));
     fx.update(1 / 60);
     expect(fx.stats()).toMatchObject({ pieces: 0, explosions: 0 });
+    fx.dispose();
+  });
+
+  it('plain has a death sequence for the gunship: it breaks into pieces', () => {
+    initStyle('?style=plain', null);
+    const world = createWorld(5, createTuning());
+    const fx = createDeathFx(qualityPresets.high, world, hooks);
+    expect(fx.handles('gunship')).toBe(true);
+    fx.consume(kills(1, 'gunship'));
+    fx.update(1 / 60);
+    expect(fx.stats().pieces).toBeGreaterThanOrEqual(6);
+    for (let k = 0; k < 60 * 12; k++) fx.update(1 / 60);
+    expect(fx.stats()).toMatchObject({ pieces: 0, blasts: 0, explosions: 0, puffs: 0 });
     fx.dispose();
   });
 

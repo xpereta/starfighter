@@ -12,7 +12,8 @@ import {
 import { losePilot } from '../pilots/pilots';
 import { createActions } from '../world/actions';
 import { stepSeconds } from '../world/clock';
-import { FIGHTER_ID_BASE } from '../world/lockable';
+import { FIGHTER_ID_BASE, PART_ID_BASE } from '../world/lockable';
+import { nextPartTarget, partBody } from '../enemies/capital';
 import type { World } from '../world/world';
 import { boostFlight, catchUpFactor, slotFrame, slotPosition } from './formation';
 import type { Wingman } from './squadron';
@@ -53,6 +54,7 @@ export interface Body {
 /** The enemy behind a lockable id (see core/world/lockable.ts), or null. */
 export function bodyOf(world: World, id: number): Body | null {
   if (id < 0) return null;
+  if (id >= PART_ID_BASE) return partBody(world, id - PART_ID_BASE) ?? null;
   const body = id >= FIGHTER_ID_BASE ? world.fighters[id - FIGHTER_ID_BASE] : world.targets[id];
   return body ?? null;
 }
@@ -131,6 +133,15 @@ function pickEngaged(world: World, w: Wingman, cfg: EffectiveSquadronConfig): nu
     consider(FIGHTER_ID_BASE + i, f, f.targetIndex === -1 ? chaseScale : 1),
   );
   world.targets.forEach((t, i) => consider(i, t));
+  // The capital ship: its nearest turret first (a gun to silence), else the nearest part that can be hit.
+  if (world.enemies.capital) {
+    const part = nextPartTarget(world, w.ship.x, w.ship.y);
+    const body = part >= 0 ? partBody(world, part - PART_ID_BASE) : undefined;
+    if (part >= 0 && body) {
+      const sq = (body.x - w.ship.x) ** 2 + (body.y - w.ship.y) ** 2;
+      if (engageable(world, w, part, body, cfg, 1) && sq < bestSq) best = part;
+    }
+  }
   return best;
 }
 

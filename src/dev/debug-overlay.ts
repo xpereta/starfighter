@@ -5,6 +5,7 @@ import type { World } from '../core/world/world';
 import { worldToScreen } from '../render/hud/layout';
 import { drawLockDebug } from './lock-debug';
 import { arenaCircle, distanceToEdge, nearestEdgePoint, type ArenaCircle } from './arena-edge';
+import { drawCapitalDebug } from './capital-overlay';
 import { drawIntents } from './intent-overlay';
 import { drawPodDebug } from './pod-overlay';
 import { readoutLayout, type ReadoutLayout } from './readout-layout';
@@ -260,6 +261,7 @@ export function createDebugOverlay(container: HTMLElement): DebugOverlay {
 
       drawIntents(g, world, center, view, screen);
       drawPodDebug(g, world, center, view, screen);
+      drawCapitalDebug(g, world, center, view, screen); // prototype 5, track C: part circles, hp, shields, arcs
 
       // Direction indicators: the nose in the faction colour (player cyan, wingmen green, enemy fighters
       // red) and the velocity in white. The velocity vector grows with speed, and the gap between the two

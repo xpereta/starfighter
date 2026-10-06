@@ -7,6 +7,8 @@ import {
   enterStartScreen,
   menuRows,
   offerVeterans,
+  battleDefOf,
+  bossOf,
   turretsIn,
   wavesIn,
   waveSizeIn,
@@ -147,16 +149,29 @@ describe('a battle', () => {
   it('sends its waves one after another and counts them', () => {
     const w = inBattle();
     expect(w.run).toMatchObject({ battle: 1, wave: 1, waveTotal: 2 });
+    expect(w.fighters.filter((f) => f.alive)).toHaveLength(2);
+    clearWave(w);
+    expect(w.run.wave).toBe(2);
+    // Battle 1's last wave: one formation wing of 3 (the introduction).
     expect(w.fighters.filter((f) => f.alive)).toHaveLength(3);
+    expect(w.enemies.wings).toHaveLength(1);
+    expect(w.run.battleKills).toBe(2);
+  });
+
+  it('the classic ramp sends plain fighter waves instead', () => {
+    const w = startWorld();
+    w.tuning.run.ramp = 'classic';
+    press(w, 'menuSelect');
     clearWave(w);
     expect(w.run.wave).toBe(2);
     expect(w.fighters.filter((f) => f.alive)).toHaveLength(3);
-    expect(w.run.battleKills).toBe(3);
+    expect(w.enemies.wings).toHaveLength(0);
   });
 
   it('has no statics or drones, and turrets only from battle 3', () => {
     const w = inBattle();
     expect(w.targets).toHaveLength(0);
+    w.tuning.run.ramp = 'classic';
     w.tuning.run.turretsFromBattle = 1;
     w.tuning.run.turretsBase = 2;
     clearBattle(w);
@@ -372,5 +387,61 @@ describe('replay hash', () => {
       () => w.run.selectedVeterans.push(5),
       () => w.run.selectedVeterans.pop(),
     );
+  });
+});
+
+describe('the battle table drives the run', () => {
+  const classic = (): ReturnType<typeof createTuning>['run'] => {
+    const cfg = createTuning().run;
+    cfg.ramp = 'classic';
+    return cfg;
+  };
+
+  it('the authored ramp differs from the classic one in every battle; only battle 4 has a boss', () => {
+    const authored = createTuning().run;
+    for (const n of [1, 2, 3, 4]) {
+      expect(battleDefOf(authored, n), `battle ${n}`).not.toEqual(battleDefOf(classic(), n));
+    }
+    expect(bossOf(authored, 4)).toBe('capital');
+    expect(bossOf(classic(), 4)).toBeUndefined();
+    expect(bossOf(authored, 3)).toBeUndefined();
+  });
+
+  it('a battle past the end of the table falls back to the classic formulas', () => {
+    const cfg = createTuning().run;
+    expect(battleDefOf(cfg, 9).waves).toHaveLength(wavesIn(cfg, 9));
+  });
+
+  it('the classic ramp follows the run tuning numbers, the authored one does not', () => {
+    const cfg = classic();
+    cfg.wavesBase = 5;
+    expect(battleDefOf(cfg, 1).waves).toHaveLength(5);
+    const authored = createTuning().run;
+    authored.wavesBase = 5;
+    expect(battleDefOf(authored, 1).waves).toHaveLength(2);
+  });
+
+  it('a battle spawns the groups of its table wave and counts its waves from the table', () => {
+    const w = startWorld();
+    const plan = battleDefOf(w.tuning.run, 1);
+    press(w, 'menuSelect'); // Start
+    expect(w.run.battle).toBe(1);
+    expect(w.run.waveTotal).toBe(plan.waves.length);
+    stepWorld(w, DT);
+    expect(w.run.wave).toBe(1);
+    expect(w.fighters.filter((f) => f.alive)).toHaveLength(plan.waves[0]!.groups[0]!.count);
+  });
+
+  it('emits EnemySpawned for each fighter of a wave', () => {
+    const w = startWorld();
+    const seen: string[] = [];
+    const emit = w.events.emit;
+    w.events.emit = (e) => {
+      if (e.type === 'EnemySpawned') seen.push(e.kind);
+      emit(e);
+    };
+    press(w, 'menuSelect');
+    stepWorld(w, DT);
+    expect(seen).toEqual(['fighter', 'fighter']);
   });
 });
