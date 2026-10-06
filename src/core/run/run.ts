@@ -1,8 +1,9 @@
 import type { RunConfig } from '../../../data/tuning/run';
+import { BATTLES } from '../../../data/content/battles';
 import { TRAIT_IDS } from '../../../data/content/traits';
 import { NO_HIT } from '../ai/fighter';
-import { BATTLES } from '../../../data/content/battles';
 import { resolveFighterKills, spawnBattleWave } from '../ai/waves';
+import { spawnCapitalBattle, stepCapitalBattle } from '../enemies/capital-battle';
 import type { BattleDef } from '../enemies/battles';
 import { clearEnemyState } from '../enemies/state';
 import { createCamera } from '../camera/camera';
@@ -127,12 +128,11 @@ export function spawnRunWave(world: World): void {
 }
 
 /**
- * Hook for track C (the capital ship): true when the current battle has no boss, or its boss is
- * destroyed. A boss battle is won by the boss's death, not only by clearing the waves. Until the
- * capital exists no battle table row has a boss, so this is always true.
+ * The boss of battle `n` (1-based) under the current ramp: from the authored battle table, or
+ * undefined (the classic ramp has no boss). Reads the table directly: it runs every step of a battle.
  */
-export function bossDown(world: World): boolean {
-  return battleDefOf(world.tuning.run, world.run.battle).boss === undefined;
+export function bossOf(cfg: RunConfig, n: number): 'capital' | undefined {
+  return cfg.ramp === 'authored' ? BATTLES[n - 1]?.boss : undefined;
 }
 
 /** Rows on the current menu screen: the highlighted `cursor` ranges over 0..rows-1. */
@@ -211,6 +211,12 @@ export function startBattle(world: World, n: number): void {
   run.battle = n;
   run.wave = 0;
   run.waveTotal = plan.waves.length;
+  if (bossOf(cfg, n)) {
+    // A boss battle (prototype 5, track C): the boss is the objective, not the waves.
+    spawnCapitalBattle(world);
+    run.waveTotal = 1;
+    run.wave = 1;
+  }
   run.battleKills = 0;
   run.battleLost = 0;
   run.hitsSeen = world.stats.hitsTaken;
@@ -349,6 +355,11 @@ export function stepRunBattle(world: World): void {
       return;
     }
   }
+  if (bossOf(world.tuning.run, run.battle)) {
+    // Boss battle: escorts and the objective come from the boss script; won when the capital ship is destroyed.
+    if (stepCapitalBattle(world)) clearBattle(world);
+    return;
+  }
   if (world.tuning.arena.enemiesFrozen) return; // debug freeze: no new waves
   let lastDeath = NO_HIT;
   for (const f of world.fighters) {
@@ -356,7 +367,7 @@ export function stepRunBattle(world: World): void {
     if (f.diedAt > lastDeath) lastDeath = f.diedAt;
   }
   if (run.wave >= run.waveTotal) {
-    if (bossDown(world)) clearBattle(world);
+    clearBattle(world);
     return;
   }
   if (world.fighters.length > 0 && world.time - lastDeath < world.tuning.fighter.waveDelay) return;

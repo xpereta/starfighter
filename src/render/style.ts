@@ -94,6 +94,13 @@ export const SHIP_KINDS = [
   'turret',
   'pod',
   'static',
+  // Prototype 5, track C: the capital ship's hull (drawn behind its parts) and one shape per part role.
+  'capital',
+  'capitalTurret',
+  'capitalEngine',
+  'capitalArmour',
+  'capitalBridge',
+  'capitalCore',
 ] as const;
 export type ShipKind = (typeof SHIP_KINDS)[number];
 

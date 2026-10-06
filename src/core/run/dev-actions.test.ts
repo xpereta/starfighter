@@ -215,7 +215,8 @@ describe('waves and clearing', () => {
 
     devJumpTo(w, { kind: 'battle', n: w.tuning.run.battleCount });
     devClearBattle(w);
-    stepWorld(w, DT);
+    // The last battle is the capital ship: its core dies at once and the death chain runs before the victory.
+    for (let i = 0; i < 60 * (w.tuning.capital.deathChainTime + 1); i++) stepWorld(w, DT);
     expect(w.run).toMatchObject({ phase: 'end', result: 'victory' });
   });
 

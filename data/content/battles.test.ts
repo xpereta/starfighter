@@ -4,7 +4,7 @@ import { createCapitalConfig, capitalParams } from '../tuning/capital';
 import { createGunshipConfig, gunshipParams } from '../tuning/gunship';
 import { createLancerConfig, lancerParams } from '../tuning/lancer';
 import { createWingsConfig, wingsParams } from '../tuning/wings';
-import { battleDefOf, turretsIn, wavesIn, waveSizeIn } from '../../src/core/run/run';
+import { battleDefOf, bossOf, turretsIn, wavesIn, waveSizeIn } from '../../src/core/run/run';
 import { BATTLES } from './battles';
 import { fighterKind } from './kinds/fighter';
 import { createFighterConfig } from '../tuning/fighter';
@@ -40,10 +40,13 @@ describe('the authored ramp (spec section 6)', () => {
     const lancers = b.waves.map((w) => count({ waves: [w], turrets: 0 }, 'lancer')).filter(Boolean);
     expect(lancers).toEqual([1, 2]);
   });
-  it('battle 4 is still the old fighter row, with no boss yet (track C replaces it)', () => {
+  it('battle 4 is the capital ship boss (its escorts come from the boss script), classic has none', () => {
     const classic = { ...cfg, ramp: 'classic' as const };
-    expect(BATTLES[3]).toEqual(battleDefOf(classic, 4));
-    expect(BATTLES[3]!.boss).toBeUndefined();
+    expect(BATTLES[3]!.boss).toBe('capital');
+    expect(BATTLES[3]!.turrets).toBe(turretsIn(cfg, 4));
+    expect(battleDefOf(classic, 4).boss).toBeUndefined();
+    expect(bossOf(cfg, 4)).toBe('capital');
+    expect(bossOf(classic, 4)).toBeUndefined();
   });
   it('the classic ramp is still selectable and reproduces the old formulas', () => {
     const classic = { ...cfg, ramp: 'classic' as const };

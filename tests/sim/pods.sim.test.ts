@@ -3,6 +3,7 @@ import { createTuning } from '../../data/tuning';
 import { hashWorld } from '../../src/core/replay/hash';
 import { createRng } from '../../src/core/rng/rng';
 import { enterStartScreen } from '../../src/core/run/run';
+import { coreIndex, killPart } from '../../src/core/enemies/capital';
 import { createWorld, stepWorld, type World } from '../../src/core/world/world';
 
 const DT = 1 / 60;
@@ -45,7 +46,10 @@ function play(seed: number): {
         world.ship.x = pod.x + 20;
         world.ship.y = pod.y;
       }
-      if (step % 480 === 0) for (const f of world.fighters) f.hp = 0;
+      if (step % 480 === 0) {
+        for (const f of world.fighters) f.hp = 0;
+        if (world.enemies.capital?.phase === 0) killPart(world, coreIndex()); // battle 4's boss
+      }
     } else {
       a.menuSelect = step % 12 === 0; // select, let go, select again
     }

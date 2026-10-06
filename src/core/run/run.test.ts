@@ -8,6 +8,7 @@ import {
   menuRows,
   offerVeterans,
   battleDefOf,
+  bossOf,
   turretsIn,
   wavesIn,
   waveSizeIn,
@@ -396,12 +397,14 @@ describe('the battle table drives the run', () => {
     return cfg;
   };
 
-  it('the authored ramp differs from the classic one in battles 1 to 3; battle 4 is still the old row (track C replaces it)', () => {
+  it('the authored ramp differs from the classic one in every battle; only battle 4 has a boss', () => {
     const authored = createTuning().run;
-    for (const n of [1, 2, 3]) {
+    for (const n of [1, 2, 3, 4]) {
       expect(battleDefOf(authored, n), `battle ${n}`).not.toEqual(battleDefOf(classic(), n));
     }
-    expect(battleDefOf(authored, 4)).toEqual(battleDefOf(classic(), 4));
+    expect(bossOf(authored, 4)).toBe('capital');
+    expect(bossOf(classic(), 4)).toBeUndefined();
+    expect(bossOf(authored, 3)).toBeUndefined();
   });
 
   it('a battle past the end of the table falls back to the classic formulas', () => {

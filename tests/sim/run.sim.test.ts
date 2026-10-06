@@ -4,6 +4,7 @@ import { createRng } from '../../src/core/rng/rng';
 import { hashWorld } from '../../src/core/replay/hash';
 import { applyFinishedRun, veteranOffers } from '../../src/core/meta/meta';
 import { enterStartScreen, offerVeterans, menuRows } from '../../src/core/run/run';
+import { coreIndex, killPart } from '../../src/core/enemies/capital';
 import { createWorld, stepWorld, type World } from '../../src/core/world/world';
 
 const DT = 1 / 60;
@@ -42,7 +43,10 @@ function playRun(
         a.evade = rng.next() < 0.1;
         a.launch = rng.next() < 0.05;
       }
-      if (assist && steps % 480 === 0) for (const f of world.fighters) f.hp = 0;
+      if (assist && steps % 480 === 0) {
+        for (const f of world.fighters) f.hp = 0;
+        if (world.enemies.capital?.phase === 0) killPart(world, coreIndex()); // battle 4's boss
+      }
     } else {
       a.menuUp = a.menuDown = a.menuSelect = a.menuBack = false;
       if (steps % 6 === 0) {

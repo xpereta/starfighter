@@ -1,3 +1,4 @@
+import type { PartRole } from '../enemies/capital-parts';
 import type { EnemyKindId } from '../enemies/kinds';
 import type { EntityKind } from '../world/target';
 
@@ -57,10 +58,11 @@ export type GameEvent =
   | { type: 'EnemySpawned'; kind: EnemyKindId; x: number; y: number }
   | { type: 'EnemyMissileFired'; x: number; y: number; angle: number }
   | { type: 'EnemyMissileHit'; x: number; y: number; hit: 'player' | 'immune' | 'expired' }
-  | { type: 'PartDestroyed'; part: string; x: number; y: number }
+  // `role` and `radius` say what blew up and how big (a death sequence is drawn from them); `radius` in u.
+  | { type: 'PartDestroyed'; part: string; x: number; y: number; role: PartRole; radius: number }
   | { type: 'CoreExposed'; x: number; y: number }
   | { type: 'WingBroken'; reason: 'leader' | 'fire' | 'proximity' }
-  | { type: 'CapitalDestroyed'; x: number; y: number }
+  | { type: 'CapitalDestroyed'; x: number; y: number; radius: number }
   // Menus (run mode, outside a battle).
   | { type: 'MenuMove'; dir: -1 | 1 }
   | { type: 'MenuSelect' }

@@ -29,6 +29,7 @@ const countOf = (w: ReturnType<typeof createWorld>, kind: SpawnKind): number => 
   if (kind === 'gunship')
     return w.fighters.filter((f) => f.alive && f.shipType === SHIP_GUNSHIP).length;
   if (kind === 'lancer') return w.fighters.filter((f) => f.alive && f.lancer).length;
+  if (kind === 'capital') return w.enemies.capital ? 1 : 0;
   return w.targets.filter((t) => t.kind === kind).length;
 };
 
@@ -54,7 +55,8 @@ describe('spawn registry', () => {
       for (const count of SPAWN_COUNTS) {
         const before = countOf(w, entry.kind);
         expect(spawnAhead(w, entry, count)).toBe(count);
-        expect(countOf(w, entry.kind)).toBe(before + count);
+        // There is only ever one capital ship: a new one replaces the old.
+        expect(countOf(w, entry.kind)).toBe(entry.kind === 'capital' ? 1 : before + count);
       }
     },
   );

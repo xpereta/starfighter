@@ -2,13 +2,14 @@ import { spawnGunship } from '../core/ai/gunship';
 import { spawnWing } from '../core/ai/wings';
 import { spawnLancer } from '../core/ai/lancer';
 import { spawnFighter } from '../core/ai/waves';
+import { spawnCapitalAt } from '../core/enemies/capital-battle';
 import { createTargetAt } from '../core/world/arena';
 import { spawnPodAt } from '../core/world/pods';
 import type { EntityKind } from '../core/world/target';
 import type { World } from '../core/world/world';
 
 /** What a spawn entry stands for: an enemy kind of the world (`EntityKind` without wingmen) or a rescue pod. */
-export type SpawnKind = Exclude<EntityKind, 'wingman'> | 'wing' | 'lancer' | 'pod';
+export type SpawnKind = Exclude<EntityKind, 'wingman'> | 'wing' | 'lancer' | 'pod' | 'capital';
 
 export interface SpawnEntry {
   id: string;
@@ -75,12 +76,30 @@ export const SPAWN_REGISTRY: readonly SpawnEntry[] = [
       void world.targets.push(createTargetAt('static', world.tuning.arena, x, y, heading)),
   },
   {
+    id: 'capital',
+    label: 'Capital ship',
+    kind: 'capital',
+    // One at a time (a new one replaces the old). It is huge, so it appears well beyond the usual
+    // spawn distance: (x, y) is stretched away from the ship, and the arena clamps it inside.
+    spawn: (world, x, y) => {
+      const { ship } = world;
+      spawnCapitalAt(
+        world,
+        ship.x + (x - ship.x) * CAPITAL_SPAWN_STRETCH,
+        ship.y + (y - ship.y) * CAPITAL_SPAWN_STRETCH,
+      );
+    },
+  },
+  {
     id: 'pod',
     label: 'Rescue pod',
     kind: 'pod',
     spawn: (world, x, y, heading) => spawnPodAt(world, x, y, heading),
   },
 ];
+
+/** The capital ship spawns this many times farther away than other enemies (it is 700 u in radius). */
+export const CAPITAL_SPAWN_STRETCH = 2.6;
 
 /** How many to spawn per click, the choices of the count control. */
 export const SPAWN_COUNTS: readonly number[] = [1, 3, 5];

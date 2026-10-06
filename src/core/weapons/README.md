@@ -22,3 +22,4 @@
 - **Hash:** `mixMissiles` covers every pool field (including `uid`) and the salvo state (cooldown, pending list, timer, launched, next uid).
 - **Parameters:** `data/tuning/missiles.ts` (`missileCap` is read at world creation), in the panel's Missiles section.
 - **Test:** `missiles.test.ts` (assignment, launch rules, edge trigger, cooldown, stagger, pool cap, speed curve, expiry, wobble bound and determinism, homing turn limit, target death, hits on targets/fighters/blockers, kills through the world step, hash sensitivity, reset); `tests/sim/missiles.sim.test.ts` (120 s of bot play: no NaN, pool within cap, hits happen, deterministic).
+- **Capital ship (Prototype 5):** a missile that hits a part (lockable id from `PART_ID_BASE`) damages it through `damagePart` (a covered part takes nothing and is not visited); bullets are resolved against the parts by `stepCapitalBullets` right after `stepBullets`.

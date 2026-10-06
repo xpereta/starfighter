@@ -58,8 +58,17 @@ export interface WingState {
 /** The live state of one part; its fixed data (position, radius, role) is in `CapitalPartDef`, same order. */
 export interface PartState {
   hp: number;
+  /** Hit points at spawn (hp scale applied), for the health bar. */
+  maxHp: number;
   alive: boolean;
+  /** Turrets: seconds until the next shot. */
+  cooldown: number;
+  /** Turrets: shots left in the current burst (0 = the next shot starts a new burst). */
+  burstLeft: number;
 }
+
+/** 0 = fighting, 1 = the core is dead and the death chain runs, 2 = destroyed (the battle is won). */
+export type CapitalPhase = 0 | 1 | 2;
 
 export interface CapitalState {
   x: number;
@@ -70,6 +79,20 @@ export interface CapitalState {
   parts: PartState[];
   /** True once no plate covers the core any more (emits `CoreExposed` once). */
   coreExposed: boolean;
+  /** Hull radius this ship was built with (u); the part data is scaled by `hullRadius / CAPITAL_DESIGN_RADIUS`. */
+  hullRadius: number;
+  phase: CapitalPhase;
+  /** Seconds since it appeared. */
+  time: number;
+  /** Distance to the player when it appeared (u), to tell how far its approach has gone. */
+  startDistance: number;
+  /** Seconds since the core died (phase 1). */
+  chainTime: number;
+  /** Escort wings sent so far, and whether the missile fighters have come (battle 4 script). */
+  wingsSent: number;
+  lancersSent: boolean;
+  /** Who last damaged the core: a pilot id, or 0 for the player (kill credit). */
+  lastHitBy: number;
 }
 
 // The container on the world -------------------------------------------------------------
@@ -132,10 +155,17 @@ export function mixEnemies(mix: (n: number) => void, state: EnemyState): void {
     mix(-3);
     for (const v of [c.x, c.y, c.heading, c.vx, c.vy]) mix(v);
     mix(c.coreExposed ? 1 : 0);
+    for (const v of [c.hullRadius, c.phase, c.time, c.startDistance, c.chainTime]) mix(v);
+    mix(c.wingsSent);
+    mix(c.lancersSent ? 1 : 0);
+    mix(c.lastHitBy);
     mix(c.parts.length);
     for (const p of c.parts) {
       mix(p.hp);
+      mix(p.maxHp);
       mix(p.alive ? 1 : 0);
+      mix(p.cooldown);
+      mix(p.burstLeft);
     }
   }
 }

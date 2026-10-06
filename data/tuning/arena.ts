@@ -186,7 +186,7 @@ export const arenaParams = {
     min: 5,
     max: 400,
     unit: 'shots',
-    note: 'Size of the turret shot pool, fixed when the game starts (reload to apply). Higher = never drops a shot; lower = turrets stop firing when the pool is full.',
+    note: 'Size of the enemy shot pool (turrets, fighters and the capital ship guns), fixed when the game starts (reload to apply). Higher = never drops a shot; lower = guns stop firing when the pool is full.',
   },
   playerRadius: {
     default: 24,

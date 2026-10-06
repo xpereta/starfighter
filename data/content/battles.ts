@@ -27,11 +27,9 @@ const lancer = (count = 1): BattleGroup => ({ kind: 'lancer', count });
  *
  * - Battle 1: fighters, and one formation wing in the last wave (the introduction).
  * - Battle 2: fighters and wings, one gunship in wave 2.
- * - Battle 3: wings, two gunships, the first missile fighter on its own, then pairs (the lancer
- *   kind is track B's: until it lands a lancer group is simply skipped by the wave spawner).
- * - Battle 4: still the old row. Track C replaces it with the boss script (`boss: 'capital'`,
- *   two escort wings, missile fighters joining halfway); the run's win condition for a boss
- *   battle is the hook in `stepRunBattle` (`run.ts`).
+ * - Battle 3: wings, two gunships, the first missile fighter on its own (wave 2), then a pair (wave 3).
+ * - Battle 4: the capital ship (`boss: 'capital'`): its escort wings and the missile fighters that
+ *   join halfway come from the boss script (`core/enemies/capital-battle.ts`), not from these waves.
  */
 export const BATTLES: BattleTable = [
   {
@@ -50,7 +48,10 @@ export const BATTLES: BattleTable = [
     ],
     turrets: 2,
   }, // battle 3
-  fighters(4, 6, 3), // battle 4 (track C: the capital ship boss)
+  // Battle 4: the capital ship (boss, track C). Its escorts come from the boss script (`capital-battle.ts`: two
+  // wings, then missile fighters halfway through the approach), so the waves here are only the objective
+  // placeholder the table type needs: the battle is won by the core's death.
+  { ...fighters(1, 1, 3), boss: 'capital' },
 ];
 
 validateBattleTable(BATTLES, ENEMY_KINDS);

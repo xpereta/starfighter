@@ -16,6 +16,7 @@ export const TUNED_GROUPS = [
   'pilots',
   'rescue',
   'chatter',
+  'capital',
 ] as const;
 export type TunedGroup = (typeof TUNED_GROUPS)[number];
 
