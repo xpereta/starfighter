@@ -169,15 +169,21 @@ const slotScratch = { x: 0, y: 0 };
 /**
  * Adds a wing with its leader at (x, y) flying along `heading`: the leader has the extra hull,
  * the followers start on their slots at the leader's heading and speed. Returns the wing's index
- * in `world.enemies.wings`. Uses the fighter tuning for hull, radius and flight.
+ * in `world.enemies.wings`. `fighters` overrides `wings.size` (the capital's escorts). Uses the fighter tuning for hull, radius and flight.
  */
-export function spawnWing(world: World, x: number, y: number, heading: number): number {
+export function spawnWing(
+  world: World,
+  x: number,
+  y: number,
+  heading: number,
+  fighters?: number,
+): number {
   const cfg = world.tuning.wings;
   const fcfg = world.tuning.fighter;
   const flight = deriveFlight({} as FlightConfig, world.tuning.flight, fcfg);
   const wingId = world.enemies.wings.length;
   const shape = pickShape(world);
-  const size = Math.max(2, Math.round(cfg.size));
+  const size = Math.max(2, Math.round(fighters ?? cfg.size));
 
   const make = (px: number, py: number, hp: number): Fighter => {
     const f = createFighter(

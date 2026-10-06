@@ -51,21 +51,21 @@ export const gunshipParams = {
     note: 'How far from the standoff distance it may drift before it closes in (further out) or backs off (closer in). Inside the band it circles the player broadside. Higher = lazy, loose station keeping; lower = it holds the distance tightly.',
   },
   turretFireRate: {
-    default: 12,
+    default: 10,
     min: 1,
     max: 30,
     unit: 'shots/s',
     note: 'How fast each gunship turret fires while in a burst. Higher = a denser stream to dodge; lower = sparser fire.',
   },
   turretBurstShots: {
-    default: 18,
+    default: 6,
     min: 1,
     max: 60,
     unit: 'shots',
     note: 'Shots in one turret burst before it pauses. Higher = longer bursts and fewer windows to attack; lower = more windows.',
   },
   turretBurstPause: {
-    default: 1.6,
+    default: 2.2,
     min: 0,
     max: 8,
     step: 0.1,
@@ -109,7 +109,7 @@ export const gunshipParams = {
     note: 'How much of the perfect lead the turrets aim with (1 = exactly where a straight-flying target will be, 0 = straight at it). Lower = they miss a target that keeps changing course; higher = a straight flyer is hit.',
   },
   turretSpread: {
-    default: 4,
+    default: 6,
     min: 0,
     max: 20,
     unit: '°',

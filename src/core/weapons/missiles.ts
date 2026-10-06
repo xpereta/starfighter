@@ -2,7 +2,7 @@ import type { MissilesConfig } from '../../../data/tuning/missiles';
 import { clamp, DEG, TAU, wrapAngle } from '../math';
 import { createEffectiveConfig, effectiveSquadronConfig } from '../pilots/effective';
 import { livingWingmen } from '../squadron/squadron';
-import { damagePart, partTouches } from '../enemies/capital';
+import { CAPITAL_PARTS, damagePart, distanceToPart } from '../enemies/capital';
 import { forEachLockable, getLockable, PART_ID_BASE } from '../world/lockable';
 import { createPool, type Pool } from '../world/pool';
 import type { World } from '../world/world';
@@ -190,17 +190,23 @@ function considerHit(
   const reach = radius + hit.radius;
   const d2 = (x - hit.x) * (x - hit.x) + (y - hit.y) * (y - hit.y);
   if (d2 > reach * reach) return;
-  // A part's visited radius is its bounding circle: a capsule needs the exact test.
-  if (id >= PART_ID_BASE && !partTouches(hit.world!, id - PART_ID_BASE, hit.x, hit.y, hit.radius)) {
-    return;
+  // How far inside the body the missile is (<= 0 when touching): the deepest overlap wins. A part's
+  // visited radius is its bounding circle, so a capsule needs the exact distance to its surface.
+  let gap = Math.sqrt(d2) - reach;
+  if (id >= PART_ID_BASE) {
+    const cap = hit.world!.enemies.capital;
+    const def = CAPITAL_PARTS[id - PART_ID_BASE];
+    if (!cap || !def) return;
+    gap = distanceToPart(cap, def, hit.x, hit.y) - hit.radius;
+    if (gap > 0) return;
   }
   // An immune body (a fighter in its evade roll) is passed through, as for bullets.
   if (getLockable(hit.world!, id)?.immune) {
     if (id === hit.homingId) hit.passedHoming = true;
     return;
   }
-  if (d2 < hit.bestDist) {
-    hit.bestDist = d2;
+  if (gap < hit.bestDist) {
+    hit.bestDist = gap;
     hit.bestId = id;
   }
 }

@@ -10,11 +10,9 @@ import {
   burstSizeFor,
   canLaunch,
   CIRCLE_ANGLE,
-  convertWaveToLancers,
   createLancer,
   FLEE_ANGLE,
   lancerMove,
-  lancersInWave,
   spawnLancer,
   type LancerMove,
 } from './lancer';
@@ -75,21 +73,12 @@ describe('canLaunch', () => {
   });
 });
 
-describe('burstSizeFor and lancersInWave', () => {
+describe('burstSizeFor', () => {
   it('single shots in practice and before the burst battle, pairs from it on', () => {
     expect(burstSizeFor(cfg, false, 4)).toBe(1);
     expect(burstSizeFor(cfg, true, cfg.burstFromBattle - 1)).toBe(1);
     expect(burstSizeFor(cfg, true, cfg.burstFromBattle)).toBe(cfg.burstSize);
     expect(burstSizeFor({ ...cfg, burstSize: 0.2 }, true, 9)).toBe(1);
-  });
-  it('the ramp: none in battles 1-2, one then pairs in battle 3, lancers join halfway in battle 4', () => {
-    expect([1, 2, 3].map((w) => lancersInWave(1, w))).toEqual([0, 0, 0]);
-    expect([1, 2, 3].map((w) => lancersInWave(2, w))).toEqual([0, 0, 0]);
-    expect([1, 2, 3].map((w) => lancersInWave(3, w))).toEqual([1, 2, 2]);
-    expect([1, 2, 3, 4].map((w) => lancersInWave(4, w))).toEqual([0, 0, 2, 2]);
-    expect(lancersInWave(3, 9)).toBe(2); // the last entry repeats
-    expect(lancersInWave(9, 1)).toBe(0);
-    expect(lancersInWave(3, 0)).toBe(0);
   });
 });
 
@@ -240,31 +229,6 @@ describe('a lancer', () => {
     for (let i = 0; i < 180; i++) ai(world);
     const toPlayer = Math.atan2(world.ship.y - f.y, world.ship.x - f.x);
     expect(Math.abs(wrapAngle(toPlayer - f.ship.heading))).toBeLessThan(0.6);
-  });
-});
-
-describe('convertWaveToLancers', () => {
-  it('turns the ramp count of a freshly spawned wave into lancers in place, keeping size and positions', () => {
-    const { world } = scene();
-    for (let i = 0; i < 5; i++) spawnFighter(world, 100 * i, 50, 0.1 * i);
-    world.run.battle = 3;
-    world.run.wave = 2;
-    const before = world.fighters.map((f) => [f.x, f.y, f.ship.heading]);
-    convertWaveToLancers(world);
-    expect(world.fighters.length).toBe(5);
-    expect(world.fighters.filter((f) => f.lancer).length).toBe(2);
-    world.fighters.forEach((f, i) => {
-      expect([f.x, f.y, f.ship.heading]).toEqual(before[i]);
-    });
-  });
-  it('does nothing in battles without lancers', () => {
-    const { world } = scene();
-    for (let i = 0; i < 3; i++) spawnFighter(world, 100 * i, 50, 0);
-    world.run.battle = 1;
-    world.run.wave = 1;
-    const h = hashWorld(world);
-    convertWaveToLancers(world);
-    expect(hashWorld(world)).toBe(h);
   });
 });
 

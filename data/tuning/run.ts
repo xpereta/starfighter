@@ -65,6 +65,14 @@ export const runParams = {
     unit: 'hp',
     note: 'Your own hull. Each enemy bullet that hits you takes 1 (a roll in progress still protects you). At 0 the run ends in defeat. Restored in full at every debrief. Higher = more forgiving; lower = every hit counts.',
   },
+  hitProtection: {
+    default: 0.35,
+    min: 0,
+    max: 2,
+    step: 0.05,
+    unit: 's',
+    note: 'After an enemy bullet hits you in a run, bullets pass through you for this long, so one burst cannot take several hull points in a row (the evade roll still works as before; missiles are not affected). 0 = every bullet that touches you hits. Higher = more forgiving against streams of fire.',
+  },
   startingSquad: {
     default: 2,
     min: 0,

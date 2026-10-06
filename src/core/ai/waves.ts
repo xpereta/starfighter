@@ -5,6 +5,7 @@ import { FIGHTER_ID_BASE } from '../world/lockable';
 import type { World } from '../world/world';
 import { createFighter, NO_HIT, placeFighter, SHIP_GUNSHIP } from './fighter';
 import { spawnGunship } from './gunship';
+import { spawnLancer } from './lancer';
 import { spawnWings } from './wings';
 import { deriveFlight } from './steering';
 
@@ -70,13 +71,14 @@ export function spawnWave(world: World, size = world.tuning.fighter.waveSize): v
 
 /**
  * Spawns one group of a battle wave (`count` ships of a kind, or `count` wings). Fighters arrive
- * exactly as a classic wave does (`spawnWave`). A kind that has no spawner yet (lancer: track B; capital: track
- * C) is skipped, so a table can already name it.
+ * exactly as a classic wave does (`spawnWave`). A kind with no group spawner (the capital ship, which the
+ * boss script brings in) is skipped, so a table can already name it.
  */
 export function spawnGroup(world: World, group: BattleGroup): void {
   if (group.kind === 'fighter') spawnWave(world, group.count);
   else if (group.kind === 'gunship') spawnGunships(world, group.count);
   else if (group.kind === 'wing') spawnWings(world, group.count);
+  else if (group.kind === 'lancer') spawnLancers(world, group.count);
 }
 
 /** `count` gunships spread around the arena edge, heading inward (like a fighter wave, but they cross the arena slowly). */
@@ -87,6 +89,17 @@ export function spawnGunships(world: World, count: number): void {
     const angle = base + (k * TAU) / count + world.rng.range(-0.2, 0.2);
     const heading = angle + Math.PI + world.rng.range(-0.3, 0.3);
     spawnGunship(world, Math.cos(angle) * radius, Math.sin(angle) * radius, heading);
+  }
+}
+
+/** `count` missile fighters spread around the arena edge, heading inward (like a fighter wave). */
+export function spawnLancers(world: World, count: number): void {
+  const radius = world.tuning.flight.arenaRadius * world.tuning.fighter.spawnFraction;
+  const base = world.rng.range(0, TAU);
+  for (let k = 0; k < count; k++) {
+    const angle = base + (k * TAU) / count + world.rng.range(-0.2, 0.2);
+    const heading = angle + Math.PI + world.rng.range(-0.3, 0.3);
+    spawnLancer(world, Math.cos(angle) * radius, Math.sin(angle) * radius, heading);
   }
 }
 

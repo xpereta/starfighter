@@ -285,27 +285,27 @@ describe('determinism', () => {
 });
 
 describe('lancers in a run', () => {
-  it('battle 3 brings one lancer in the first wave and pairs later, only behind the toggle', () => {
-    const withToggle = (on: boolean): number[] => {
+  it('battle 3 brings one lancer in wave 2 and a pair in wave 3 from the battle table; classic has none', () => {
+    const perWave = (ramp: 'authored' | 'classic'): number[] => {
       const world = createWorld(9, createTuning());
-      world.tuning.lancer.inBattles = on;
+      world.tuning.run.ramp = ramp;
       world.tuning.fighter.waveDelay = 1;
       world.tuning.run.playerHull = 500;
       devJumpTo(world, { kind: 'battle', n: 3 });
-      const perWave: number[] = [];
+      const counts: number[] = [];
       let lastWave = 0;
-      for (let i = 0; i < 90 * 60 && perWave.length < 3; i++) {
+      for (let i = 0; i < 90 * 60 && counts.length < 3; i++) {
         stepWorld(world, DT);
         if (world.run.wave !== lastWave) {
           lastWave = world.run.wave;
-          perWave.push(world.fighters.filter((f) => f.alive && f.lancer).length);
+          counts.push(world.fighters.filter((f) => f.alive && f.lancer).length);
         }
         if (i % 120 === 0) for (const f of world.fighters) if (f.alive) f.hp = 0; // the assist
       }
-      return perWave;
+      return counts;
     };
-    expect(withToggle(true)).toEqual([1, 2, 2]);
-    expect(withToggle(false)).toEqual([0, 0, 0]);
+    expect(perWave('authored')).toEqual([0, 1, 2]);
+    expect(perWave('classic')).toEqual([0, 0, 0]);
   });
 
   it('a run-mode hit takes the missile damage from the hull', () => {

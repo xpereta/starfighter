@@ -47,21 +47,23 @@ export function barRects(
 ): BarRect[] {
   let gaps = 0;
   let weight = 0;
-  segments.forEach((seg, i) => {
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]!;
     weight += WEIGHT[seg.role];
     if (i > 0) gaps += seg.role === segments[i - 1]!.role ? GAP : GROUP_GAP;
-  });
+  }
   const unit = Math.max(0, width - gaps) / Math.max(weight, 1e-9);
   let x = left;
   while (out.length < segments.length) out.push({ x: 0, width: 0 });
   out.length = segments.length;
-  segments.forEach((seg, i) => {
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]!;
     if (i > 0) x += seg.role === segments[i - 1]!.role ? GAP : GROUP_GAP;
     const rect = out[i]!;
     rect.x = x;
     rect.width = WEIGHT[seg.role] * unit;
     x += rect.width;
-  });
+  }
   return out;
 }
 
@@ -84,7 +86,8 @@ export function drawCapitalBar(
   screen: { width: number; height: number },
 ): void {
   const cap = world.enemies.capital;
-  if (!cap) return;
+  if (!cap || cap.phase === 2) return; // gone, or destroyed: no bar on the end screens
+  if (world.run.mode === 'run' && world.run.phase !== 'battle') return;
   fillCapitalBar(bar, cap);
   const width = Math.min(BAR_MAX_WIDTH, screen.width * BAR_SCREEN_SHARE);
   const left = (screen.width - width) / 2;
@@ -95,7 +98,8 @@ export function drawCapitalBar(
   g.textAlign = 'right';
   g.fillStyle = css(palette.enemy);
   g.fillText('CAPITAL SHIP', left - 10, BAR_TOP + BAR_HEIGHT / 2);
-  bar.segments.forEach((seg, i) => {
+  for (let i = 0; i < bar.segments.length; i++) {
+    const seg = bar.segments[i]!;
     const r = rects[i]!;
     const y = BAR_TOP;
     g.fillStyle = 'rgba(255,255,255,0.12)';
@@ -124,7 +128,7 @@ export function drawCapitalBar(
       g.fillStyle = GOLD;
       g.fillRect(r.x, y + BAR_HEIGHT + 2, r.width, 3);
     }
-  });
+  }
   // The one line that says what to do next.
   const { standing, total } = bar.corePlates;
   const text =

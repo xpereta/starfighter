@@ -1,7 +1,7 @@
 import type { FighterConfig } from '../../../data/tuning/fighter';
 import type { FlightConfig } from '../../../data/tuning/flight';
 import type { LancerConfig } from '../../../data/tuning/lancer';
-import { LANCER_RAMP, lancerKind } from '../../../data/content/kinds/lancer';
+import { lancerKind } from '../../../data/content/kinds/lancer';
 import { launchEnemyMissile } from '../enemies/enemy-missiles';
 import { DEG, wrapAngle } from '../math';
 import type { World } from '../world/world';
@@ -86,13 +86,6 @@ export function canLaunch(
     dist <= Math.max(cfg.rangeMax, cfg.rangeMin) &&
     Math.abs(error) <= cfg.launchCone * DEG
   );
-}
-
-/** How many fighters of wave `wave` (1-based) of run battle `battle` (1-based) are lancers (`LANCER_RAMP`). */
-export function lancersInWave(battle: number, wave: number): number {
-  const row = LANCER_RAMP[battle - 1];
-  if (!row || row.length === 0 || wave < 1) return 0;
-  return row[Math.min(wave, row.length) - 1]!;
 }
 
 const moveScratch: LancerMove = { desired: 0, throttle: 0, mode: 'circle' };
@@ -190,19 +183,4 @@ export function spawnLancer(world: World, x: number, y: number, heading: number)
   }
   world.fighters.push(lancer);
   return world.fighters.length - 1;
-}
-
-/**
- * Right after a run battle's wave has been spawned: turns `lancersInWave` of its fighters into
- * lancers in place (same slot, position and heading, so the wave size and layout are unchanged).
- * Behind `tuning.lancer.inBattles`; see `LANCER_RAMP`.
- */
-export function convertWaveToLancers(world: World): void {
-  let n = lancersInWave(world.run.battle, world.run.wave);
-  for (let i = 0; i < world.fighters.length && n > 0; i++) {
-    const f = world.fighters[i]!;
-    if (!f.alive || f.lancer) continue;
-    world.fighters[i] = createLancer(world, f.x, f.y, f.ship.heading);
-    n--;
-  }
 }

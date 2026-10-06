@@ -142,14 +142,8 @@ export const lancerParams = {
   },
 } as const satisfies Record<string, ParamDef>;
 
-export type LancerConfig = { -readonly [K in keyof typeof lancerParams]: number } & {
-  /**
-   * Local hook until the authored battle table spawns lancers: in run battles, replace the fighters
-   * of some waves with lancers (`LANCER_RAMP` in data/content/kinds/lancer.ts). Off = today's waves.
-   */
-  inBattles: boolean;
-};
+export type LancerConfig = { -readonly [K in keyof typeof lancerParams]: number };
 
 export function createLancerConfig(): LancerConfig {
-  return { ...defaultsOf(lancerParams), inBattles: false };
+  return defaultsOf(lancerParams);
 }

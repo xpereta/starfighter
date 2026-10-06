@@ -3,6 +3,7 @@ import { CAPITAL_DESIGN_RADIUS, CAPITAL_PARTS } from '../../../data/content/capi
 import { createTuning } from '../../../data/tuning';
 import { capitalParams } from '../../../data/tuning/capital';
 import { DEG } from '../math';
+import { addPilot } from '../pilots/pilots';
 import { createWorld, stepWorld, type World } from '../world/world';
 import type { GameEvent } from '../events/events';
 import {
@@ -22,6 +23,7 @@ import {
   partBody,
   partCenter,
 } from './capital';
+import { spawnCapitalAt } from './capital-battle';
 import { inArc, keepInside, stepCapital, stepCapitalMotion } from './capital-ai';
 import { partAt, stepCapitalBullets } from './capital-hits';
 import { validateCapitalParts } from './capital-parts';
@@ -202,6 +204,32 @@ describe('damage routing', () => {
     expect(cap.lastHitBy).toBe(7);
     killPart(w, indexOf('gun-bow-port'));
     expect(eventsOf(w, 'CoreExposed')).toHaveLength(1); // still once
+  });
+
+  it('the core dying counts as one kill for the run and credits the pilot who hit it last; parts do not', () => {
+    const w = worldWithCapital();
+    const pilot = addPilot(w, { name: 'Ace', trait: 'steady' }, 'pick')!;
+    w.run.mode = 'run';
+    const kills = w.stats.kills;
+    for (let i = 0; i < defs.length; i++) if (defs[i]!.covers.includes('core')) killPart(w, i);
+    killPart(w, indexOf('gun-aft-port'));
+    expect(w.stats.kills).toBe(kills); // plates and turrets credit nothing
+    damagePart(w, coreIndex(), 1, pilot.id);
+    killPart(w, coreIndex());
+    expect(w.stats.kills).toBe(kills + 1);
+    expect(w.run.battleKills).toBe(1);
+    expect(pilot.kills).toBe(1);
+    expect(eventsOf(w, 'PilotKill')).toHaveLength(1);
+  });
+
+  it('the hull is held at least 200 u below the arena radius, whatever the tuning says', () => {
+    const tuning = createTuning();
+    tuning.flight.arenaRadius = 1000;
+    tuning.capital.hullRadius = 1500;
+    const w = createWorld(3, tuning);
+    const cap = spawnCapitalAt(w, 500, 0);
+    expect(cap.hullRadius).toBeLessThanOrEqual(800);
+    expect(Math.hypot(cap.x, cap.y) + cap.hullRadius).toBeLessThanOrEqual(1000 + 1e-6);
   });
 
   it('PartDestroyed says what blew up, where and how big', () => {

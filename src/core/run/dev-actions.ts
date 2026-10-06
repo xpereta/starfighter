@@ -109,6 +109,7 @@ export function devJumpTo(world: World, target: JumpTarget): void {
         world.run.hull = 0;
         endRun(world, 'defeat');
       }
+      world.enemies.capital = null; // an end screen never keeps a live boss (or its bar) behind
       return;
     }
   }

@@ -12,6 +12,15 @@ import type { CapitalState } from './state';
  * The run (`core/run/run.ts`) calls both when the battle table says `boss: 'capital'`.
  */
 
+/** The hull radius stays at least this far (u) below the arena radius, so the boss never fills the whole arena. */
+const HULL_ARENA_MARGIN = 200;
+
+/** The capital ship's hull radius as tuned, held below the arena radius by `HULL_ARENA_MARGIN`. */
+export function effectiveHullRadius(world: World): number {
+  const room = Math.max(100, world.tuning.flight.arenaRadius - HULL_ARENA_MARGIN);
+  return Math.min(world.tuning.capital.hullRadius, room);
+}
+
 /**
  * Puts a fresh capital ship at (x, y) (clamped so the whole hull is inside the arena), broadside to
  * the player, replacing any capital ship on the field. Returns it. Used by the battle and the dev spawn.
@@ -20,6 +29,8 @@ export function spawnCapitalAt(world: World, x: number, y: number): CapitalState
   const cfg = world.tuning.capital;
   const ship = world.ship;
   const cap = createCapital(x, y, 0, Math.hypot(ship.x - x, ship.y - y), cfg, world.rng);
+  // Never bigger than the arena less a margin, so the boss cannot sit on top of the player (whatever the tuning says).
+  cap.hullRadius = Math.min(cap.hullRadius, effectiveHullRadius(world));
   keepInside(cap, world.tuning.flight.arenaRadius);
   cap.heading = broadsideHeading(0, Math.atan2(ship.y - cap.y, ship.x - cap.x));
   cap.startDistance = Math.hypot(ship.x - cap.x, ship.y - cap.y);
@@ -32,7 +43,10 @@ export function spawnCapitalAt(world: World, x: number, y: number): CapitalState
 export function spawnCapitalBattle(world: World): CapitalState {
   const cfg = world.tuning.capital;
   const angle = world.rng.range(0, TAU);
-  const radius = Math.max(0, world.tuning.flight.arenaRadius - cfg.hullRadius - cfg.edgeMargin);
+  const radius = Math.max(
+    0,
+    world.tuning.flight.arenaRadius - effectiveHullRadius(world) - cfg.edgeMargin,
+  );
   return spawnCapitalAt(world, Math.cos(angle) * radius, Math.sin(angle) * radius);
 }
 

@@ -75,6 +75,8 @@ export function spawnGunship(
   const ship = createFighter(flight, x, y, heading, cfg.hull, cfg.radius, retargetTimer);
   ship.shipType = SHIP_GUNSHIP;
   ship.mounts = ENEMY_KINDS.gunship.mounts.map(createMountState);
+  // The first burst follows the live tuned burst length, not the kind's static default.
+  for (const m of ship.mounts) m.burstLeft = cfg.turretBurstShots;
   // Which way it circles the player (kept in `breakSide`, which a gunship does not otherwise use).
   ship.breakSide = world.rng.next() < 0.5 ? -1 : 1;
   const index = placeFighter(world.fighters, ship);

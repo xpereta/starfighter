@@ -94,6 +94,7 @@ export function createCapitalRenderer(): CapitalRenderer {
     return arts;
   });
   const at = { x: 0, y: 0 };
+  const pose = { x: 0, y: 0, heading: 0, scale: 1, squash: 1 }; // reused every frame
   return {
     object: group,
     update(world) {
@@ -116,13 +117,11 @@ export function createCapitalRenderer(): CapitalRenderer {
         partCenter(at, cap, def);
         // A capsule is drawn stretched along the axis: the shape's x runs half its length, y the radius.
         const half = (def.radius + (def.length ?? 0) / 2) * s;
-        const pose = {
-          x: at.x,
-          y: at.y,
-          heading: cap.heading,
-          scale: half,
-          squash: (def.radius * s) / half,
-        };
+        pose.x = at.x;
+        pose.y = at.y;
+        pose.heading = cap.heading;
+        pose.scale = half;
+        pose.squash = (def.radius * s) / half;
         const hurt = state.hp < state.maxHp * HURT_SHARE;
         if (!state.alive) {
           arts.live.hide();

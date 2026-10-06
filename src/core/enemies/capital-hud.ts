@@ -77,7 +77,8 @@ export function fillCapitalBar(
     });
   }
   out.segments.length = order.length;
-  order.forEach((index, k) => {
+  for (let k = 0; k < order.length; k++) {
+    const index = order[k]!;
     const def = defs[index]!;
     const part = cap.parts[index]!;
     const seg = out.segments[k]!;
@@ -89,7 +90,7 @@ export function fillCapitalBar(
     seg.covered = part.alive && isCovered(cap, index, defs);
     seg.isCore = index === core;
     seg.coversCore = coreCovers.includes(index);
-  });
+  }
   let standing = 0;
   for (const j of coreCovers) if (cap.parts[j]!.alive) standing++;
   out.corePlates.standing = standing;

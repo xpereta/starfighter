@@ -1,6 +1,7 @@
 import { CAPITAL_DESIGN_RADIUS, CAPITAL_PARTS } from '../../../data/content/capital';
 import type { CapitalConfig } from '../../../data/tuning/capital';
 import { wrapAngle } from '../math';
+import { findPilot } from '../pilots/pilots';
 import type { Rng } from '../rng/rng';
 import type { Collider } from '../world/target';
 import type { World } from '../world/world';
@@ -225,7 +226,22 @@ function destroyPart(
   if (def.role === 'core') {
     cap.phase = 1; // the death chain takes over (capital-ai.ts)
     cap.chainTime = 0;
+    creditCapitalKill(world, cap);
   }
+}
+
+/**
+ * The boss counts as one kill, credited when its core dies (parts do not credit): the run's kill
+ * stats and the battle's debrief count it, and the pilot who landed the last core damage gets it
+ * (the player's own kills credit nobody). No `Killed` event: its death sequence is the capital's own.
+ */
+function creditCapitalKill(world: World, cap: CapitalState): void {
+  world.stats.kills++;
+  if (world.run.mode === 'run') world.run.battleKills++;
+  const pilot = cap.lastHitBy > 0 ? findPilot(world.pilots, cap.lastHitBy) : undefined;
+  if (!pilot) return;
+  pilot.kills++;
+  world.events.emit({ type: 'PilotKill', pilotId: pilot.id });
 }
 
 /**

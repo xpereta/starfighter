@@ -213,14 +213,22 @@ export function stepWorld(world: World, dt: number): void {
       tuning.rescue.podThreatRange,
       world.events,
     );
-    world.stats.hitsTaken += stepEnemyShots(
+    // Run mode: a short protection after a bullet hit, so a burst cannot chain-kill (tuning `run.hitProtection`).
+    const inRun = world.run.mode === 'run';
+    const protection = inRun ? tuning.run.hitProtection : 0;
+    world.run.hitProtect = Math.max(0, world.run.hitProtect - dt);
+    const bulletHits = stepEnemyShots(
       world.enemyShots,
       world.ship,
       tuning.arena,
       world.events,
       dt,
-      world.run.mode === 'run' ? world.run.hull : 0,
+      inRun ? world.run.hull : 0,
+      world.run.hitProtect > 0,
+      protection > 0,
     );
+    if (bulletHits > 0 && protection > 0) world.run.hitProtect = protection;
+    world.stats.hitsTaken += bulletHits;
     // Prototype 5 (B): enemy missiles home on the player; a hit's hull points count like bullet hits.
     world.stats.hitsTaken += stepEnemyMissiles(world);
   }

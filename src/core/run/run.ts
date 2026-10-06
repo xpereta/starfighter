@@ -57,6 +57,8 @@ export interface Run {
   waveStartTick: number;
   /** `stats.hitsTaken` already charged to the hull. */
   hitsSeen: number;
+  /** Seconds left of the short protection after an enemy bullet hit (`run.hitProtection`): bullets pass through. 0 = none. */
+  hitProtect: number;
   /** Enemies destroyed and pilots lost in the current battle (what the debrief reports). */
   battleKills: number;
   battleLost: number;
@@ -80,6 +82,7 @@ export function createRun(): Run {
     waveTotal: 0,
     waveStartTick: 0,
     hitsSeen: 0,
+    hitProtect: 0,
     battleKills: 0,
     battleLost: 0,
     candidates: [],
@@ -220,6 +223,7 @@ export function startBattle(world: World, n: number): void {
   run.battleKills = 0;
   run.battleLost = 0;
   run.hitsSeen = world.stats.hitsTaken;
+  run.hitProtect = 0;
   if (n === 1) run.hull = cfg.playerHull;
   run.candidates = [];
   world.events.emit({ type: 'BattleStarted', battle: n });
@@ -400,6 +404,7 @@ export function mixRun(mix: (n: number) => void, run: Run): void {
   mix(run.waveTotal);
   mix(run.waveStartTick);
   mix(run.hitsSeen);
+  mix(run.hitProtect);
   mix(run.battleKills);
   mix(run.battleLost);
   mix(run.candidates.length);
